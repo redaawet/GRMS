@@ -1,2 +1,9 @@
-# GRMS
-The Gravel Road Management System (GRMS) aims to replace manual and spreadsheet methods used by Regional Road Authorities. This SRAD outlines the design, development, deployment, and handover of GRMS, ensuring it meets operational, technical, and sustainability needs for both decision-makers and technical staff.
+GRMS Full System (Phase 1) - Backend scaffold
+
+Quick start:
+1. Create virtualenv, install requirements: pip install -r requirements.txt
+2. Configure PostGIS DB in project/settings.py
+3. python manage.py migrate
+4. python manage.py loaddata fixtures.json
+5. python manage.py createsuperuser
+6. python manage.py runserver

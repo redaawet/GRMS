@@ -1,0 +1,96 @@
+[
+  {
+    "model": "grms.qastatus",
+    "pk": 1,
+    "fields": {
+      "status_name": "Draft",
+      "description": "Initial draft"
+    }
+  },
+  {
+    "model": "grms.qastatus",
+    "pk": 2,
+    "fields": {
+      "status_name": "In Review",
+      "description": "Under review"
+    }
+  },
+  {
+    "model": "grms.qastatus",
+    "pk": 3,
+    "fields": {
+      "status_name": "Approved",
+      "description": "Approved"
+    }
+  },
+  {
+    "model": "grms.distresstype",
+    "pk": 1,
+    "fields": {
+      "distress_code": "side_drain_silt",
+      "distress_name": "Side Drain - Silt",
+      "category": "drainage",
+      "notes": ""
+    }
+  },
+  {
+    "model": "grms.distresstype",
+    "pk": 2,
+    "fields": {
+      "distress_code": "side_drain_scour",
+      "distress_name": "Side Drain - Scour",
+      "category": "drainage",
+      "notes": ""
+    }
+  },
+  {
+    "model": "grms.activitylookup",
+    "pk": "121",
+    "fields": {
+      "activity_name": "Drain Cleaning (culvert)",
+      "default_unit": "m3",
+      "is_resource_based": false,
+      "notes": ""
+    }
+  },
+  {
+    "model": "grms.activitylookup",
+    "pk": "122",
+    "fields": {
+      "activity_name": "Ditch Cleaning (lined)",
+      "default_unit": "m3",
+      "is_resource_based": false,
+      "notes": ""
+    }
+  },
+  {
+    "model": "grms.activitylookup",
+    "pk": "230",
+    "fields": {
+      "activity_name": "Ditch Cleaning (unlined)",
+      "default_unit": "m3",
+      "is_resource_based": false,
+      "notes": ""
+    }
+  },
+  {
+    "model": "grms.activitylookup",
+    "pk": "240",
+    "fields": {
+      "activity_name": "Minor Carriageway Repair",
+      "default_unit": "m",
+      "is_resource_based": false,
+      "notes": ""
+    }
+  },
+  {
+    "model": "grms.activitylookup",
+    "pk": "241",
+    "fields": {
+      "activity_name": "Major Carriageway Repair",
+      "default_unit": "m3",
+      "is_resource_based": true,
+      "notes": ""
+    }
+  }
+]
