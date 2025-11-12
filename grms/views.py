@@ -45,14 +45,35 @@ class RoadConditionSurveyViewSet(viewsets.ModelViewSet):
     serializer_class = serializers.RoadConditionSurveySerializer
 
 
+class RoadConditionDetailedSurveyViewSet(viewsets.ModelViewSet):
+    queryset = models.RoadConditionDetailedSurvey.objects.select_related(
+        "road_segment", "road_segment__section", "distress", "activity"
+    ).order_by("-inspection_date")
+    serializer_class = serializers.RoadConditionDetailedSurveySerializer
+
+
 class FurnitureConditionSurveyViewSet(viewsets.ModelViewSet):
     queryset = models.FurnitureConditionSurvey.objects.select_related("furniture").order_by("-inspection_date")
     serializer_class = serializers.FurnitureConditionSurveySerializer
 
 
+class FurnitureConditionDetailedSurveyViewSet(viewsets.ModelViewSet):
+    queryset = models.FurnitureConditionDetailedSurvey.objects.select_related(
+        "furniture", "distress", "activity"
+    ).order_by("-inspection_date")
+    serializer_class = serializers.FurnitureConditionDetailedSurveySerializer
+
+
 class StructureConditionSurveyViewSet(viewsets.ModelViewSet):
     queryset = models.StructureConditionSurvey.objects.select_related("structure").order_by("-inspection_date")
     serializer_class = serializers.StructureConditionSurveySerializer
+
+
+class StructureConditionDetailedSurveyViewSet(viewsets.ModelViewSet):
+    queryset = models.StructureConditionDetailedSurvey.objects.select_related(
+        "structure", "structure__road", "distress", "activity"
+    ).order_by("-inspection_date")
+    serializer_class = serializers.StructureConditionDetailedSurveySerializer
 
 
 class BridgeConditionSurveyViewSet(viewsets.ModelViewSet):
@@ -100,6 +121,12 @@ class TrafficForPrioritizationViewSet(viewsets.ModelViewSet):
     serializer_class = serializers.TrafficForPrioritizationSerializer
 
 
+class ActivityLookupViewSet(viewsets.ModelViewSet):
+    queryset = models.ActivityLookup.objects.all()
+    serializer_class = serializers.ActivityLookupSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+
 class InterventionLookupViewSet(viewsets.ModelViewSet):
     queryset = models.InterventionLookup.objects.all()
     serializer_class = serializers.InterventionLookupSerializer
@@ -124,6 +151,24 @@ class RoadSectionInterventionViewSet(viewsets.ModelViewSet):
 class BenefitFactorViewSet(viewsets.ModelViewSet):
     queryset = models.BenefitFactor.objects.select_related("road").all()
     serializer_class = serializers.BenefitFactorSerializer
+
+
+class DistressTypeViewSet(viewsets.ModelViewSet):
+    queryset = models.DistressType.objects.all()
+    serializer_class = serializers.DistressTypeSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+
+class DistressConditionViewSet(viewsets.ModelViewSet):
+    queryset = models.DistressCondition.objects.select_related("distress").all()
+    serializer_class = serializers.DistressConditionSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+
+class DistressActivityViewSet(viewsets.ModelViewSet):
+    queryset = models.DistressActivity.objects.select_related("condition", "activity").all()
+    serializer_class = serializers.DistressActivitySerializer
+    permission_classes = [permissions.IsAuthenticated]
 
 
 class PrioritizationResultViewSet(viewsets.ModelViewSet):
