@@ -68,6 +68,31 @@ class InterventionLookup(models.Model):
         return f"{self.intervention_code} - {self.name}"
 
 
+class ActivityLookup(models.Model):
+    """ERA maintenance activity codes used in detailed surveys."""
+
+    UNIT_CHOICES = [
+        ("m3", "m³"),
+        ("m2", "m²"),
+        ("m", "m"),
+        ("km", "km"),
+        ("item", "item"),
+        ("lump_sum", "lump sum"),
+    ]
+
+    activity_code = models.CharField(max_length=10, primary_key=True)
+    activity_name = models.CharField(max_length=150)
+    default_unit = models.CharField(max_length=10, choices=UNIT_CHOICES)
+    is_resource_based = models.BooleanField(default=False)
+    notes = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ["activity_code"]
+
+    def __str__(self) -> str:  # pragma: no cover - simple repr
+        return f"{self.activity_code} - {self.activity_name}"
+
+
 class UnitCost(models.Model):
     """Regional overrides for intervention unit costs."""
 
@@ -112,6 +137,78 @@ class NightAdjustmentLookup(models.Model):
 
     def __str__(self) -> str:  # pragma: no cover
         return f"{self.hours_counted}h -> {self.adjustment_factor}"
+
+
+class DistressType(models.Model):
+    """Canonical list of distress codes used by surveyors."""
+
+    ROAD = "road"
+    STRUCTURE = "structure"
+    FURNITURE = "furniture"
+    OTHER = "other"
+
+    CATEGORY_CHOICES = [
+        (ROAD, "Road"),
+        (STRUCTURE, "Structure"),
+        (FURNITURE, "Furniture"),
+        (OTHER, "Other"),
+    ]
+
+    distress_code = models.CharField(max_length=50, unique=True)
+    distress_name = models.CharField(max_length=150)
+    category = models.CharField(max_length=20, choices=CATEGORY_CHOICES)
+    notes = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ["distress_code"]
+
+    def __str__(self) -> str:  # pragma: no cover - simple repr
+        return f"{self.distress_code} ({self.category})"
+
+
+class DistressCondition(models.Model):
+    """Represents a severity/extent combination for a distress."""
+
+    SEVERITY_CHOICES = [(1, "Minor"), (2, "Moderate"), (3, "Severe")]
+    EXTENT_CHOICES = [(1, "Isolated"), (2, "Frequent"), (3, "Widespread")]
+
+    distress = models.ForeignKey(DistressType, on_delete=models.CASCADE, related_name="conditions")
+    severity_code = models.PositiveSmallIntegerField(choices=SEVERITY_CHOICES)
+    extent_code = models.PositiveSmallIntegerField(choices=EXTENT_CHOICES, null=True, blank=True)
+    condition_notes = models.TextField(blank=True)
+
+    class Meta:
+        unique_together = ("distress", "severity_code", "extent_code")
+        ordering = ["distress__distress_code", "severity_code", "extent_code"]
+
+    def __str__(self) -> str:  # pragma: no cover - simple repr
+        return f"{self.distress_id} sev{self.severity_code} ext{self.extent_code or 0}"
+
+
+class DistressActivity(models.Model):
+    """Maps a distress condition to one or more ERA activities."""
+
+    SCALE_BASIS_CHOICES = [
+        ("per_segment", "Per segment"),
+        ("per_100m", "Per 100 m"),
+        ("per_1m", "Per 1 m"),
+        ("per_m2", "Per m²"),
+        ("per_culvert", "Per culvert"),
+        ("per_item", "Per item"),
+        ("fixed", "Fixed quantity"),
+    ]
+
+    condition = models.ForeignKey(DistressCondition, on_delete=models.CASCADE, related_name="activities")
+    activity = models.ForeignKey(ActivityLookup, on_delete=models.CASCADE, related_name="distress_links")
+    quantity_value = models.DecimalField(max_digits=12, decimal_places=3)
+    scale_basis = models.CharField(max_length=20, choices=SCALE_BASIS_CHOICES)
+    notes = models.TextField(blank=True)
+
+    class Meta:
+        unique_together = ("condition", "activity")
+
+    def __str__(self) -> str:  # pragma: no cover - simple repr
+        return f"{self.condition_id} -> {self.activity_id}"
 
 
 # ---------------------------------------------------------------------------
@@ -530,6 +627,161 @@ class FurnitureConditionSurvey(models.Model):
 
     def __str__(self) -> str:  # pragma: no cover
         return f"Furniture survey {self.id} ({self.furniture_id})"
+
+
+class RoadConditionDetailedSurvey(models.Model):
+    """Detailed severity/extent survey for a road segment."""
+
+    SURVEY_LEVEL_CHOICES = [("network", "Network"), ("detailed", "Detailed")]
+    QUANTITY_UNIT_CHOICES = [("m3", "m³"), ("m2", "m²"), ("m", "m"), ("km", "km")]
+    QUANTITY_SOURCE_CHOICES = [("lookup", "Lookup"), ("manual_override", "Manual override")]
+
+    survey_level = models.CharField(max_length=10, choices=SURVEY_LEVEL_CHOICES)
+    awp = models.ForeignKey(
+        "AnnualWorkPlan",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="road_detailed_surveys",
+    )
+    road_segment = models.ForeignKey(RoadSegment, on_delete=models.CASCADE, related_name="detailed_surveys")
+    distress = models.ForeignKey(DistressType, on_delete=models.PROTECT, related_name="road_surveys")
+    distress_condition = models.ForeignKey(
+        DistressCondition,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="road_surveys",
+    )
+    severity_code = models.PositiveSmallIntegerField(choices=DistressCondition.SEVERITY_CHOICES, null=True, blank=True)
+    extent_code = models.PositiveSmallIntegerField(choices=DistressCondition.EXTENT_CHOICES, null=True, blank=True)
+    extent_percent = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    distress_length_m = models.DecimalField(max_digits=9, decimal_places=2, null=True, blank=True)
+    distress_area_m2 = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    distress_volume_m3 = models.DecimalField(max_digits=12, decimal_places=3, null=True, blank=True)
+    observed_gravel_thickness_mm = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True)
+    carriageway_width_m = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True)
+    shoulder_width_left_m = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True)
+    shoulder_width_right_m = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True)
+    ditch_left_present = models.BooleanField(default=False, null=True, blank=True)
+    ditch_right_present = models.BooleanField(default=False, null=True, blank=True)
+    activity = models.ForeignKey(ActivityLookup, on_delete=models.SET_NULL, null=True, blank=True)
+    quantity_unit = models.CharField(max_length=4, choices=QUANTITY_UNIT_CHOICES, null=True, blank=True)
+    quantity_estimated = models.DecimalField(max_digits=14, decimal_places=3, null=True, blank=True)
+    quantity_source = models.CharField(max_length=20, choices=QUANTITY_SOURCE_CHOICES, default="lookup")
+    severity_notes = models.TextField(blank=True)
+    inspected_by = models.CharField(max_length=150, null=True, blank=True)
+    inspection_date = models.DateField(null=True, blank=True)
+    comments = models.TextField(blank=True)
+    qa_status = models.ForeignKey(QAStatus, on_delete=models.PROTECT, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-inspection_date", "road_segment_id"]
+
+    def __str__(self) -> str:  # pragma: no cover
+        return f"Road detailed survey {self.id} ({self.road_segment_id})"
+
+
+class StructureConditionDetailedSurvey(models.Model):
+    """Detailed severity survey for a structure asset."""
+
+    SURVEY_LEVEL_CHOICES = [("network", "Network"), ("detailed", "Detailed")]
+    QUANTITY_UNIT_CHOICES = [("m3", "m³"), ("m2", "m²"), ("item", "item")]
+
+    survey_level = models.CharField(max_length=10, choices=SURVEY_LEVEL_CHOICES)
+    awp = models.ForeignKey(
+        "AnnualWorkPlan",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="structure_detailed_surveys",
+    )
+    structure = models.ForeignKey(
+        StructureInventory,
+        on_delete=models.CASCADE,
+        related_name="detailed_surveys",
+    )
+    distress = models.ForeignKey(DistressType, on_delete=models.PROTECT, related_name="structure_surveys")
+    distress_condition = models.ForeignKey(
+        DistressCondition,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="structure_surveys",
+    )
+    severity_code = models.PositiveSmallIntegerField(choices=DistressCondition.SEVERITY_CHOICES)
+    extent_code = models.PositiveSmallIntegerField(choices=DistressCondition.EXTENT_CHOICES, null=True, blank=True)
+    distress_length_m = models.DecimalField(max_digits=9, decimal_places=2, null=True, blank=True)
+    distress_area_m2 = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    distress_volume_m3 = models.DecimalField(max_digits=12, decimal_places=3, null=True, blank=True)
+    check_dam_count = models.IntegerField(null=True, blank=True)
+    activity = models.ForeignKey(ActivityLookup, on_delete=models.SET_NULL, null=True, blank=True)
+    quantity_unit = models.CharField(max_length=4, choices=QUANTITY_UNIT_CHOICES, null=True, blank=True)
+    quantity_estimated = models.DecimalField(max_digits=14, decimal_places=3, null=True, blank=True)
+    computed_by_lookup = models.BooleanField(default=True)
+    severity_notes = models.TextField(blank=True)
+    inspected_by = models.CharField(max_length=150, null=True, blank=True)
+    inspection_date = models.DateField(null=True, blank=True)
+    comments = models.TextField(blank=True)
+    qa_status = models.ForeignKey(QAStatus, on_delete=models.PROTECT, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-inspection_date", "structure_id"]
+
+    def __str__(self) -> str:  # pragma: no cover
+        return f"Structure detailed survey {self.id} ({self.structure_id})"
+
+
+class FurnitureConditionDetailedSurvey(models.Model):
+    """Detailed defect records for road furniture."""
+
+    SURVEY_LEVEL_CHOICES = [("network", "Network"), ("detailed", "Detailed")]
+    QUANTITY_UNIT_CHOICES = [("item", "item"), ("m", "m")]
+
+    survey_level = models.CharField(max_length=10, choices=SURVEY_LEVEL_CHOICES)
+    awp = models.ForeignKey(
+        "AnnualWorkPlan",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="furniture_detailed_surveys",
+    )
+    furniture = models.ForeignKey(
+        FurnitureInventory,
+        on_delete=models.CASCADE,
+        related_name="detailed_surveys",
+    )
+    distress = models.ForeignKey(DistressType, on_delete=models.PROTECT, related_name="furniture_surveys")
+    distress_condition = models.ForeignKey(
+        DistressCondition,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="furniture_surveys",
+    )
+    severity_code = models.PositiveSmallIntegerField(choices=DistressCondition.SEVERITY_CHOICES)
+    extent_code = models.PositiveSmallIntegerField(choices=DistressCondition.EXTENT_CHOICES, null=True, blank=True)
+    quantity_unit = models.CharField(max_length=4, choices=QUANTITY_UNIT_CHOICES, null=True, blank=True)
+    quantity_estimated = models.DecimalField(max_digits=12, decimal_places=3, null=True, blank=True)
+    activity = models.ForeignKey(ActivityLookup, on_delete=models.SET_NULL, null=True, blank=True)
+    computed_by_lookup = models.BooleanField(default=True)
+    severity_notes = models.TextField(blank=True)
+    inspected_by = models.CharField(max_length=150, null=True, blank=True)
+    inspection_date = models.DateField(null=True, blank=True)
+    comments = models.TextField(blank=True)
+    qa_status = models.ForeignKey(QAStatus, on_delete=models.PROTECT, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-inspection_date", "furniture_id"]
+
+    def __str__(self) -> str:  # pragma: no cover
+        return f"Furniture detailed survey {self.id} ({self.furniture_id})"
 
 
 # ---------------------------------------------------------------------------

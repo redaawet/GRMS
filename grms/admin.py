@@ -1,14 +1,20 @@
 from django.contrib import admin
-from .models import *
-admin.site.register(Road)
-admin.site.register(RoadSection)
-admin.site.register(RoadSegment)
-admin.site.register(StructureInventory)
-admin.site.register(FurnitureInventory)
-admin.site.register(QAStatus)
-admin.site.register(AnnualWorkPlan)
-admin.site.register(DistressType)
-admin.site.register(ActivityLookup)
-admin.site.register(DistressCondition)
-admin.site.register(DistressActivity)
-admin.site.register(RoadSegmentConditionSurvey)
+
+from . import models
+
+
+admin.site.register(models.Road)
+admin.site.register(models.RoadSection)
+admin.site.register(models.RoadSegment)
+admin.site.register(models.StructureInventory)
+admin.site.register(models.FurnitureInventory)
+admin.site.register(models.QAStatus)
+admin.site.register(models.AnnualWorkPlan)
+admin.site.register(models.ActivityLookup)
+admin.site.register(models.DistressType)
+admin.site.register(models.DistressCondition)
+admin.site.register(models.DistressActivity)
+admin.site.register(models.RoadConditionSurvey)
+admin.site.register(models.RoadConditionDetailedSurvey)
+admin.site.register(models.StructureConditionDetailedSurvey)
+admin.site.register(models.FurnitureConditionDetailedSurvey)

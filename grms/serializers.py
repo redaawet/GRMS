@@ -79,6 +79,24 @@ class FurnitureConditionSurveySerializer(serializers.ModelSerializer):
         fields = "__all__"
 
 
+class RoadConditionDetailedSurveySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.RoadConditionDetailedSurvey
+        fields = "__all__"
+
+
+class StructureConditionDetailedSurveySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.StructureConditionDetailedSurvey
+        fields = "__all__"
+
+
+class FurnitureConditionDetailedSurveySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.FurnitureConditionDetailedSurvey
+        fields = "__all__"
+
+
 class StructureConditionSurveySerializer(serializers.ModelSerializer):
     class Meta:
         model = models.StructureConditionSurvey
@@ -159,6 +177,12 @@ class TrafficForPrioritizationSerializer(serializers.ModelSerializer):
         fields = "__all__"
 
 
+class ActivityLookupSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.ActivityLookup
+        fields = "__all__"
+
+
 class InterventionLookupSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.InterventionLookup
@@ -186,6 +210,24 @@ class RoadSectionInterventionSerializer(serializers.ModelSerializer):
 class BenefitFactorSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.BenefitFactor
+        fields = "__all__"
+
+
+class DistressTypeSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.DistressType
+        fields = "__all__"
+
+
+class DistressConditionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.DistressCondition
+        fields = "__all__"
+
+
+class DistressActivitySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.DistressActivity
         fields = "__all__"
 
 
