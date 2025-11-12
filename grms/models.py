@@ -210,4 +210,5 @@ class RoadSegmentConditionSurvey(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return f"Survey {self.survey_id} for segment {self.road_segment_id}"
+        segment_display = self.road_segment or "unknown segment"
+        return f"Survey {self.survey_id} for segment {segment_display}"
