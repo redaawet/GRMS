@@ -1,5 +1,12 @@
 from rest_framework import serializers
-from .models import *
+
+from .models import (
+    Road,
+    RoadSection,
+    RoadSegment,
+    RoadSegmentConditionSurvey,
+    StructureInventory,
+)
 
 class RoadSerializer(serializers.ModelSerializer):
     class Meta:
