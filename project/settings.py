@@ -3,6 +3,13 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'change-me-in-production'
 DEBUG = True
 ALLOWED_HOSTS = ['*']
+# settings.py
+GDAL_LIBRARY_PATH = r"C:\Users\LENOVO\AppData\Local\Programs\OSGeo4W\bin\gdal311.dll"
+GEOS_LIBRARY_PATH = r"C:\Users\LENOVO\AppData\Local\Programs\OSGeo4W\bin\geos_c.dll"
+
+import os
+os.environ.setdefault("GDAL_DATA", r"C:\Users\LENOVO\AppData\Local\Programs\OSGeo4W\share\gdal")
+os.environ.setdefault("PROJ_LIB",  r"C:\Users\LENOVO\AppData\Local\Programs\OSGeo4W\share\proj")
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -50,9 +57,9 @@ WSGI_APPLICATION = 'project.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.contrib.gis.db.backends.postgis',
-        'NAME': 'grms_db',
-        'USER': 'grms_user',
-        'PASSWORD': 'Mniece@01-29',
+        'NAME': 'grms',
+        'USER': 'postgres',
+        'PASSWORD': 'Mniece@01-25',
         'HOST': 'localhost',
         'PORT': '5432',
     }
