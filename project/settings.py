@@ -7,6 +7,12 @@ DEBUG = True
 ALLOWED_HOSTS = ['*']
 
 USE_POSTGIS = os.environ.get('USE_POSTGIS', '').lower() in {'1', 'true', 'yes'}
+# settings.py
+GDAL_LIBRARY_PATH = r"C:\Users\LENOVO\AppData\Local\Programs\OSGeo4W\bin\gdal311.dll"
+GEOS_LIBRARY_PATH = r"C:\Users\LENOVO\AppData\Local\Programs\OSGeo4W\bin\geos_c.dll"
+
+os.environ.setdefault("GDAL_DATA", r"C:\Users\LENOVO\AppData\Local\Programs\OSGeo4W\share\gdal")
+os.environ.setdefault("PROJ_LIB",  r"C:\Users\LENOVO\AppData\Local\Programs\OSGeo4W\share\proj")
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -17,6 +23,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'rest_framework',
     'corsheaders',
+    'django.contrib.gis',
     'grms',
 ]
 
