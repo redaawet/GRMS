@@ -3,6 +3,8 @@ from django.contrib import admin
 from . import models
 
 
+admin.site.register(models.AdminZone)
+admin.site.register(models.AdminWoreda)
 admin.site.register(models.Road)
 admin.site.register(models.RoadSection)
 admin.site.register(models.RoadSegment)
