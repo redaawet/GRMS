@@ -3,24 +3,21 @@
     "model": "grms.qastatus",
     "pk": 1,
     "fields": {
-      "status_name": "Draft",
-      "description": "Initial draft"
+      "status": "Draft"
     }
   },
   {
     "model": "grms.qastatus",
     "pk": 2,
     "fields": {
-      "status_name": "In Review",
-      "description": "Under review"
+      "status": "In Review"
     }
   },
   {
     "model": "grms.qastatus",
     "pk": 3,
     "fields": {
-      "status_name": "Approved",
-      "description": "Approved"
+      "status": "Approved"
     }
   },
   {
@@ -29,7 +26,7 @@
     "fields": {
       "distress_code": "side_drain_silt",
       "distress_name": "Side Drain - Silt",
-      "category": "drainage",
+      "category": "road",
       "notes": ""
     }
   },
@@ -39,7 +36,7 @@
     "fields": {
       "distress_code": "side_drain_scour",
       "distress_name": "Side Drain - Scour",
-      "category": "drainage",
+      "category": "road",
       "notes": ""
     }
   },
@@ -47,6 +44,7 @@
     "model": "grms.activitylookup",
     "pk": "121",
     "fields": {
+      "activity_code": "121",
       "activity_name": "Drain Cleaning (culvert)",
       "default_unit": "m3",
       "is_resource_based": false,
@@ -57,6 +55,7 @@
     "model": "grms.activitylookup",
     "pk": "122",
     "fields": {
+      "activity_code": "122",
       "activity_name": "Ditch Cleaning (lined)",
       "default_unit": "m3",
       "is_resource_based": false,
@@ -67,6 +66,7 @@
     "model": "grms.activitylookup",
     "pk": "230",
     "fields": {
+      "activity_code": "230",
       "activity_name": "Ditch Cleaning (unlined)",
       "default_unit": "m3",
       "is_resource_based": false,
@@ -77,6 +77,7 @@
     "model": "grms.activitylookup",
     "pk": "240",
     "fields": {
+      "activity_code": "240",
       "activity_name": "Minor Carriageway Repair",
       "default_unit": "m",
       "is_resource_based": false,
@@ -87,6 +88,7 @@
     "model": "grms.activitylookup",
     "pk": "241",
     "fields": {
+      "activity_code": "241",
       "activity_name": "Major Carriageway Repair",
       "default_unit": "m3",
       "is_resource_based": true,
