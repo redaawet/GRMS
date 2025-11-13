@@ -8,7 +8,7 @@ from django.db import models
 try:  # pragma: no cover - exercised when GDAL is available
     from django.contrib.gis.db.models import LineStringField as DjangoLineStringField
     from django.contrib.gis.db.models import PointField as DjangoPointField
-except (ImproperlyConfigured, ImportError):  # pragma: no cover - runtime fallback
+except (ImproperlyConfigured, ImportError, OSError):  # pragma: no cover - runtime fallback
     class _GeometryJSONField(models.JSONField):
         description = "Geometry stored as GeoJSON when spatial libraries are unavailable"
 
