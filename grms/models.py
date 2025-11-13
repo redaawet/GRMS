@@ -11,9 +11,9 @@ from __future__ import annotations
 from decimal import Decimal
 from typing import Iterable, Optional
 
-from django.contrib.gis.db import models as gis_models
 from django.db import models
 
+from .gis_fields import LineStringField, PointField
 
 # ---------------------------------------------------------------------------
 # Lookup tables
@@ -237,8 +237,8 @@ class Road(models.Model):
     admin_zone = models.CharField(max_length=50, help_text="Administrative zone")
     admin_woreda = models.CharField(max_length=100, help_text="Administrative Woreda")
     total_length_km = models.DecimalField(max_digits=6, decimal_places=2)
-    road_start_coordinates = gis_models.PointField(srid=4326, null=True, blank=True)
-    road_end_coordinates = gis_models.PointField(srid=4326, null=True, blank=True)
+    road_start_coordinates = PointField(srid=4326, null=True, blank=True)
+    road_end_coordinates = PointField(srid=4326, null=True, blank=True)
     surface_type = models.CharField(
         max_length=10,
         choices=[("Earth", "Earth"), ("Gravel", "Gravel"), ("Paved", "Paved")],
@@ -268,8 +268,8 @@ class RoadSection(models.Model):
     start_chainage_km = models.DecimalField(max_digits=8, decimal_places=3, help_text="Section start chainage (km)")
     end_chainage_km = models.DecimalField(max_digits=8, decimal_places=3, help_text="Section end chainage (km)")
     length_km = models.DecimalField(max_digits=8, decimal_places=3, help_text="Section length (km)")
-    start_coordinates = gis_models.PointField(srid=4326, null=True, blank=True, help_text="Section start GPS")
-    end_coordinates = gis_models.PointField(srid=4326, null=True, blank=True, help_text="Section end GPS")
+    start_coordinates = PointField(srid=4326, null=True, blank=True, help_text="Section start GPS")
+    end_coordinates = PointField(srid=4326, null=True, blank=True, help_text="Section end GPS")
     surface_type = models.CharField(
         max_length=10,
         choices=[("Earth", "Earth"), ("Gravel", "Gravel"), ("Asphalt", "Asphalt")],
@@ -283,7 +283,7 @@ class RoadSection(models.Model):
     )
     inspector_name = models.CharField(max_length=150, blank=True)
     inspection_date = models.DateField(null=True, blank=True)
-    geometry = gis_models.LineStringField(srid=4326, null=True, blank=True, help_text="Section geometry (LineString)")
+    geometry = LineStringField(srid=4326, null=True, blank=True, help_text="Section geometry (LineString)")
     attachments = models.JSONField(null=True, blank=True, help_text="Photos/documents URLs or metadata")
 
     def __str__(self) -> str:  # pragma: no cover
@@ -354,7 +354,7 @@ class StructureInventory(models.Model):
         help_text="Optional road section reference",
     )
     station_km = models.DecimalField(max_digits=8, decimal_places=3, help_text="Location along road (chainage km)")
-    location_point = gis_models.PointField(srid=4326, null=True, blank=True, help_text="GPS coordinates of the structure")
+    location_point = PointField(srid=4326, null=True, blank=True, help_text="GPS coordinates of the structure")
     structure_category = models.CharField(
         max_length=20,
         choices=[
@@ -809,7 +809,7 @@ class TrafficSurvey(models.Model):
         help_text="Traffic counting method",
     )
     observer = models.CharField(max_length=150, blank=True, help_text="Observer/team name")
-    location_override = gis_models.PointField(
+    location_override = PointField(
         srid=4326,
         null=True,
         blank=True,

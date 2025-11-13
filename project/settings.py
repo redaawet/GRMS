@@ -1,15 +1,12 @@
 from pathlib import Path
+import os
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'change-me-in-production'
 DEBUG = True
 ALLOWED_HOSTS = ['*']
-# settings.py
-GDAL_LIBRARY_PATH = r"C:\Users\LENOVO\AppData\Local\Programs\OSGeo4W\bin\gdal311.dll"
-GEOS_LIBRARY_PATH = r"C:\Users\LENOVO\AppData\Local\Programs\OSGeo4W\bin\geos_c.dll"
 
-import os
-os.environ.setdefault("GDAL_DATA", r"C:\Users\LENOVO\AppData\Local\Programs\OSGeo4W\share\gdal")
-os.environ.setdefault("PROJ_LIB",  r"C:\Users\LENOVO\AppData\Local\Programs\OSGeo4W\share\proj")
+USE_POSTGIS = os.environ.get('USE_POSTGIS', '').lower() in {'1', 'true', 'yes'}
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -18,11 +15,13 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'django.contrib.gis',
     'rest_framework',
     'corsheaders',
     'grms',
 ]
+
+if USE_POSTGIS:
+    INSTALLED_APPS.insert(6, 'django.contrib.gis')
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -54,16 +53,24 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'project.wsgi.application'
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.contrib.gis.db.backends.postgis',
-        'NAME': 'grms',
-        'USER': 'postgres',
-        'PASSWORD': 'Mniece@01-25',
-        'HOST': 'localhost',
-        'PORT': '5432',
+if USE_POSTGIS:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.contrib.gis.db.backends.postgis',
+            'NAME': os.environ.get('POSTGRES_DB', 'grms'),
+            'USER': os.environ.get('POSTGRES_USER', 'postgres'),
+            'PASSWORD': os.environ.get('POSTGRES_PASSWORD', 'Mniece@01-25'),
+            'HOST': os.environ.get('POSTGRES_HOST', 'localhost'),
+            'PORT': os.environ.get('POSTGRES_PORT', '5432'),
+        }
     }
-}
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': os.environ.get('SQLITE_NAME', str(BASE_DIR / 'db.sqlite3')),
+        }
+    }
 
 AUTH_PASSWORD_VALIDATORS = []
 
