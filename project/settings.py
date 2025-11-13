@@ -90,3 +90,10 @@ REST_FRAMEWORK = {
 }
 
 CORS_ALLOW_ALL_ORIGINS = True
+
+# Use cookie-based sessions so the admin can function even when the
+# database-backed session table has not been created yet.  This keeps the
+# project self-contained when running the lightweight SQLite setup.
+SESSION_ENGINE = os.environ.get(
+    'SESSION_ENGINE', 'django.contrib.sessions.backends.signed_cookies'
+)
