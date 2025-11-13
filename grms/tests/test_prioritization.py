@@ -17,12 +17,14 @@ class RoadNetworkMixin:
     """Utility helpers to create minimal road/segment hierarchies for tests."""
 
     def create_network(self, prefix: str = "Test"):
+        zone, _ = models.AdminZone.objects.get_or_create(name="Zone")
+        woreda, _ = models.AdminWoreda.objects.get_or_create(name="Woreda", zone=zone)
         road = models.Road.objects.create(
             road_name_from=f"{prefix} From",
             road_name_to=f"{prefix} To",
             design_standard="DC1",
-            admin_zone="Zone",
-            admin_woreda="Woreda",
+            admin_zone=zone,
+            admin_woreda=woreda,
             total_length_km=Decimal("10.0"),
             surface_type="Earth",
             managing_authority="Federal",
