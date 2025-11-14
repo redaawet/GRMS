@@ -1,0 +1,45 @@
+{% extends "admin/change_form.html" %}
+{% load static %}
+
+{% block extrahead %}
+    {{ block.super }}
+    {% if road_admin_config %}
+        {{ road_admin_config|json_script:"road-admin-config" }}
+    {% endif %}
+    <link rel="stylesheet" href="{% static 'grms/css/road-admin.css' %}">
+    <script src="{% static 'grms/js/road-admin.js' %}" defer></script>
+{% endblock %}
+
+{% block after_field_sets %}
+    {{ block.super }}
+    <div id="road-map-panel"
+         class="road-map-panel"
+         data-road-id="{{ road_admin_config.road_id|default_if_none:'' }}"
+         data-route-url="{{ road_admin_config.api.route }}"
+         data-map-context-url="{{ road_admin_config.api.map_context }}"
+         data-google-key="{{ road_admin_config.google_maps_api_key }}">
+        <div class="road-map-panel__placeholder">
+            <h3>Road alignment preview</h3>
+            <p>Use the controls below to visualize the selected road on Google Maps.</p>
+        </div>
+    </div>
+    <div class="road-map-panel__status" id="road-map-status">
+        {% if road_admin_config and not road_admin_config.google_maps_api_key %}
+            Google Maps integration is disabled because the GOOGLE_MAPS_API_KEY environment variable is not configured.
+        {% endif %}
+    </div>
+    <div class="road-map-panel__actions">
+        <div class="road-map-panel__selectors">
+            <label><input type="radio" name="road-marker" value="start" checked> Set start</label>
+            <label><input type="radio" name="road-marker" value="end"> Set end</label>
+            <select id="road-travel-mode">
+                {% for mode in travel_modes %}
+                    <option value="{{ mode }}">{{ mode|title }}</option>
+                {% endfor %}
+            </select>
+            <button type="button" class="button" id="road-map-refresh">Refresh map</button>
+            <button type="button" class="button" id="road-route-preview">Preview route</button>
+        </div>
+        <p class="help">Click anywhere on the map to set the active marker. The selected latitude and longitude are copied to the form fields above.</p>
+    </div>
+{% endblock %}

@@ -5,13 +5,16 @@ from __future__ import annotations
 from unittest import mock
 
 from django.urls import reverse
+from django.test import override_settings
 from rest_framework import status
 from rest_framework.test import APITestCase
 
+from grms import models
 from grms.services import google_maps
 from grms.tests.test_prioritization import RoadNetworkMixin
 
 
+@override_settings(GOOGLE_MAPS_API_KEY="test-key")
 class RoutePlanningTests(RoadNetworkMixin, APITestCase):
     """Integration-style tests for the road route endpoint."""
 
@@ -123,3 +126,42 @@ class RoutePlanningTests(RoadNetworkMixin, APITestCase):
         self.assertEqual(response.status_code, status.HTTP_502_BAD_GATEWAY)
         self.assertIn("geocode", response.json()["detail"])
         mock_geo.assert_called_once()
+
+    @mock.patch("grms.services.google_maps.get_admin_area_viewport")
+    def test_map_context_allows_zone_and_woreda_overrides(self, mock_geo):
+        mock_geo.return_value = {"viewport": None, "bounds": None, "center": {"lat": 10.0, "lng": 40.0}}
+        road, _, _ = self.create_network("Override")
+        zone = models.AdminZone.objects.create(name="Another Zone")
+        woreda = models.AdminWoreda.objects.create(name="Another Woreda", zone=zone)
+        url = reverse("road_map_context", args=[road.id])
+        response = self.client.get(url + f"?zone_id={zone.id}&woreda_id={woreda.id}")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        payload = response.json()
+        self.assertEqual(payload["zone"], {"id": zone.id, "name": zone.name})
+        self.assertEqual(payload["woreda"], {"id": woreda.id, "name": woreda.name})
+        mock_geo.assert_called_once_with(zone.name, woreda.name)
+
+    @mock.patch("grms.services.google_maps.get_admin_area_viewport")
+    def test_map_context_validates_mismatched_overrides(self, mock_geo):
+        mock_geo.return_value = {"center": {"lat": 0, "lng": 0}, "viewport": None, "bounds": None}
+        road, _, _ = self.create_network("InvalidOverride")
+        zone = models.AdminZone.objects.create(name="Third Zone")
+        wrong_zone = models.AdminZone.objects.create(name="Wrong Zone")
+        woreda = models.AdminWoreda.objects.create(name="Third Woreda", zone=zone)
+        url = reverse("road_map_context", args=[road.id])
+        response = self.client.get(url + f"?zone_id={wrong_zone.id}&woreda_id={woreda.id}")
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("detail", response.json())
+        mock_geo.assert_not_called()
+
+    @override_settings(GOOGLE_MAPS_API_KEY="")
+    @mock.patch("grms.services.google_maps.get_admin_area_viewport")
+    def test_map_context_short_circuits_when_api_key_missing(self, mock_geo):
+        road, _, _ = self.create_network("NoKey")
+        url = reverse("road_map_context", args=[road.id])
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_503_SERVICE_UNAVAILABLE)
+        payload = response.json()
+        self.assertIn("GOOGLE_MAPS_API_KEY", payload["detail"])
+        self.assertEqual(payload["map_region"], None)
+        mock_geo.assert_not_called()
