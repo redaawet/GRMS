@@ -3,16 +3,20 @@
 from __future__ import annotations
 
 from decimal import Decimal
-from typing import Dict, List
+from typing import Dict, List, Optional
 
+from django.conf import settings
+from django.core.exceptions import ImproperlyConfigured
 from django.db import transaction
 from django.db.models import QuerySet
-from rest_framework import permissions, viewsets
+from django.shortcuts import get_object_or_404
+from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.request import Request
 from rest_framework.response import Response
 
 from . import models, serializers
+from .services import google_maps
 
 
 class RoadViewSet(viewsets.ModelViewSet):
@@ -179,6 +183,89 @@ class PrioritizationResultViewSet(viewsets.ModelViewSet):
 class AnnualWorkPlanViewSet(viewsets.ModelViewSet):
     queryset = models.AnnualWorkPlan.objects.select_related("road").all()
     serializer_class = serializers.AnnualWorkPlanSerializer
+
+
+def _make_point(lat: float, lng: float):
+    """Return a geometry suitable for the configured database backend."""
+
+    if settings.USE_POSTGIS:
+        from django.contrib.gis.geos import Point  # pragma: no cover - requires GEOS
+
+        return Point(lng, lat, srid=4326)
+    return {"type": "Point", "coordinates": [lng, lat], "srid": 4326}
+
+
+def _point_to_lat_lng(point) -> Optional[Dict[str, float]]:
+    """Convert a stored point to ``{"lat", "lng"}`` regardless of backend."""
+
+    if not point:
+        return None
+    try:
+        lng = float(point.x)
+        lat = float(point.y)
+    except AttributeError:
+        coords = None
+        if isinstance(point, dict):
+            coords = point.get("coordinates")
+        if not coords or len(coords) < 2:
+            return None
+        lng, lat = float(coords[0]), float(coords[1])
+    return {"lat": lat, "lng": lng}
+
+
+@api_view(["GET", "POST"])
+def update_road_route(request: Request, pk: int) -> Response:
+    """Store or reuse road endpoints and retrieve the Google Maps route."""
+
+    road = get_object_or_404(models.Road, pk=pk)
+
+    if request.method == "POST":
+        serializer = serializers.RoadRouteRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        start = serializer.validated_data["start"]
+        end = serializer.validated_data["end"]
+        travel_mode = serializer.validated_data["travel_mode"]
+
+        road.road_start_coordinates = _make_point(start["lat"], start["lng"])
+        road.road_end_coordinates = _make_point(end["lat"], end["lng"])
+        road.save(update_fields=["road_start_coordinates", "road_end_coordinates"])
+    else:
+        start = _point_to_lat_lng(road.road_start_coordinates)
+        end = _point_to_lat_lng(road.road_end_coordinates)
+        if not start or not end:
+            return Response(
+                {"detail": "Road is missing start or end coordinates."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        serializer = serializers.RoadRouteRequestSerializer(
+            data={
+                "start": start,
+                "end": end,
+                "travel_mode": request.query_params.get("travel_mode", "DRIVING"),
+            }
+        )
+        serializer.is_valid(raise_exception=True)
+        travel_mode = serializer.validated_data["travel_mode"]
+        start = serializer.validated_data["start"]
+        end = serializer.validated_data["end"]
+
+    try:
+        route = google_maps.get_directions(
+            start_lat=start["lat"],
+            start_lng=start["lng"],
+            end_lat=end["lat"],
+            end_lng=end["lng"],
+            travel_mode=travel_mode,
+        )
+    except ImproperlyConfigured as exc:
+        return Response({"detail": str(exc)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    except google_maps.GoogleMapsError as exc:
+        return Response({"detail": str(exc)}, status=status.HTTP_502_BAD_GATEWAY)
+
+    return Response(
+        {"road": road.id, "start": start, "end": end, "travel_mode": travel_mode, "route": route},
+        status=status.HTTP_200_OK,
+    )
 
 
 @api_view(["POST"])
