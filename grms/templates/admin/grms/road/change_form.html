@@ -23,7 +23,11 @@
             <p>Use the controls below to visualize the selected road on Google Maps.</p>
         </div>
     </div>
-    <div class="road-map-panel__status" id="road-map-status"></div>
+    <div class="road-map-panel__status" id="road-map-status">
+        {% if road_admin_config and not road_admin_config.google_maps_api_key %}
+            Google Maps integration is disabled because the GOOGLE_MAPS_API_KEY environment variable is not configured.
+        {% endif %}
+    </div>
     <div class="road-map-panel__actions">
         <div class="road-map-panel__selectors">
             <label><input type="radio" name="road-marker" value="start" checked> Set start</label>

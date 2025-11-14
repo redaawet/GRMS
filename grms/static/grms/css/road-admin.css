@@ -13,6 +13,15 @@
     color: #555;
 }
 
+.road-map-panel--disabled {
+    background: #f1f1f1;
+    border-style: dashed;
+}
+
+.road-map-panel--disabled .road-map-panel__placeholder {
+    color: #888;
+}
+
 .road-map-panel__status {
     margin-top: 12px;
     min-height: 24px;
@@ -50,6 +59,12 @@
 
 .road-map-panel .button {
     margin: 0;
+}
+
+.road-map-panel__actions .button:disabled,
+.road-map-panel__selectors select:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
 }
 
 .road-map-panel__actions .help {

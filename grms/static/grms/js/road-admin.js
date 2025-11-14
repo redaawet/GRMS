@@ -101,6 +101,23 @@
             statusEl.className = "road-map-panel__status" + (level ? " " + level : "");
         }
 
+        function disableMapInteractions() {
+            if (panel) {
+                panel.classList.add("road-map-panel--disabled");
+            }
+            [routeButton, refreshButton].forEach(function (btn) {
+                if (btn) {
+                    btn.disabled = true;
+                }
+            });
+            if (travelModeSelect) {
+                travelModeSelect.disabled = true;
+            }
+            markerRadios.forEach(function (radio) {
+                radio.disabled = true;
+            });
+        }
+
         function setActiveMarker(value) {
             activeMarker = value;
         }
@@ -367,6 +384,15 @@
 
         if (routeButton) {
             routeButton.addEventListener("click", previewRoute);
+        }
+
+        if (!config.google_maps_api_key) {
+            disableMapInteractions();
+            showStatus(
+                "Google Maps integration is disabled because the GOOGLE_MAPS_API_KEY environment variable is not configured.",
+                "error"
+            );
+            return;
         }
 
         if (!config.road_id) {
