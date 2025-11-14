@@ -5,7 +5,6 @@ from __future__ import annotations
 from decimal import Decimal
 from typing import Dict, List, Optional
 
-from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
 from django.db import transaction
 from django.db.models import QuerySet
@@ -17,6 +16,7 @@ from rest_framework.response import Response
 
 from . import models, serializers
 from .services import google_maps
+from .utils import make_point, point_to_lat_lng
 
 
 class RoadViewSet(viewsets.ModelViewSet):
@@ -202,34 +202,6 @@ class AnnualWorkPlanViewSet(viewsets.ModelViewSet):
     serializer_class = serializers.AnnualWorkPlanSerializer
 
 
-def _make_point(lat: float, lng: float):
-    """Return a geometry suitable for the configured database backend."""
-
-    if settings.USE_POSTGIS:
-        from django.contrib.gis.geos import Point  # pragma: no cover - requires GEOS
-
-        return Point(lng, lat, srid=4326)
-    return {"type": "Point", "coordinates": [lng, lat], "srid": 4326}
-
-
-def _point_to_lat_lng(point) -> Optional[Dict[str, float]]:
-    """Convert a stored point to ``{"lat", "lng"}`` regardless of backend."""
-
-    if not point:
-        return None
-    try:
-        lng = float(point.x)
-        lat = float(point.y)
-    except AttributeError:
-        coords = None
-        if isinstance(point, dict):
-            coords = point.get("coordinates")
-        if not coords or len(coords) < 2:
-            return None
-        lng, lat = float(coords[0]), float(coords[1])
-    return {"lat": lat, "lng": lng}
-
-
 @api_view(["GET", "POST"])
 def update_road_route(request: Request, pk: int) -> Response:
     """Store or reuse road endpoints and retrieve the Google Maps route."""
@@ -243,12 +215,12 @@ def update_road_route(request: Request, pk: int) -> Response:
         end = serializer.validated_data["end"]
         travel_mode = serializer.validated_data["travel_mode"]
 
-        road.road_start_coordinates = _make_point(start["lat"], start["lng"])
-        road.road_end_coordinates = _make_point(end["lat"], end["lng"])
+        road.road_start_coordinates = make_point(start["lat"], start["lng"])
+        road.road_end_coordinates = make_point(end["lat"], end["lng"])
         road.save(update_fields=["road_start_coordinates", "road_end_coordinates"])
     else:
-        start = _point_to_lat_lng(road.road_start_coordinates)
-        end = _point_to_lat_lng(road.road_end_coordinates)
+        start = point_to_lat_lng(road.road_start_coordinates)
+        end = point_to_lat_lng(road.road_end_coordinates)
         if not start or not end:
             return Response(
                 {"detail": "Road is missing start or end coordinates."},
@@ -291,11 +263,30 @@ def road_map_context(request: Request, pk: int) -> Response:
 
     road = get_object_or_404(models.Road.objects.select_related("admin_zone", "admin_woreda"), pk=pk)
 
-    start = _point_to_lat_lng(road.road_start_coordinates)
-    end = _point_to_lat_lng(road.road_end_coordinates)
+    start = point_to_lat_lng(road.road_start_coordinates)
+    end = point_to_lat_lng(road.road_end_coordinates)
+
+    zone = road.admin_zone
+    woreda = road.admin_woreda
+
+    zone_override = request.query_params.get("zone_id")
+    woreda_override = request.query_params.get("woreda_id")
+
+    if zone_override:
+        zone = get_object_or_404(models.AdminZone, pk=zone_override)
+    if woreda_override:
+        woreda = get_object_or_404(models.AdminWoreda.objects.select_related("zone"), pk=woreda_override)
+        if zone_override and woreda.zone_id != zone.id:
+            return Response(
+                {"detail": "Selected woreda does not belong to the selected zone."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        zone = woreda.zone
+
+    woreda_for_lookup = woreda if woreda and zone and woreda.zone_id == zone.id else None
 
     try:
-        map_region = google_maps.get_admin_area_viewport(road.admin_zone.name, road.admin_woreda.name)
+        map_region = google_maps.get_admin_area_viewport(zone.name if zone else None, woreda_for_lookup.name if woreda_for_lookup else None)
     except ImproperlyConfigured as exc:
         return Response({"detail": str(exc)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     except google_maps.GoogleMapsError as exc:
@@ -304,8 +295,8 @@ def road_map_context(request: Request, pk: int) -> Response:
     return Response(
         {
             "road": road.id,
-            "zone": {"id": road.admin_zone_id, "name": road.admin_zone.name},
-            "woreda": {"id": road.admin_woreda_id, "name": road.admin_woreda.name},
+            "zone": {"id": zone.id, "name": zone.name} if zone else None,
+            "woreda": {"id": woreda.id, "name": woreda.name} if woreda else None,
             "start": start,
             "end": end,
             "map_region": map_region,
