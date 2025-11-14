@@ -3,6 +3,7 @@
 from rest_framework import serializers
 
 from . import models
+from .services import google_maps
 
 
 class RoadSegmentSerializer(serializers.ModelSerializer):
@@ -41,6 +42,37 @@ class RoadSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.Road
         fields = "__all__"
+
+
+class AdminZoneSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.AdminZone
+        fields = ["id", "name", "region"]
+
+
+class AdminWoredaSerializer(serializers.ModelSerializer):
+    zone_name = serializers.CharField(source="zone.name", read_only=True)
+
+    class Meta:
+        model = models.AdminWoreda
+        fields = ["id", "name", "zone", "zone_name"]
+
+
+class CoordinateSerializer(serializers.Serializer):
+    lat = serializers.FloatField()
+    lng = serializers.FloatField()
+
+
+class RoadRouteRequestSerializer(serializers.Serializer):
+    start = CoordinateSerializer()
+    end = CoordinateSerializer()
+    travel_mode = serializers.CharField(default="DRIVING")
+
+    def validate_travel_mode(self, value: str) -> str:
+        mode = (value or "DRIVING").upper()
+        if mode not in google_maps.TRAVEL_MODES:
+            raise serializers.ValidationError("Unsupported travel mode.")
+        return mode
 
 
 class StructureInventorySerializer(serializers.ModelSerializer):
