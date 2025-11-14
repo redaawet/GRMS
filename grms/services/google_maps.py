@@ -4,13 +4,14 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import json
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 from urllib import error, parse, request
 
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
 
 DIRECTIONS_URL = "https://maps.googleapis.com/maps/api/directions/json"
+GEOCODE_URL = "https://maps.googleapis.com/maps/api/geocode/json"
 TRAVEL_MODES = {"DRIVING", "WALKING", "BICYCLING", "TRANSIT"}
 
 
@@ -92,3 +93,39 @@ def get_directions(
         warnings=route.get("warnings", []),
     )
     return summary.as_dict()
+
+
+def get_admin_area_viewport(zone_name: str, woreda_name: Optional[str] = None) -> Dict[str, Any]:
+    """Return a Google Maps viewport for the supplied zone/woreda."""
+
+    if not zone_name:
+        raise GoogleMapsError("Zone name is required to determine the map viewport.")
+
+    api_key = get_api_key()
+    address_parts = [part for part in [woreda_name, zone_name, "Tigray", "Ethiopia"] if part]
+    query = parse.urlencode({"address": ", ".join(address_parts), "key": api_key, "region": "et"})
+    url = f"{GEOCODE_URL}?{query}"
+
+    try:
+        with request.urlopen(url, timeout=10) as response:  # pragma: no cover - requires network
+            payload = json.loads(response.read())
+    except error.URLError as exc:  # pragma: no cover - network errors
+        raise GoogleMapsError(str(exc)) from exc
+
+    status = payload.get("status")
+    if status != "OK":
+        message = payload.get("error_message") or status or "Unknown Google Maps error"
+        raise GoogleMapsError(message)
+
+    result = payload["results"][0]
+    geometry = result.get("geometry") or {}
+    location = geometry.get("location") or {}
+    if not location:
+        raise GoogleMapsError("Unable to determine the map location for the specified admin area.")
+
+    return {
+        "formatted_address": result.get("formatted_address", ""),
+        "center": {"lat": float(location.get("lat", 0.0)), "lng": float(location.get("lng", 0.0))},
+        "bounds": geometry.get("bounds"),
+        "viewport": geometry.get("viewport"),
+    }

@@ -44,6 +44,20 @@ class RoadSerializer(serializers.ModelSerializer):
         fields = "__all__"
 
 
+class AdminZoneSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.AdminZone
+        fields = ["id", "name", "region"]
+
+
+class AdminWoredaSerializer(serializers.ModelSerializer):
+    zone_name = serializers.CharField(source="zone.name", read_only=True)
+
+    class Meta:
+        model = models.AdminWoreda
+        fields = ["id", "name", "zone", "zone_name"]
+
+
 class CoordinateSerializer(serializers.Serializer):
     lat = serializers.FloatField()
     lng = serializers.FloatField()

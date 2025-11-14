@@ -9,6 +9,8 @@ from . import views
 
 router = routers.DefaultRouter()
 router.register(r"roads", views.RoadViewSet)
+router.register(r"admin-zones", views.AdminZoneViewSet)
+router.register(r"admin-woredas", views.AdminWoredaViewSet)
 router.register(r"sections", views.RoadSectionViewSet)
 router.register(r"segments", views.RoadSegmentViewSet)
 router.register(r"structures", views.StructureInventoryViewSet)
@@ -46,6 +48,7 @@ urlpatterns = [
     path("api/auth/login/", TokenObtainPairView.as_view(), name="token_obtain_pair"),
     path("api/auth/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
     path("api/roads/<int:pk>/route/", views.update_road_route, name="road_route"),
+    path("api/roads/<int:pk>/map-context/", views.road_map_context, name="road_map_context"),
     path("api/prioritize/", views.run_prioritization, name="run_prioritization"),
 ]
 

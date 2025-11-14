@@ -89,3 +89,37 @@ class RoutePlanningTests(RoadNetworkMixin, APITestCase):
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("detail", response.json())
+
+    @mock.patch("grms.services.google_maps.get_admin_area_viewport")
+    def test_map_context_returns_zone_woreda_and_travel_modes(self, mock_geo):
+        mock_geo.return_value = {
+            "formatted_address": "Mekelle, Tigray, Ethiopia",
+            "center": {"lat": 13.4967, "lng": 39.4753},
+            "viewport": {"northeast": {"lat": 13.6, "lng": 39.6}, "southwest": {"lat": 13.4, "lng": 39.3}},
+            "bounds": None,
+        }
+        road, _, _ = self.create_network("Context")
+        road.road_start_coordinates = {"type": "Point", "coordinates": [39.1, 13.1], "srid": 4326}
+        road.road_end_coordinates = {"type": "Point", "coordinates": [39.2, 13.2], "srid": 4326}
+        road.save(update_fields=["road_start_coordinates", "road_end_coordinates"])
+
+        url = reverse("road_map_context", args=[road.id])
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        payload = response.json()
+        self.assertEqual(payload["zone"], {"id": road.admin_zone_id, "name": road.admin_zone.name})
+        self.assertEqual(payload["woreda"], {"id": road.admin_woreda_id, "name": road.admin_woreda.name})
+        self.assertEqual(payload["start"], {"lat": 13.1, "lng": 39.1})
+        self.assertEqual(payload["travel_modes"], sorted(google_maps.TRAVEL_MODES))
+        self.assertEqual(payload["map_region"]["formatted_address"], "Mekelle, Tigray, Ethiopia")
+        mock_geo.assert_called_once_with(road.admin_zone.name, road.admin_woreda.name)
+
+    @mock.patch("grms.services.google_maps.get_admin_area_viewport", side_effect=google_maps.GoogleMapsError("geocode"))
+    def test_map_context_bubbles_up_google_errors(self, mock_geo):
+        road, _, _ = self.create_network("ContextError")
+        url = reverse("road_map_context", args=[road.id])
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_502_BAD_GATEWAY)
+        self.assertIn("geocode", response.json()["detail"])
+        mock_geo.assert_called_once()

@@ -24,6 +24,23 @@ class RoadViewSet(viewsets.ModelViewSet):
     serializer_class = serializers.RoadSerializer
 
 
+class AdminZoneViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = models.AdminZone.objects.all()
+    serializer_class = serializers.AdminZoneSerializer
+
+
+class AdminWoredaViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = models.AdminWoreda.objects.select_related("zone").all()
+    serializer_class = serializers.AdminWoredaSerializer
+
+    def get_queryset(self):  # pragma: no cover - trivial filtering logic
+        queryset = super().get_queryset()
+        zone_id = self.request.query_params.get("zone")
+        if zone_id:
+            queryset = queryset.filter(zone_id=zone_id)
+        return queryset
+
+
 class RoadSectionViewSet(viewsets.ModelViewSet):
     queryset = models.RoadSection.objects.select_related("road").all()
     serializer_class = serializers.RoadSectionSerializer
@@ -265,6 +282,35 @@ def update_road_route(request: Request, pk: int) -> Response:
     return Response(
         {"road": road.id, "start": start, "end": end, "travel_mode": travel_mode, "route": route},
         status=status.HTTP_200_OK,
+    )
+
+
+@api_view(["GET"])
+def road_map_context(request: Request, pk: int) -> Response:
+    """Return context to display Google Maps for the selected road."""
+
+    road = get_object_or_404(models.Road.objects.select_related("admin_zone", "admin_woreda"), pk=pk)
+
+    start = _point_to_lat_lng(road.road_start_coordinates)
+    end = _point_to_lat_lng(road.road_end_coordinates)
+
+    try:
+        map_region = google_maps.get_admin_area_viewport(road.admin_zone.name, road.admin_woreda.name)
+    except ImproperlyConfigured as exc:
+        return Response({"detail": str(exc)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    except google_maps.GoogleMapsError as exc:
+        return Response({"detail": str(exc)}, status=status.HTTP_502_BAD_GATEWAY)
+
+    return Response(
+        {
+            "road": road.id,
+            "zone": {"id": road.admin_zone_id, "name": road.admin_zone.name},
+            "woreda": {"id": road.admin_woreda_id, "name": road.admin_woreda.name},
+            "start": start,
+            "end": end,
+            "map_region": map_region,
+            "travel_modes": sorted(google_maps.TRAVEL_MODES),
+        }
     )
 
 
