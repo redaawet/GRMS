@@ -11,6 +11,7 @@ from __future__ import annotations
 from decimal import Decimal
 from typing import Iterable, Optional
 
+from django.core.exceptions import ValidationError
 from django.db import models
 
 from .gis_fields import LineStringField, PointField
@@ -47,6 +48,33 @@ class QAStatus(models.Model):
 
     def __str__(self) -> str:  # pragma: no cover - simple repr
         return self.status
+
+
+class AdminZone(models.Model):
+    """Administrative zone lookup for the Tigray region."""
+
+    name = models.CharField(max_length=100, unique=True)
+    region = models.CharField(max_length=100, default="Tigray")
+
+    class Meta:
+        ordering = ["name"]
+
+    def __str__(self) -> str:  # pragma: no cover - simple repr
+        return f"{self.name} ({self.region})"
+
+
+class AdminWoreda(models.Model):
+    """Administrative woreda lookup linked to a zone."""
+
+    name = models.CharField(max_length=150)
+    zone = models.ForeignKey(AdminZone, on_delete=models.CASCADE, related_name="woredas")
+
+    class Meta:
+        unique_together = ("name", "zone")
+        ordering = ["zone__name", "name"]
+
+    def __str__(self) -> str:  # pragma: no cover - simple repr
+        return f"{self.name} ({self.zone.name})"
 
 
 class InterventionLookup(models.Model):
@@ -234,8 +262,18 @@ class Road(models.Model):
         ],
         help_text="Design standard category",
     )
-    admin_zone = models.CharField(max_length=50, help_text="Administrative zone")
-    admin_woreda = models.CharField(max_length=100, help_text="Administrative Woreda")
+    admin_zone = models.ForeignKey(
+        AdminZone,
+        on_delete=models.PROTECT,
+        related_name="roads",
+        help_text="Administrative zone",
+    )
+    admin_woreda = models.ForeignKey(
+        AdminWoreda,
+        on_delete=models.PROTECT,
+        related_name="roads",
+        help_text="Administrative Woreda",
+    )
     total_length_km = models.DecimalField(max_digits=6, decimal_places=2)
     road_start_coordinates = PointField(srid=4326, null=True, blank=True)
     road_end_coordinates = PointField(srid=4326, null=True, blank=True)
@@ -260,6 +298,13 @@ class Road(models.Model):
 
     def __str__(self) -> str:  # pragma: no cover
         return f"Road {self.id}: {self.road_name_from}–{self.road_name_to}"
+
+    def clean(self):  # pragma: no cover - simple validation
+        if self.admin_woreda_id and self.admin_zone_id:
+            if self.admin_woreda.zone_id != self.admin_zone_id:
+                raise ValidationError(
+                    {"admin_woreda": "Selected woreda does not belong to the selected zone."}
+                )
 
 
 class RoadSection(models.Model):

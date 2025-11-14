@@ -45,6 +45,7 @@ urlpatterns = [
     path("api/", include(router.urls)),
     path("api/auth/login/", TokenObtainPairView.as_view(), name="token_obtain_pair"),
     path("api/auth/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
+    path("api/roads/<int:pk>/route/", views.update_road_route, name="road_route"),
     path("api/prioritize/", views.run_prioritization, name="run_prioritization"),
 ]
 
