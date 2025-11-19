@@ -25,7 +25,7 @@ if WINDOWS_PROJ_LIB.exists():
     os.environ.setdefault("PROJ_LIB", str(WINDOWS_PROJ_LIB))
 
 INSTALLED_APPS = [
-    'django.contrib.admin',
+    'grms.admin_config.GRMSAdminConfig',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
