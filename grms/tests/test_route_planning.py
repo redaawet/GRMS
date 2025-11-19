@@ -1,20 +1,18 @@
-"""Tests for capturing road endpoints and retrieving Google Maps routes."""
+"""Tests for capturing road endpoints and retrieving Leaflet/OSM routes."""
 
 from __future__ import annotations
 
 from unittest import mock
 
 from django.urls import reverse
-from django.test import override_settings
 from rest_framework import status
 from rest_framework.test import APITestCase
 
 from grms import models
-from grms.services import google_maps
+from grms.services import map_services
 from grms.tests.test_prioritization import RoadNetworkMixin
 
 
-@override_settings(GOOGLE_MAPS_API_KEY="test-key")
 class RoutePlanningTests(RoadNetworkMixin, APITestCase):
     """Integration-style tests for the road route endpoint."""
 
@@ -25,7 +23,7 @@ class RoutePlanningTests(RoadNetworkMixin, APITestCase):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("end", response.json())
 
-    @mock.patch("grms.services.google_maps.get_directions")
+    @mock.patch("grms.services.map_services.get_directions")
     def test_route_endpoint_updates_coordinates_and_returns_summary(self, mock_get):
         mock_get.return_value = {
             "distance_meters": 5000,
@@ -56,8 +54,8 @@ class RoutePlanningTests(RoadNetworkMixin, APITestCase):
         self.assertEqual(coords, [39.5, 13.5])
         self.assertEqual(response.json()["route"]["distance_meters"], 5000)
 
-    @mock.patch("grms.services.google_maps.get_directions", side_effect=google_maps.GoogleMapsError("NO_ROUTE"))
-    def test_route_endpoint_returns_error_when_google_fails(self, mock_get):
+    @mock.patch("grms.services.map_services.get_directions", side_effect=map_services.MapServiceError("NO_ROUTE"))
+    def test_route_endpoint_returns_error_when_routing_service_fails(self, mock_get):
         road, _, _ = self.create_network("Error")
         url = reverse("road_route", args=[road.id])
         payload = {
@@ -69,7 +67,7 @@ class RoutePlanningTests(RoadNetworkMixin, APITestCase):
         self.assertIn("NO_ROUTE", response.json()["detail"])
         mock_get.assert_called_once()
 
-    @mock.patch("grms.services.google_maps.get_directions")
+    @mock.patch("grms.services.map_services.get_directions")
     def test_get_route_uses_saved_coordinates(self, mock_get):
         mock_get.return_value = {"distance_meters": 1000}
         road, _, _ = self.create_network("Saved")
@@ -93,7 +91,7 @@ class RoutePlanningTests(RoadNetworkMixin, APITestCase):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("detail", response.json())
 
-    @mock.patch("grms.services.google_maps.get_admin_area_viewport")
+    @mock.patch("grms.services.map_services.get_admin_area_viewport")
     def test_map_context_returns_zone_woreda_and_travel_modes(self, mock_geo):
         mock_geo.return_value = {
             "formatted_address": "Mekelle, Tigray, Ethiopia",
@@ -114,12 +112,12 @@ class RoutePlanningTests(RoadNetworkMixin, APITestCase):
         self.assertEqual(payload["zone"], {"id": road.admin_zone_id, "name": road.admin_zone.name})
         self.assertEqual(payload["woreda"], {"id": road.admin_woreda_id, "name": road.admin_woreda.name})
         self.assertEqual(payload["start"], {"lat": 13.1, "lng": 39.1})
-        self.assertEqual(payload["travel_modes"], sorted(google_maps.TRAVEL_MODES))
+        self.assertEqual(payload["travel_modes"], sorted(map_services.TRAVEL_MODES))
         self.assertEqual(payload["map_region"]["formatted_address"], "Mekelle, Tigray, Ethiopia")
         mock_geo.assert_called_once_with(road.admin_zone.name, road.admin_woreda.name)
 
-    @mock.patch("grms.services.google_maps.get_admin_area_viewport", side_effect=google_maps.GoogleMapsError("geocode"))
-    def test_map_context_bubbles_up_google_errors(self, mock_geo):
+    @mock.patch("grms.services.map_services.get_admin_area_viewport", side_effect=map_services.MapServiceError("geocode"))
+    def test_map_context_bubbles_up_service_errors(self, mock_geo):
         road, _, _ = self.create_network("ContextError")
         url = reverse("road_map_context", args=[road.id])
         response = self.client.get(url)
@@ -127,7 +125,7 @@ class RoutePlanningTests(RoadNetworkMixin, APITestCase):
         self.assertIn("geocode", response.json()["detail"])
         mock_geo.assert_called_once()
 
-    @mock.patch("grms.services.google_maps.get_admin_area_viewport")
+    @mock.patch("grms.services.map_services.get_admin_area_viewport")
     def test_map_context_allows_zone_and_woreda_overrides(self, mock_geo):
         mock_geo.return_value = {"viewport": None, "bounds": None, "center": {"lat": 10.0, "lng": 40.0}}
         road, _, _ = self.create_network("Override")
@@ -141,7 +139,7 @@ class RoutePlanningTests(RoadNetworkMixin, APITestCase):
         self.assertEqual(payload["woreda"], {"id": woreda.id, "name": woreda.name})
         mock_geo.assert_called_once_with(zone.name, woreda.name)
 
-    @mock.patch("grms.services.google_maps.get_admin_area_viewport")
+    @mock.patch("grms.services.map_services.get_admin_area_viewport")
     def test_map_context_validates_mismatched_overrides(self, mock_geo):
         mock_geo.return_value = {"center": {"lat": 0, "lng": 0}, "viewport": None, "bounds": None}
         road, _, _ = self.create_network("InvalidOverride")
@@ -154,14 +152,3 @@ class RoutePlanningTests(RoadNetworkMixin, APITestCase):
         self.assertIn("detail", response.json())
         mock_geo.assert_not_called()
 
-    @override_settings(GOOGLE_MAPS_API_KEY="")
-    @mock.patch("grms.services.google_maps.get_admin_area_viewport")
-    def test_map_context_short_circuits_when_api_key_missing(self, mock_geo):
-        road, _, _ = self.create_network("NoKey")
-        url = reverse("road_map_context", args=[road.id])
-        response = self.client.get(url)
-        self.assertEqual(response.status_code, status.HTTP_503_SERVICE_UNAVAILABLE)
-        payload = response.json()
-        self.assertIn("GOOGLE_MAPS_API_KEY", payload["detail"])
-        self.assertEqual(payload["map_region"], None)
-        mock_geo.assert_not_called()

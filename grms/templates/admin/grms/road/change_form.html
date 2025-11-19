@@ -6,6 +6,13 @@
     {% if road_admin_config %}
         {{ road_admin_config|json_script:"road-admin-config" }}
     {% endif %}
+    <link rel="stylesheet"
+          href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+          integrity="sha256-o9N1j7kGStG0uH0hCkWxK7ftP7Bennwqb1oxA6pKm30="
+          crossorigin="" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+            integrity="sha256-XQoYMqMTK8LvdxXYG3nZ448hOEQiglfqkJs1NOQV44c="
+            crossorigin=""></script>
     <link rel="stylesheet" href="{% static 'grms/css/road-admin.css' %}">
     <script src="{% static 'grms/js/road-admin.js' %}" defer></script>
 {% endblock %}
@@ -16,18 +23,13 @@
          class="road-map-panel"
          data-road-id="{{ road_admin_config.road_id|default_if_none:'' }}"
          data-route-url="{{ road_admin_config.api.route }}"
-         data-map-context-url="{{ road_admin_config.api.map_context }}"
-         data-google-key="{{ road_admin_config.google_maps_api_key }}">
+         data-map-context-url="{{ road_admin_config.api.map_context }}">
         <div class="road-map-panel__placeholder">
             <h3>Road alignment preview</h3>
-            <p>Use the controls below to visualize the selected road on Google Maps.</p>
+            <p>Use the controls below to visualize the selected road on the interactive map.</p>
         </div>
     </div>
-    <div class="road-map-panel__status" id="road-map-status">
-        {% if road_admin_config and not road_admin_config.google_maps_api_key %}
-            Google Maps integration is disabled because the GOOGLE_MAPS_API_KEY environment variable is not configured.
-        {% endif %}
-    </div>
+    <div class="road-map-panel__status" id="road-map-status"></div>
     <div class="road-map-panel__actions">
         <div class="road-map-panel__selectors">
             <label><input type="radio" name="road-marker" value="start" checked> Set start</label>

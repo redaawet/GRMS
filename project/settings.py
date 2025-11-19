@@ -105,8 +105,6 @@ REST_FRAMEWORK = {
     ]
 }
 
-GOOGLE_MAPS_API_KEY = os.environ.get('GOOGLE_MAPS_API_KEY')
-
 CORS_ALLOW_ALL_ORIGINS = True
 
 # Use cookie-based sessions so the admin can function even when the

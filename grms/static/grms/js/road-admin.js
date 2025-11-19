@@ -14,31 +14,6 @@
         }
     }
 
-    function loadGoogleMaps(apiKey) {
-        if (window.google && window.google.maps) {
-            return Promise.resolve(window.google.maps);
-        }
-        if (!apiKey) {
-            return Promise.reject(new Error("Google Maps API key is not configured."));
-        }
-        return new Promise(function (resolve, reject) {
-            const script = document.createElement("script");
-            script.src = "https://maps.googleapis.com/maps/api/js?key=" + encodeURIComponent(apiKey);
-            script.async = true;
-            script.onerror = function () {
-                reject(new Error("Unable to load Google Maps."));
-            };
-            script.onload = function () {
-                if (window.google && window.google.maps) {
-                    resolve(window.google.maps);
-                } else {
-                    reject(new Error("Google Maps API did not initialise."));
-                }
-            };
-            document.head.appendChild(script);
-        });
-    }
-
     function getCsrfToken() {
         const match = document.cookie.match(/csrftoken=([^;]+)/);
         return match ? match[1] : "";
@@ -92,6 +67,7 @@
         let startMarker;
         let endMarker;
         let mapLoaded = false;
+        let routeLine;
 
         function showStatus(message, level) {
             if (!statusEl) {
@@ -99,23 +75,6 @@
             }
             statusEl.textContent = message || "";
             statusEl.className = "road-map-panel__status" + (level ? " " + level : "");
-        }
-
-        function disableMapInteractions() {
-            if (panel) {
-                panel.classList.add("road-map-panel--disabled");
-            }
-            [routeButton, refreshButton].forEach(function (btn) {
-                if (btn) {
-                    btn.disabled = true;
-                }
-            });
-            if (travelModeSelect) {
-                travelModeSelect.disabled = true;
-            }
-            markerRadios.forEach(function (radio) {
-                radio.disabled = true;
-            });
         }
 
         function setActiveMarker(value) {
@@ -136,10 +95,10 @@
             if (!isFinite(lat) || !isFinite(lng) || !marker) {
                 return;
             }
-            const position = { lat: lat, lng: lng };
-            marker.setPosition(position);
-            if (map) {
-                marker.setMap(map);
+            const position = [lat, lng];
+            marker.setLatLng(position);
+            if (map && !map.hasLayer(marker)) {
+                marker.addTo(map);
             }
         }
 
@@ -200,18 +159,12 @@
         }
 
         function refreshMap(extraParams) {
-            showStatus("Requesting Google Maps viewport…");
+            showStatus("Requesting map viewport…");
             fetchMapContext(extraParams)
                 .then(function (payload) {
                     showStatus("Map context loaded.", "success");
                     if (!mapLoaded) {
-                        loadGoogleMaps(config.google_maps_api_key)
-                            .then(function () {
-                                initialiseMap(payload);
-                            })
-                            .catch(function (err) {
-                                showStatus(err.message, "error");
-                            });
+                        initialiseMap(payload);
                     } else {
                         updateMapViewport(payload);
                     }
@@ -229,27 +182,25 @@
         }
 
         function initialiseMap(payload) {
-            mapLoaded = true;
             const mapNode = ensureMapContainer();
             const center = (payload.map_region && payload.map_region.center) || { lat: 13.5, lng: 39.5 };
-            map = new google.maps.Map(mapNode, {
-                center: center,
-                zoom: 10,
-                mapTypeControl: false,
-            });
-            startMarker = new google.maps.Marker({
-                label: "A",
-                draggable: false,
-            });
-            endMarker = new google.maps.Marker({
-                label: "B",
-                draggable: false,
-            });
+            if (!window.L) {
+                showStatus("Leaflet failed to load.", "error");
+                return;
+            }
+            mapLoaded = true;
+            map = L.map(mapNode).setView([center.lat, center.lng], 10);
+            L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+                attribution: "© OpenStreetMap contributors",
+                maxZoom: 19,
+            }).addTo(map);
+            startMarker = L.marker([center.lat, center.lng], { title: "Start" }).addTo(map);
+            endMarker = L.marker([center.lat, center.lng], { title: "End" }).addTo(map);
             syncMarkersFromInputs();
             updateMapViewport(payload);
-            map.addListener("click", function (event) {
-                const lat = event.latLng.lat();
-                const lng = event.latLng.lng();
+            map.on("click", function (event) {
+                const lat = event.latlng.lat;
+                const lng = event.latlng.lng;
                 if (activeMarker === "end") {
                     endLat.value = lat.toFixed(6);
                     endLng.value = lng.toFixed(6);
@@ -269,13 +220,13 @@
             if (bounds && bounds.northeast && bounds.southwest) {
                 const sw = bounds.southwest;
                 const ne = bounds.northeast;
-                const mapBounds = new google.maps.LatLngBounds(
-                    new google.maps.LatLng(sw.lat, sw.lng),
-                    new google.maps.LatLng(ne.lat, ne.lng)
+                const mapBounds = L.latLngBounds(
+                    [sw.lat, sw.lng],
+                    [ne.lat, ne.lng]
                 );
                 map.fitBounds(mapBounds);
             } else if (payload.map_region && payload.map_region.center) {
-                map.setCenter(payload.map_region.center);
+                map.setView([payload.map_region.center.lat, payload.map_region.center.lng]);
             }
         }
 
@@ -307,7 +258,7 @@
                 showStatus(err.message, "error");
                 return;
             }
-            showStatus("Requesting Google Maps route…");
+            showStatus("Requesting route preview…");
             fetch(config.api.route, {
                 method: "POST",
                 credentials: "same-origin",
@@ -324,7 +275,7 @@
                 .then(function (response) {
                     if (!response.ok) {
                         return response.json().catch(function () { return {}; }).then(function (payload) {
-                            throw new Error(payload.detail || "Unable to fetch Google Maps route.");
+                            throw new Error(payload.detail || "Unable to fetch a route preview.");
                         });
                     }
                     return response.json();
@@ -335,6 +286,16 @@
                         showStatus(summary, "success");
                     } else {
                         showStatus("Route retrieved successfully.", "success");
+                    }
+                    if (payload.route && payload.route.geometry && payload.route.geometry.length && map) {
+                        if (routeLine) {
+                            map.removeLayer(routeLine);
+                        }
+                        const latLngs = payload.route.geometry.map(function (coord) {
+                            return [coord[1], coord[0]];
+                        });
+                        routeLine = L.polyline(latLngs, { color: "#007bff", weight: 4, opacity: 0.85 }).addTo(map);
+                        map.fitBounds(routeLine.getBounds(), { padding: [20, 20] });
                     }
                     syncMarkersFromInputs();
                 })
@@ -384,15 +345,6 @@
 
         if (routeButton) {
             routeButton.addEventListener("click", previewRoute);
-        }
-
-        if (!config.google_maps_api_key) {
-            disableMapInteractions();
-            showStatus(
-                "Google Maps integration is disabled because the GOOGLE_MAPS_API_KEY environment variable is not configured.",
-                "error"
-            );
-            return;
         }
 
         if (!config.road_id) {
