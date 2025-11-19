@@ -1,9 +1,8 @@
-from django.conf import settings
 from django.contrib import admin
 from django import forms
 
 from . import models
-from .services import google_maps
+from .services import map_services
 from .utils import make_point, point_to_lat_lng
 
 
@@ -103,13 +102,12 @@ class RoadAdmin(admin.ModelAdmin):
         road_id = int(object_id) if object_id and object_id.isdigit() else None
         extra_context["road_admin_config"] = {
             "road_id": road_id,
-            "google_maps_api_key": getattr(settings, "GOOGLE_MAPS_API_KEY", "") or "",
             "api": {
                 "route": self._reverse_or_empty("road_route", road_id),
                 "map_context": self._reverse_or_empty("road_map_context", road_id),
             },
         }
-        extra_context["travel_modes"] = sorted(google_maps.TRAVEL_MODES)
+        extra_context["travel_modes"] = sorted(map_services.TRAVEL_MODES)
         return super().changeform_view(request, object_id, form_url, extra_context)
 
     @staticmethod

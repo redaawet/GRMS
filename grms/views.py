@@ -5,7 +5,6 @@ from __future__ import annotations
 from decimal import Decimal
 from typing import Dict, List, Optional
 
-from django.core.exceptions import ImproperlyConfigured
 from django.db import transaction
 from django.db.models import QuerySet
 from django.shortcuts import get_object_or_404
@@ -15,7 +14,7 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 
 from . import models, serializers
-from .services import google_maps
+from .services import map_services
 from .utils import make_point, point_to_lat_lng
 
 
@@ -204,7 +203,7 @@ class AnnualWorkPlanViewSet(viewsets.ModelViewSet):
 
 @api_view(["GET", "POST"])
 def update_road_route(request: Request, pk: int) -> Response:
-    """Store or reuse road endpoints and retrieve the Google Maps route."""
+    """Store or reuse road endpoints and retrieve the OpenStreetMap route."""
 
     road = get_object_or_404(models.Road, pk=pk)
 
@@ -239,16 +238,14 @@ def update_road_route(request: Request, pk: int) -> Response:
         end = serializer.validated_data["end"]
 
     try:
-        route = google_maps.get_directions(
+        route = map_services.get_directions(
             start_lat=start["lat"],
             start_lng=start["lng"],
             end_lat=end["lat"],
             end_lng=end["lng"],
             travel_mode=travel_mode,
         )
-    except ImproperlyConfigured as exc:
-        return Response({"detail": str(exc)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-    except google_maps.GoogleMapsError as exc:
+    except map_services.MapServiceError as exc:
         return Response({"detail": str(exc)}, status=status.HTTP_502_BAD_GATEWAY)
 
     return Response(
@@ -259,7 +256,7 @@ def update_road_route(request: Request, pk: int) -> Response:
 
 @api_view(["GET"])
 def road_map_context(request: Request, pk: int) -> Response:
-    """Return context to display Google Maps for the selected road."""
+    """Return context to display a Leaflet map for the selected road."""
 
     road = get_object_or_404(models.Road.objects.select_related("admin_zone", "admin_woreda"), pk=pk)
 
@@ -268,8 +265,6 @@ def road_map_context(request: Request, pk: int) -> Response:
 
     zone = road.admin_zone
     woreda = road.admin_woreda
-
-    api_key = getattr(settings, "GOOGLE_MAPS_API_KEY", "")
 
     zone_override = request.query_params.get("zone_id")
     woreda_override = request.query_params.get("woreda_id")
@@ -287,31 +282,11 @@ def road_map_context(request: Request, pk: int) -> Response:
 
     woreda_for_lookup = woreda if woreda and zone and woreda.zone_id == zone.id else None
 
-    if not api_key:
-        return Response(
-            {
-                "detail": (
-                    "Google Maps integration is disabled because the GOOGLE_MAPS_API_KEY "
-                    "environment variable is not configured."
-                ),
-                "road": road.id,
-                "zone": {"id": zone.id, "name": zone.name} if zone else None,
-                "woreda": {"id": woreda.id, "name": woreda.name} if woreda else None,
-                "start": start,
-                "end": end,
-                "map_region": None,
-                "travel_modes": sorted(google_maps.TRAVEL_MODES),
-            },
-            status=status.HTTP_503_SERVICE_UNAVAILABLE,
-        )
-
     try:
-        map_region = google_maps.get_admin_area_viewport(
+        map_region = map_services.get_admin_area_viewport(
             zone.name if zone else None, woreda_for_lookup.name if woreda_for_lookup else None
         )
-    except ImproperlyConfigured as exc:
-        return Response({"detail": str(exc)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-    except google_maps.GoogleMapsError as exc:
+    except map_services.MapServiceError as exc:
         return Response({"detail": str(exc)}, status=status.HTTP_502_BAD_GATEWAY)
 
     return Response(
@@ -322,7 +297,7 @@ def road_map_context(request: Request, pk: int) -> Response:
             "start": start,
             "end": end,
             "map_region": map_region,
-            "travel_modes": sorted(google_maps.TRAVEL_MODES),
+            "travel_modes": sorted(map_services.TRAVEL_MODES),
         }
     )
 

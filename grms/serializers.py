@@ -3,7 +3,7 @@
 from rest_framework import serializers
 
 from . import models
-from .services import google_maps
+from .services import map_services
 
 
 class RoadSegmentSerializer(serializers.ModelSerializer):
@@ -70,7 +70,7 @@ class RoadRouteRequestSerializer(serializers.Serializer):
 
     def validate_travel_mode(self, value: str) -> str:
         mode = (value or "DRIVING").upper()
-        if mode not in google_maps.TRAVEL_MODES:
+        if mode not in map_services.TRAVEL_MODES:
             raise serializers.ValidationError("Unsupported travel mode.")
         return mode
 
