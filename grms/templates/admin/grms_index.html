@@ -5,6 +5,15 @@
 <div id="content-main">
   {% if sections %}
     <div class="dashboard">
+      <div class="dashboard-filter">
+        <label class="visually-hidden" for="dashboard-filter-input">{% trans 'Filter models' %}</label>
+        <input
+          id="dashboard-filter-input"
+          type="search"
+          placeholder="{% trans 'Filter models' %}"
+          aria-label="{% trans 'Filter models' %}"
+        />
+      </div>
       {% for section in sections %}
         <div class="app-section module">
           <h2>{{ section.title }}</h2>
@@ -65,6 +74,66 @@
     <p>{% trans "You don't have permission to view or edit anything." %}</p>
   {% endif %}
 </div>
+{% endblock %}
+
+{% block extrastyle %}
+  {{ block.super }}
+  <style>
+    .dashboard-filter {
+      display: flex;
+      justify-content: flex-end;
+      margin-bottom: 1rem;
+    }
+
+    #dashboard-filter-input {
+      min-width: 18rem;
+      max-width: 24rem;
+      padding: 0.35rem 0.5rem;
+    }
+
+    .visually-hidden {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      border: 0;
+    }
+  </style>
+{% endblock %}
+
+{% block extrahead %}
+  {{ block.super }}
+  <script>
+    window.addEventListener("DOMContentLoaded", function () {
+      var input = document.getElementById("dashboard-filter-input");
+      if (!input) {
+        return;
+      }
+      var sections = Array.prototype.slice.call(
+        document.querySelectorAll("#content-main .app-section")
+      );
+      input.addEventListener("input", function (event) {
+        var term = event.target.value.trim().toLowerCase();
+        sections.forEach(function (section) {
+          var items = Array.prototype.slice.call(
+            section.querySelectorAll("li")
+          );
+          var visibleCount = 0;
+          items.forEach(function (item) {
+            var match = !term || item.textContent.toLowerCase().indexOf(term) !== -1;
+            item.style.display = match ? "" : "none";
+            if (match) {
+              visibleCount += 1;
+            }
+          });
+          section.style.display = visibleCount ? "" : "none";
+        });
+      });
+    });
+  </script>
 {% endblock %}
 
 {# Hide the default sidebar app list to avoid duplicating the grouped dashboard #}
