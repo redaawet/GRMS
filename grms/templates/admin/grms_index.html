@@ -14,12 +14,15 @@
           aria-label="{% trans 'Filter models' %}"
         />
       </div>
+      <p class="dashboard-summary">
+        {% blocktrans %}This grouped dashboard lists every model in the Gravel Road Management System so you can manage more than thirty data sets without scrolling through the default app table. Use the filter above to jump directly to a model.{% endblocktrans %}
+      </p>
       {% for section in sections %}
-        <div class="app-section module">
+        <div class="app-section module" data-section>
           <h2>{{ section.title }}</h2>
           <ul class="model-list">
             {% for model in section.models %}
-              <li class="model-{{ model.object_name|lower }}">
+              <li class="model-{{ model.object_name|lower }}" data-model>
                 {% if model.admin_url %}
                   <a href="{{ model.admin_url }}">{{ model.name }}</a>
                 {% else %}
@@ -38,40 +41,14 @@
           </ul>
         </div>
       {% endfor %}
+      <p class="no-matches" id="dashboard-no-matches" hidden>
+        {% trans "No models match that filter. Try a different keyword." %}
+      </p>
     </div>
-  {% elif app_list %}
-    {% for app in app_list %}
-      <div class="app-{{ app.app_label }} module">
-        <table>
-          <caption>
-            <a href="{{ app.app_url }}" class="section">{{ app.name }}</a>
-          </caption>
-          <tbody>
-            {% for model in app.models %}
-              <tr class="model-{{ model.object_name|lower }}">
-                <th scope="row">
-                  {% if model.admin_url %}
-                    <a href="{{ model.admin_url }}">{{ model.name }}</a>
-                  {% else %}
-                    {{ model.name }}
-                  {% endif %}
-                </th>
-                <td>
-                  {% if model.add_url and not model.view_only %}
-                    <a href="{{ model.add_url }}" class="addlink">{% trans "Add" %}</a>
-                  {% endif %}
-                  {% if model.admin_url %}
-                    <a href="{{ model.admin_url }}" class="changelink">{% trans "Change" %}</a>
-                  {% endif %}
-                </td>
-              </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-    {% endfor %}
   {% else %}
-    <p>{% trans "You don't have permission to view or edit anything." %}</p>
+    <p class="empty-dashboard">
+      {% trans "No models are registered with this admin site yet." %}
+    </p>
   {% endif %}
 </div>
 {% endblock %}
@@ -89,6 +66,23 @@
       min-width: 18rem;
       max-width: 24rem;
       padding: 0.35rem 0.5rem;
+    }
+
+    .dashboard-summary {
+      margin-top: 0;
+      margin-bottom: 1.5rem;
+      color: var(--body-quiet-color);
+      font-size: 0.95rem;
+    }
+
+    .no-matches {
+      margin-top: 1.5rem;
+      font-style: italic;
+      color: var(--body-quiet-color);
+    }
+
+    .empty-dashboard {
+      color: var(--body-quiet-color);
     }
 
     .visually-hidden {
@@ -109,6 +103,7 @@
   <script>
     window.addEventListener("DOMContentLoaded", function () {
       var input = document.getElementById("dashboard-filter-input");
+      var noMatch = document.getElementById("dashboard-no-matches");
       if (!input) {
         return;
       }
@@ -117,9 +112,10 @@
       );
       input.addEventListener("input", function (event) {
         var term = event.target.value.trim().toLowerCase();
+        var visibleSections = 0;
         sections.forEach(function (section) {
           var items = Array.prototype.slice.call(
-            section.querySelectorAll("li")
+            section.querySelectorAll('[data-model]')
           );
           var visibleCount = 0;
           items.forEach(function (item) {
@@ -129,8 +125,15 @@
               visibleCount += 1;
             }
           });
-          section.style.display = visibleCount ? "" : "none";
+          var showSection = visibleCount > 0;
+          section.style.display = showSection ? "" : "none";
+          if (showSection) {
+            visibleSections += 1;
+          }
         });
+        if (noMatch) {
+          noMatch.hidden = visibleSections !== 0;
+        }
       });
     });
   </script>
