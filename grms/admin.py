@@ -5,6 +5,7 @@ from typing import Dict, List, Sequence
 from django import forms
 from django.contrib import admin
 from django.contrib.admin import AdminSite
+from django.shortcuts import redirect
 
 from . import models
 from .services import map_services
@@ -150,6 +151,10 @@ class GRMSAdminSite(AdminSite):
         extra_context = extra_context or {}
         extra_context["sections"] = self._build_sections(request)
         return super().index(request, extra_context=extra_context)
+
+    def app_index(self, request, app_label, extra_context=None):
+        """Keep navigation consistent by redirecting per-app views to the dashboard."""
+        return redirect("admin:index")
 
 
 grms_admin_site = GRMSAdminSite(name="grms_admin")
