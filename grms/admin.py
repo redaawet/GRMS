@@ -12,68 +12,59 @@ from .utils import make_point, point_to_lat_lng
 
 
 class GRMSAdminSite(AdminSite):
-    site_header = "GRMS administration"
-    site_title = "GRMS data management"
-    index_title = "Road asset management dashboard"
-    index_template = "admin/index.html"
+    site_header = "GRMS Administration"
+    site_title = "GRMS Admin"
+    index_title = "Gravel Road Management System"
+    index_template = "admin/grms_index.html"
 
     SECTION_DEFINITIONS: Sequence[Dict[str, object]] = (
         {
             "title": "Inventories",
-            "groups": (
-                {
-                    "title": "Road assets",
-                    "models": (
-                        "Road",
-                        "RoadSection",
-                        "RoadSegment",
-                    ),
-                },
-                {
-                    "title": "Structures & furniture",
-                    "models": (
-                        "StructureInventory",
-                        "BridgeDetail",
-                        "CulvertDetail",
-                        "FordDetail",
-                        "RetainingWallDetail",
-                        "GabionWallDetail",
-                        "FurnitureInventory",
-                    ),
-                },
+            "models": (
+                "Road",
+                "Road section",
+                "RoadSegment",
+                "Road segment",
+                "RoadSection",
+                "StructureInventory",
+                "Structure inventory",
+                "FurnitureInventory",
+                "Furniture inventory",
+                "BridgeDetail",
+                "Bridge detail",
+                "CulvertDetail",
+                "Culvert detail",
+                "FordDetail",
+                "Ford detail",
+                "RetainingWallDetail",
+                "Retaining wall detail",
+                "GabionWallDetail",
+                "Gabion wall detail",
             ),
         },
         {
-            "title": "Surveys",
-            "groups": (
-                {
-                    "title": "Condition surveys",
-                    "models": (
-                        "RoadConditionSurvey",
-                        "StructureConditionSurvey",
-                        "BridgeConditionSurvey",
-                        "CulvertConditionSurvey",
-                        "OtherStructureConditionSurvey",
-                        "FurnitureConditionSurvey",
-                    ),
-                },
-                {
-                    "title": "Severity & extent surveys",
-                    "models": (
-                        "RoadConditionDetailedSurvey",
-                        "StructureConditionDetailedSurvey",
-                        "FurnitureConditionDetailedSurvey",
-                        "DistressType",
-                        "DistressCondition",
-                        "DistressActivity",
-                        "ConditionRating",
-                        "ConditionFactor",
-                    ),
-                },
+            "title": "Surveys – Condition",
+            "models": (
+                "RoadConditionSurvey",
+                "Road condition survey",
+                "StructureConditionSurvey",
+                "Structure condition survey",
+                "BridgeConditionSurvey",
+                "CulvertConditionSurvey",
+                "OtherStructureConditionSurvey",
+                "FurnitureConditionSurvey",
             ),
         },
         {
-            "title": "Traffic data",
+            "title": "Surveys – Severity & extent",
+            "models": (
+                "RoadConditionDetailedSurvey",
+                "StructureConditionDetailedSurvey",
+                "FurnitureConditionDetailedSurvey",
+            ),
+        },
+        {
+            "title": "Surveys – Traffic",
             "models": (
                 "TrafficSurvey",
                 "TrafficCountRecord",
@@ -86,72 +77,70 @@ class GRMSAdminSite(AdminSite):
             ),
         },
         {
-            "title": "Planning & reference",
-            "groups": (
-                {
-                    "title": "Planning & prioritisation",
-                    "models": (
-                        "AnnualWorkPlan",
-                        "ActivityLookup",
-                        "InterventionLookup",
-                        "UnitCost",
-                        "StructureIntervention",
-                        "RoadSectionIntervention",
-                        "BenefitFactor",
-                        "PrioritizationResult",
-                        "QAStatus",
-                    ),
-                },
-                {
-                    "title": "Administrative lookups",
-                    "models": (
-                        "AdminZone",
-                        "AdminWoreda",
-                    ),
-                },
+            "title": "Maintenance & planning",
+            "models": (
+                "AnnualWorkPlan",
+                "StructureIntervention",
+                "RoadSectionIntervention",
+                "BenefitFactor",
+                "PrioritizationResult",
+            ),
+        },
+        {
+            "title": "Reference data",
+            "models": (
+                "QAStatus",
+                "ActivityLookup",
+                "InterventionLookup",
+                "UnitCost",
+                "DistressType",
+                "DistressCondition",
+                "DistressActivity",
+                "ConditionRating",
+                "ConditionFactor",
+                "AdminZone",
+                "AdminWoreda",
             ),
         },
     )
 
-    def _build_model_lookup(self, app_list: List[Dict[str, object]]) -> Dict[str, Dict[str, object]]:
+    @staticmethod
+    def _normalise(name: str) -> str:
+        return name.replace("_", " ").strip().lower()
+
+    def _build_model_lookup(
+        self, app_list: List[Dict[str, object]]
+    ) -> Dict[str, Dict[str, object]]:
         lookup: Dict[str, Dict[str, object]] = {}
         for app in app_list:
             for model in app["models"]:
-                lookup[model["object_name"]] = model
+                for key in (model["object_name"], model["name"]):
+                    lookup[self._normalise(key)] = model
         return lookup
+
+    def _all_models(self, app_list: List[Dict[str, object]]):
+        for app in app_list:
+            for model in app["models"]:
+                yield model
 
     def _build_sections(self, request) -> List[Dict[str, object]]:
         app_list = self.get_app_list(request)
         lookup = self._build_model_lookup(app_list)
-        assigned = set()
+        assigned: set[str] = set()
         sections: List[Dict[str, object]] = []
         for definition in self.SECTION_DEFINITIONS:
-            section: Dict[str, object] = {"title": definition["title"]}
-            groups: Sequence[Dict[str, object]] | None = definition.get("groups")  # type: ignore[assignment]
-            if groups:
-                rendered_groups: List[Dict[str, object]] = []
-                for group in groups:
-                    models_in_group = [lookup[name] for name in group["models"] if name in lookup]
-                    for name in group["models"]:
-                        if name in lookup:
-                            assigned.add(name)
-                    if models_in_group:
-                        rendered_groups.append({"title": group["title"], "models": models_in_group})
-                if rendered_groups:
-                    section["groups"] = rendered_groups
-                    sections.append(section)
-            else:
-                models_in_section = [lookup[name] for name in definition.get("models", []) if name in lookup]
-                for name in definition.get("models", []):
-                    if name in lookup:
-                        assigned.add(name)
-                if models_in_section:
-                    section["models"] = models_in_section
-                    sections.append(section)
+            models: List[Dict[str, object]] = []
+            for target in definition.get("models", ()):  # type: ignore[arg-type]
+                model = lookup.get(self._normalise(target))
+                if model and model["object_name"] not in assigned:
+                    models.append(model)
+                    assigned.add(model["object_name"])
+            if models:
+                sections.append({"title": definition["title"], "models": models})
         leftovers = [
             model
-            for name, model in sorted(lookup.items(), key=lambda item: item[1]["name"])
-            if name not in assigned
+            for model in sorted(self._all_models(app_list), key=lambda item: item["name"])
+            if model["object_name"] not in assigned
         ]
         if leftovers:
             sections.append({"title": "Other models", "models": leftovers})
@@ -159,7 +148,7 @@ class GRMSAdminSite(AdminSite):
 
     def index(self, request, extra_context=None):  # pragma: no cover - thin wrapper
         extra_context = extra_context or {}
-        extra_context["custom_sections"] = self._build_sections(request)
+        extra_context["sections"] = self._build_sections(request)
         return super().index(request, extra_context=extra_context)
 
 
@@ -339,9 +328,13 @@ class RoadSegmentAdmin(admin.ModelAdmin):
     list_display = ("section", "station_from_km", "station_to_km", "cross_section")
     search_fields = ("section__road__road_name_from", "section__road__road_name_to")
     fieldsets = (
-        ("Section context", {"fields": ("section", ("station_from_km", "station_to_km"))}),
+        ("Identification", {"fields": ("section",)}),
         (
-            "Terrain and cross section",
+            "Location & geometry",
+            {"fields": (("station_from_km", "station_to_km"), "carriageway_width_m")},
+        ),
+        (
+            "Classification",
             {
                 "fields": (
                     "cross_section",
@@ -356,7 +349,6 @@ class RoadSegmentAdmin(admin.ModelAdmin):
                 "fields": (
                     ("ditch_left_present", "ditch_right_present"),
                     ("shoulder_left_present", "shoulder_right_present"),
-                    "carriageway_width_m",
                 )
             },
         ),
@@ -490,20 +482,30 @@ class OtherStructureConditionSurveyAdmin(admin.ModelAdmin):
 class RoadConditionSurveyAdmin(admin.ModelAdmin):
     list_display = ("road_segment", "inspection_date", "calculated_mci", "is_there_bottleneck")
     list_filter = ("inspection_date", "is_there_bottleneck")
+    readonly_fields = ("calculated_mci",)
     fieldsets = (
-        ("Segment", {"fields": ("road_segment",)}),
         (
-            "Drainage and shoulders",
+            "Survey header",
             {
                 "fields": (
-                    ("drainage_condition_left", "drainage_condition_right"),
-                    ("shoulder_condition_left", "shoulder_condition_right"),
-                    "surface_condition_factor",
+                    "road_segment",
+                    ("inspection_date", "inspected_by"),
                 )
             },
         ),
         (
-            "Bottleneck",
+            "Drainage & surface condition",
+            {
+                "description": "Capture field observations that drive the MCI calculation.",
+                "fields": (
+                    ("drainage_condition_left", "drainage_condition_right"),
+                    ("shoulder_condition_left", "shoulder_condition_right"),
+                    "surface_condition_factor",
+                ),
+            },
+        ),
+        (
+            "Bottleneck assessment",
             {
                 "fields": (
                     "is_there_bottleneck",
@@ -512,12 +514,10 @@ class RoadConditionSurveyAdmin(admin.ModelAdmin):
             },
         ),
         (
-            "Survey",
+            "Insights & recommendations",
             {
                 "fields": (
                     "comments",
-                    "inspected_by",
-                    "inspection_date",
                     "calculated_mci",
                     "intervention_recommended",
                 )
