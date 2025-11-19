@@ -1,6 +1,8 @@
 {% extends "admin/base_site.html" %}
 {% load i18n %}
 
+{% block nav-sidebar %}{% endblock %}
+
 {% block content %}
 <div id="content-main">
   {% if sections %}
@@ -56,6 +58,17 @@
 {% block extrastyle %}
   {{ block.super }}
   <style>
+    /* Hide the default sidebar and reclaim the horizontal space */
+    #nav-sidebar,
+    .toggle-nav-sidebar {
+      display: none !important;
+    }
+
+    .main,
+    .main.shifted {
+      margin-left: 0;
+    }
+
     .dashboard-filter {
       display: flex;
       justify-content: flex-end;
