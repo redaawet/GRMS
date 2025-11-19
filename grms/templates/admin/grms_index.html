@@ -5,7 +5,7 @@
 
 {% block content %}
 <div id="content-main">
-  {% if sections %}
+  {% if sections or app_list %}
     <div class="dashboard">
       <div class="dashboard-filter">
         <label class="visually-hidden" for="dashboard-filter-input">{% trans 'Filter models' %}</label>
@@ -19,30 +19,57 @@
       <p class="dashboard-summary">
         {% blocktrans %}This grouped dashboard lists every model in the Gravel Road Management System so you can manage more than thirty data sets without scrolling through the default app table. Use the filter above to jump directly to a model.{% endblocktrans %}
       </p>
-      {% for section in sections %}
-        <div class="app-section module" data-section>
-          <h2>{{ section.title }}</h2>
-          <ul class="model-list">
-            {% for model in section.models %}
-              <li class="model-{{ model.object_name|lower }}" data-model>
-                {% if model.admin_url %}
-                  <a href="{{ model.admin_url }}">{{ model.name }}</a>
-                {% else %}
-                  {{ model.name }}
-                {% endif %}
-                <span class="model-actions">
-                  {% if model.add_url and not model.view_only %}
-                    <a href="{{ model.add_url }}" class="addlink">{% trans "Add" %}</a>
-                  {% endif %}
+      {% if sections %}
+        {% for section in sections %}
+          <div class="app-section module" data-section>
+            <h2>{{ section.title }}</h2>
+            <ul class="model-list">
+              {% for model in section.models %}
+                <li class="model-{{ model.object_name|lower }}" data-model>
                   {% if model.admin_url %}
-                    <a href="{{ model.admin_url }}" class="changelink">{% trans "Change" %}</a>
+                    <a href="{{ model.admin_url }}">{{ model.name }}</a>
+                  {% else %}
+                    {{ model.name }}
                   {% endif %}
-                </span>
-              </li>
-            {% endfor %}
-          </ul>
-        </div>
-      {% endfor %}
+                  <span class="model-actions">
+                    {% if model.add_url and not model.view_only %}
+                      <a href="{{ model.add_url }}" class="addlink">{% trans "Add" %}</a>
+                    {% endif %}
+                    {% if model.admin_url %}
+                      <a href="{{ model.admin_url }}" class="changelink">{% trans "Change" %}</a>
+                    {% endif %}
+                  </span>
+                </li>
+              {% endfor %}
+            </ul>
+          </div>
+        {% endfor %}
+      {% else %}
+        {% for app in app_list %}
+          <div class="app-section module" data-section>
+            <h2>{{ app.name }}</h2>
+            <ul class="model-list">
+              {% for model in app.models %}
+                <li class="model-{{ model.object_name|lower }}" data-model>
+                  {% if model.admin_url %}
+                    <a href="{{ model.admin_url }}">{{ model.name }}</a>
+                  {% else %}
+                    {{ model.name }}
+                  {% endif %}
+                  <span class="model-actions">
+                    {% if model.add_url and not model.view_only %}
+                      <a href="{{ model.add_url }}" class="addlink">{% trans "Add" %}</a>
+                    {% endif %}
+                    {% if model.admin_url %}
+                      <a href="{{ model.admin_url }}" class="changelink">{% trans "Change" %}</a>
+                    {% endif %}
+                  </span>
+                </li>
+              {% endfor %}
+            </ul>
+          </div>
+        {% endfor %}
+      {% endif %}
       <p class="no-matches" id="dashboard-no-matches" hidden>
         {% trans "No models match that filter. Try a different keyword." %}
       </p>
