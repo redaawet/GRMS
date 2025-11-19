@@ -157,7 +157,10 @@ class GRMSAdminSite(AdminSite):
         return redirect("admin:index")
 
 
-grms_admin_site = GRMSAdminSite(name="grms_admin")
+# Use the default "admin" namespace so every generated link and template helper
+# (e.g., {% url 'admin:index' %}) stays in sync with this custom site instead of
+# falling back to Django's built-in AdminSite instance.
+grms_admin_site = GRMSAdminSite(name="admin")
 
 
 class RoadAdminForm(forms.ModelForm):
