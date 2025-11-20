@@ -15,10 +15,27 @@
 
 {% block nav-sidebar %}
   <nav class="dashboard-sidebar" aria-label="{% trans 'Admin navigation' %}">
-    <div class="sidebar-header">{% trans 'Navigation' %}</div>
+    <div class="sidebar-brand">{% trans 'Gravel Road Management System' %}</div>
     <a class="sidebar-home" href="{% url 'admin:index' %}">{% trans 'Dashboard' %}</a>
 
-    {% if available_apps %}
+    {% if sections %}
+      {% for section in sections %}
+        <section class="sidebar-section">
+          <h3>{{ section.title }}</h3>
+          <ul>
+            {% for model in section.models %}
+              <li>
+                {% if model.admin_url %}
+                  <a href="{{ model.admin_url }}">{{ model.name }}</a>
+                {% else %}
+                  {{ model.name }}
+                {% endif %}
+              </li>
+            {% endfor %}
+          </ul>
+        </section>
+      {% endfor %}
+    {% elif available_apps %}
       {% for app in available_apps %}
         <section class="sidebar-section">
           <h3>{{ app.name }}</h3>
@@ -35,6 +52,8 @@
           </ul>
         </section>
       {% endfor %}
+    {% else %}
+      <p class="sidebar-empty">{% trans 'No models are registered with this admin site yet.' %}</p>
     {% endif %}
   </nav>
 {% endblock %}
@@ -83,6 +102,13 @@
       gap: 0.75rem;
     }
 
+    .sidebar-brand {
+      font-weight: 800;
+      font-size: 1rem;
+      letter-spacing: 0.01em;
+      text-transform: uppercase;
+    }
+
     .sidebar-header {
       font-weight: 700;
       text-transform: uppercase;
@@ -124,6 +150,11 @@
     .sidebar-section a:hover,
     .sidebar-section a:focus-visible {
       text-decoration: underline;
+    }
+
+    .sidebar-empty {
+      color: var(--body-quiet-color);
+      font-style: italic;
     }
 
     .main,

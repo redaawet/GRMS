@@ -147,6 +147,11 @@ class GRMSAdminSite(AdminSite):
             sections.append({"title": "Other models", "models": leftovers})
         return sections
 
+    def each_context(self, request):
+        context = super().each_context(request)
+        context["sections"] = self._build_sections(request)
+        return context
+
     def index(self, request, extra_context=None):  # pragma: no cover - thin wrapper
         extra_context = extra_context or {}
         extra_context["sections"] = self._build_sections(request)
