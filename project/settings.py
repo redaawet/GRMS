@@ -25,7 +25,7 @@ if WINDOWS_PROJ_LIB.exists():
     os.environ.setdefault("PROJ_LIB", str(WINDOWS_PROJ_LIB))
 
 INSTALLED_APPS = [
-    'django.contrib.admin',
+    'grms.admin_config.GRMSAdminConfig',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
@@ -54,7 +54,9 @@ ROOT_URLCONF = 'project.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        # Load the custom admin templates (grouped dashboard and base site)
+        # before falling back to app templates.
+        'DIRS': [BASE_DIR / 'grms' / 'templates'],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
