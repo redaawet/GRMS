@@ -4,3 +4,4 @@ djangorestframework-simplejwt
 psycopg2-binary
 djangorestframework-gis
 django-cors-headers
+pyproj

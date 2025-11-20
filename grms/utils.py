@@ -4,6 +4,25 @@ from __future__ import annotations
 
 from typing import Dict, Optional
 
+try:  # pragma: no cover - optional dependency for conversion
+    from pyproj import Transformer
+except ImportError:  # pragma: no cover - handled at runtime for clarity
+    Transformer = None
+
+
+def utm_to_wgs84(easting: float, northing: float, zone: int = 38) -> tuple[float, float]:
+    """Convert UTM coordinates to WGS84 latitude/longitude.
+
+    The default UTM zone corresponds to the Tigray region.
+    """
+
+    if Transformer is None:
+        raise ImportError("pyproj is required for UTM to WGS84 conversion. Install pyproj to continue.")
+
+    transformer = Transformer.from_crs(f"EPSG:326{zone}", "EPSG:4326", always_xy=True)
+    lon, lat = transformer.transform(easting, northing)
+    return lat, lon
+
 from django.conf import settings
 
 

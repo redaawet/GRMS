@@ -109,6 +109,11 @@ REST_FRAMEWORK = {
 
 CORS_ALLOW_ALL_ORIGINS = True
 
+LEAFLET_CONFIG = {
+    'DEFAULT_CENTER': [13.5, 39.5],
+    'DEFAULT_ZOOM': 8,
+}
+
 # Use cookie-based sessions so the admin can function even when the
 # database-backed session table has not been created yet.  This keeps the
 # project self-contained when running the lightweight SQLite setup.

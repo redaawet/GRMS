@@ -9,7 +9,7 @@ from django.shortcuts import redirect
 
 from . import models
 from .services import map_services
-from .utils import make_point, point_to_lat_lng
+from .utils import make_point, point_to_lat_lng, utm_to_wgs84
 
 
 class GRMSAdminSite(AdminSite):
@@ -172,8 +172,12 @@ admin.sites.site = grms_admin_site
 
 
 class RoadAdminForm(forms.ModelForm):
+    start_easting = forms.DecimalField(label="Start easting", required=False, max_digits=12, decimal_places=2)
+    start_northing = forms.DecimalField(label="Start northing", required=False, max_digits=12, decimal_places=2)
     start_lat = forms.FloatField(label="Start latitude", required=False)
     start_lng = forms.FloatField(label="Start longitude", required=False)
+    end_easting = forms.DecimalField(label="End easting", required=False, max_digits=12, decimal_places=2)
+    end_northing = forms.DecimalField(label="End northing", required=False, max_digits=12, decimal_places=2)
     end_lat = forms.FloatField(label="End latitude", required=False)
     end_lng = forms.FloatField(label="End longitude", required=False)
 
@@ -191,6 +195,27 @@ class RoadAdminForm(forms.ModelForm):
         if end:
             self.fields["end_lat"].initial = end["lat"]
             self.fields["end_lng"].initial = end["lng"]
+        if getattr(self.instance, "start_easting", None) is not None:
+            self.fields["start_easting"].initial = self.instance.start_easting
+        if getattr(self.instance, "start_northing", None) is not None:
+            self.fields["start_northing"].initial = self.instance.start_northing
+        if getattr(self.instance, "end_easting", None) is not None:
+            self.fields["end_easting"].initial = self.instance.end_easting
+        if getattr(self.instance, "end_northing", None) is not None:
+            self.fields["end_northing"].initial = self.instance.end_northing
+
+    def _populate_from_utm(self, prefix: str):
+        easting = self.cleaned_data.get(f"{prefix}_easting")
+        northing = self.cleaned_data.get(f"{prefix}_northing")
+        if easting is None or northing is None:
+            return None
+        try:
+            lat, lon = utm_to_wgs84(float(easting), float(northing), zone=38)
+        except ImportError as exc:
+            raise forms.ValidationError(str(exc))
+        self.cleaned_data[f"{prefix}_lat"] = lat
+        self.cleaned_data[f"{prefix}_lng"] = lon
+        return {"lat": lat, "lng": lon}
 
     def _clean_point(self, prefix: str):
         lat = self.cleaned_data.get(f"{prefix}_lat")
@@ -205,6 +230,8 @@ class RoadAdminForm(forms.ModelForm):
 
     def clean(self):
         cleaned = super().clean()
+        self._populate_from_utm("start")
+        self._populate_from_utm("end")
         start = self._clean_point("start")
         end = self._clean_point("end")
         cleaned["road_start_coordinates"] = start
@@ -262,8 +289,13 @@ class RoadAdmin(admin.ModelAdmin):
         (
             "Alignment coordinates",
             {
-                "description": "Capture the start and end of the road in decimal degrees (WGS84).",
-                "fields": (("start_lat", "start_lng"), ("end_lat", "end_lng")),
+                "description": "Capture the start and end of the road in UTM (Zone 38N) or decimal degrees (WGS84).",
+                "fields": (
+                    ("start_easting", "start_northing"),
+                    ("end_easting", "end_northing"),
+                    ("start_lat", "start_lng"),
+                    ("end_lat", "end_lng"),
+                ),
             },
         ),
     )
