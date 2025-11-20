@@ -18,43 +18,59 @@
     <div class="sidebar-brand">{% trans 'Gravel Road Management System' %}</div>
     <a class="sidebar-home" href="{% url 'admin:index' %}">{% trans 'Dashboard' %}</a>
 
-    {% if sections %}
-      {% for section in sections %}
-        <section class="sidebar-section">
-          <h3>{{ section.title }}</h3>
-          <ul>
-            {% for model in section.models %}
-              <li>
-                {% if model.admin_url %}
-                  <a href="{{ model.admin_url }}">{{ model.name }}</a>
-                {% else %}
-                  {{ model.name }}
-                {% endif %}
-              </li>
-            {% endfor %}
-          </ul>
-        </section>
-      {% endfor %}
-    {% elif available_apps %}
-      {% for app in available_apps %}
-        <section class="sidebar-section">
-          <h3>{{ app.name }}</h3>
-          <ul>
-            {% for model in app.models %}
-              <li>
-                {% if model.admin_url %}
-                  <a href="{{ model.admin_url }}">{{ model.name }}</a>
-                {% else %}
-                  {{ model.name }}
-                {% endif %}
-              </li>
-            {% endfor %}
-          </ul>
-        </section>
-      {% endfor %}
-    {% else %}
-      <p class="sidebar-empty">{% trans 'No models are registered with this admin site yet.' %}</p>
-    {% endif %}
+    <div class="sidebar-filter">
+      <label class="visually-hidden" for="sidebar-filter-input">{% trans 'Filter models' %}</label>
+      <input
+        id="sidebar-filter-input"
+        type="search"
+        placeholder="{% trans 'Filter models' %}"
+        aria-label="{% trans 'Filter models' %}"
+      />
+    </div>
+
+    <div class="sidebar-sections" id="sidebar-section-container">
+      {% if sections %}
+        {% for section in sections %}
+          <section class="sidebar-section" data-sidebar-section>
+            <h3>{{ section.title }}</h3>
+            <ul>
+              {% for model in section.models %}
+                <li data-sidebar-model>
+                  {% if model.admin_url %}
+                    <a href="{{ model.admin_url }}">{{ model.name }}</a>
+                  {% else %}
+                    {{ model.name }}
+                  {% endif %}
+                </li>
+              {% endfor %}
+            </ul>
+          </section>
+        {% endfor %}
+      {% elif available_apps %}
+        {% for app in available_apps %}
+          <section class="sidebar-section" data-sidebar-section>
+            <h3>{{ app.name }}</h3>
+            <ul>
+              {% for model in app.models %}
+                <li data-sidebar-model>
+                  {% if model.admin_url %}
+                    <a href="{{ model.admin_url }}">{{ model.name }}</a>
+                  {% else %}
+                    {{ model.name }}
+                  {% endif %}
+                </li>
+              {% endfor %}
+            </ul>
+          </section>
+        {% endfor %}
+      {% else %}
+        <p class="sidebar-empty">{% trans 'No models are registered with this admin site yet.' %}</p>
+      {% endif %}
+    </div>
+
+    <p class="sidebar-empty" id="sidebar-no-matches" hidden>
+      {% trans 'No models match that filter. Try a different keyword.' %}
+    </p>
   </nav>
 {% endblock %}
 
@@ -121,6 +137,18 @@
       font-size: 0.85rem;
     }
 
+    .sidebar-filter {
+      margin-top: 0.5rem;
+    }
+
+    .sidebar-filter input {
+      width: 100%;
+      max-width: 100%;
+      padding: 0.4rem 0.5rem;
+      border-radius: 4px;
+      border: 1px solid var(--hairline-color);
+    }
+
     .sidebar-home {
       padding: 0.4rem 0.6rem;
       border-radius: 4px;
@@ -128,6 +156,17 @@
       color: #fff;
       text-decoration: none;
       font-weight: 600;
+    }
+
+    .visually-hidden {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      border: 0;
     }
 
     .sidebar-section h3 {
@@ -175,4 +214,45 @@
       display: none !important;
     }
   </style>
+{% endblock %}
+
+{% block extrahead %}
+  {{ block.super }}
+  <script>
+    window.addEventListener("DOMContentLoaded", function () {
+      var input = document.getElementById("sidebar-filter-input");
+      var noMatch = document.getElementById("sidebar-no-matches");
+      if (!input) {
+        return;
+      }
+      var sections = Array.prototype.slice.call(
+        document.querySelectorAll("[data-sidebar-section]")
+      );
+      input.addEventListener("input", function (event) {
+        var term = event.target.value.trim().toLowerCase();
+        var visibleSections = 0;
+        sections.forEach(function (section) {
+          var items = Array.prototype.slice.call(
+            section.querySelectorAll("[data-sidebar-model]")
+          );
+          var visibleCount = 0;
+          items.forEach(function (item) {
+            var match = !term || item.textContent.toLowerCase().indexOf(term) !== -1;
+            item.style.display = match ? "" : "none";
+            if (match) {
+              visibleCount += 1;
+            }
+          });
+          var showSection = visibleCount > 0;
+          section.style.display = showSection ? "" : "none";
+          if (showSection) {
+            visibleSections += 1;
+          }
+        });
+        if (noMatch) {
+          noMatch.hidden = visibleSections !== 0;
+        }
+      });
+    });
+  </script>
 {% endblock %}
