@@ -86,10 +86,14 @@
     }
 
     /* Custom sidebar navigation that replaces the default Django app list */
+    :root {
+      --grms-sidebar-width: 240px;
+    }
+
     #nav-sidebar {
       display: block;
-      width: 280px;
-      padding: 1rem;
+      width: var(--grms-sidebar-width);
+      padding: 0.75rem;
       background: #f7f7f7;
       border-right: 1px solid var(--hairline-color);
     }
@@ -157,9 +161,12 @@
       font-style: italic;
     }
 
-    .main,
+    .main {
+      margin-left: 0;
+    }
+
     .main.shifted {
-      margin-left: 280px;
+      margin-left: var(--grms-sidebar-width);
     }
     
     /* Hide the default toggle button because the sidebar is always visible */
