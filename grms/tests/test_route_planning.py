@@ -117,12 +117,13 @@ class RoutePlanningTests(RoadNetworkMixin, APITestCase):
         mock_geo.assert_called_once_with(road.admin_zone.name, road.admin_woreda.name)
 
     @mock.patch("grms.services.map_services.get_admin_area_viewport", side_effect=map_services.MapServiceError("geocode"))
-    def test_map_context_bubbles_up_service_errors(self, mock_geo):
+    def test_map_context_falls_back_to_default_region_on_error(self, mock_geo):
         road, _, _ = self.create_network("ContextError")
         url = reverse("road_map_context", args=[road.id])
         response = self.client.get(url)
-        self.assertEqual(response.status_code, status.HTTP_502_BAD_GATEWAY)
-        self.assertIn("geocode", response.json()["detail"])
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        payload = response.json()
+        self.assertEqual(payload["map_region"]["center"], {"lat": 13.5, "lng": 39.5})
         mock_geo.assert_called_once()
 
     @mock.patch("grms.services.map_services.get_admin_area_viewport")
