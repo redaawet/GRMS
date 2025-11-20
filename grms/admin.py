@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from typing import Dict, List, Sequence
 
+from decimal import Decimal, ROUND_HALF_UP
+
 from django import forms
 from django.contrib import admin
 from django.contrib.admin import AdminSite
@@ -204,45 +206,54 @@ class RoadAdminForm(forms.ModelForm):
         if getattr(self.instance, "end_northing", None) is not None:
             self.fields["end_northing"].initial = self.instance.end_northing
 
-    def _require_pair(self, prefix: str, first: str, second: str, label: str):
-        one = self.cleaned_data.get(f"{prefix}_{first}")
-        two = self.cleaned_data.get(f"{prefix}_{second}")
-        if one is None and two is None:
-            return None
-        if one is None or two is None:
-            missing = first if one is None else second
-            raise forms.ValidationError({f"{prefix}_{missing}": label})
-        return one, two
+    @staticmethod
+    def _quantize_utm(value: float) -> Decimal:
+        return Decimal(str(value)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
-    def _populate_from_utm(self, prefix: str):
-        pair = self._require_pair(prefix, "easting", "northing", "Provide both easting and northing.")
-        if not pair:
-            return None
+    def _populate_coordinates(self, prefix: str):
         lat = self.cleaned_data.get(f"{prefix}_lat")
         lng = self.cleaned_data.get(f"{prefix}_lng")
-        if lat is not None and lng is not None:
-            return {"lat": lat, "lng": lng}
-        try:
-            lat, lon = utm_to_wgs84(float(pair[0]), float(pair[1]), zone=37)
-        except ImportError as exc:
-            raise forms.ValidationError(str(exc))
-        self.cleaned_data[f"{prefix}_lat"] = lat
-        self.cleaned_data[f"{prefix}_lng"] = lon
-        return {"lat": lat, "lng": lon}
+        easting = self.cleaned_data.get(f"{prefix}_easting")
+        northing = self.cleaned_data.get(f"{prefix}_northing")
 
-    def _populate_from_latlng(self, prefix: str):
-        pair = self._require_pair(prefix, "lat", "lng", "Both latitude and longitude are required.")
-        if not pair:
-            return None
-        if self.cleaned_data.get(f"{prefix}_easting") is not None and self.cleaned_data.get(f"{prefix}_northing") is not None:
-            return {"lat": float(pair[0]), "lng": float(pair[1])}
-        try:
-            easting, northing = wgs84_to_utm(float(pair[0]), float(pair[1]), zone=37)
-        except ImportError as exc:
-            raise forms.ValidationError(str(exc))
-        self.cleaned_data[f"{prefix}_easting"] = easting
-        self.cleaned_data[f"{prefix}_northing"] = northing
-        return {"lat": float(pair[0]), "lng": float(pair[1])}
+        has_lat = lat is not None
+        has_lng = lng is not None
+        has_easting = easting is not None
+        has_northing = northing is not None
+
+        latlng_complete = has_lat and has_lng
+        utm_complete = has_easting and has_northing
+
+        if latlng_complete and utm_complete:
+            return {"lat": float(lat), "lng": float(lng)}
+
+        if latlng_complete:
+            try:
+                easting_val, northing_val = wgs84_to_utm(float(lat), float(lng), zone=37)
+            except ImportError as exc:
+                raise forms.ValidationError(str(exc))
+            self.cleaned_data[f"{prefix}_easting"] = self._quantize_utm(easting_val)
+            self.cleaned_data[f"{prefix}_northing"] = self._quantize_utm(northing_val)
+            return {"lat": float(lat), "lng": float(lng)}
+
+        if utm_complete:
+            try:
+                lat_val, lon_val = utm_to_wgs84(float(easting), float(northing), zone=37)
+            except ImportError as exc:
+                raise forms.ValidationError(str(exc))
+            self.cleaned_data[f"{prefix}_lat"] = lat_val
+            self.cleaned_data[f"{prefix}_lng"] = lon_val
+            return {"lat": lat_val, "lng": lon_val}
+
+        if has_easting or has_northing:
+            missing = "northing" if has_easting else "easting"
+            raise forms.ValidationError({f"{prefix}_{missing}": "Provide both easting and northing or a latitude/longitude pair."})
+
+        if has_lat or has_lng:
+            missing = "lng" if has_lat else "lat"
+            raise forms.ValidationError({f"{prefix}_{missing}": "Provide both latitude and longitude or a UTM easting/northing pair."})
+
+        return None
 
     def _clean_point(self, prefix: str):
         lat = self.cleaned_data.get(f"{prefix}_lat")
@@ -253,14 +264,12 @@ class RoadAdminForm(forms.ModelForm):
 
     def clean(self):
         cleaned = super().clean()
-        self._populate_from_utm("start")
-        self._populate_from_utm("end")
-        self._populate_from_latlng("start")
-        self._populate_from_latlng("end")
-        start = self._clean_point("start")
-        end = self._clean_point("end")
-        cleaned["road_start_coordinates"] = start
-        cleaned["road_end_coordinates"] = end
+        self._populate_coordinates("start")
+        self._populate_coordinates("end")
+        start_point = self._clean_point("start")
+        end_point = self._clean_point("end")
+        cleaned["road_start_coordinates"] = start_point
+        cleaned["road_end_coordinates"] = end_point
         return cleaned
 
     def save(self, commit=True):
