@@ -28,6 +28,10 @@ class ConditionRating(models.Model):
     name = models.CharField(max_length=50, unique=True)
     rating_value = models.PositiveSmallIntegerField(null=True, blank=True)
 
+    class Meta:
+        verbose_name = "Condition rating"
+        verbose_name_plural = "Condition ratings"
+
     def __str__(self) -> str:  # pragma: no cover - simple repr
         return self.name
 
@@ -38,6 +42,10 @@ class ConditionFactor(models.Model):
     factor = models.CharField(max_length=50, unique=True)
     factor_value = models.PositiveSmallIntegerField(null=True, blank=True)
 
+    class Meta:
+        verbose_name = "Condition factor"
+        verbose_name_plural = "Condition factors"
+
     def __str__(self) -> str:  # pragma: no cover - simple repr
         return self.factor
 
@@ -46,6 +54,10 @@ class QAStatus(models.Model):
     """Quality assurance status for survey records."""
 
     status = models.CharField(max_length=50, unique=True)
+
+    class Meta:
+        verbose_name = "QA status"
+        verbose_name_plural = "QA statuses"
 
     def __str__(self) -> str:  # pragma: no cover - simple repr
         return self.status
@@ -58,6 +70,8 @@ class AdminZone(models.Model):
     region = models.CharField(max_length=100, default="Tigray")
 
     class Meta:
+        verbose_name = "Administrative zone"
+        verbose_name_plural = "Administrative zones"
         ordering = ["name"]
 
     def __str__(self) -> str:  # pragma: no cover - simple repr
@@ -71,6 +85,8 @@ class AdminWoreda(models.Model):
     zone = models.ForeignKey(AdminZone, on_delete=models.CASCADE, related_name="woredas")
 
     class Meta:
+        verbose_name = "Administrative woreda"
+        verbose_name_plural = "Administrative woredas"
         unique_together = ("name", "zone")
         ordering = ["zone__name", "name"]
 
@@ -92,6 +108,10 @@ class InterventionLookup(models.Model):
     description = models.TextField(blank=True)
     effective_date = models.DateField()
     expiry_date = models.DateField(null=True, blank=True)
+
+    class Meta:
+        verbose_name = "Intervention lookup"
+        verbose_name_plural = "Intervention lookups"
 
     def __str__(self) -> str:  # pragma: no cover - simple repr
         return f"{self.intervention_code} - {self.name}"
@@ -116,6 +136,8 @@ class ActivityLookup(models.Model):
     notes = models.TextField(blank=True)
 
     class Meta:
+        verbose_name = "Activity lookup"
+        verbose_name_plural = "Activity lookups"
         ordering = ["activity_code"]
 
     def __str__(self) -> str:  # pragma: no cover - simple repr
@@ -133,6 +155,8 @@ class UnitCost(models.Model):
     notes = models.TextField(blank=True)
 
     class Meta:
+        verbose_name = "Unit cost"
+        verbose_name_plural = "Unit costs"
         unique_together = ("intervention", "region", "effective_date")
 
     def __str__(self) -> str:  # pragma: no cover - simple repr
@@ -149,6 +173,10 @@ class PCULookup(models.Model):
     region = models.CharField(max_length=100, null=True, blank=True)
     notes = models.TextField(blank=True)
 
+    class Meta:
+        verbose_name = "PCU lookup"
+        verbose_name_plural = "PCU lookups"
+
     def __str__(self) -> str:  # pragma: no cover - simple repr
         return f"{self.vehicle_class} ({self.pcu_factor})"
 
@@ -162,6 +190,8 @@ class NightAdjustmentLookup(models.Model):
     notes = models.TextField(blank=True)
 
     class Meta:
+        verbose_name = "Night adjustment lookup"
+        verbose_name_plural = "Night adjustment lookups"
         unique_together = ("hours_counted", "effective_date")
 
     def __str__(self) -> str:  # pragma: no cover
@@ -189,6 +219,8 @@ class DistressType(models.Model):
     notes = models.TextField(blank=True)
 
     class Meta:
+        verbose_name = "Distress type"
+        verbose_name_plural = "Distress types"
         ordering = ["distress_code"]
 
     def __str__(self) -> str:  # pragma: no cover - simple repr
@@ -207,6 +239,8 @@ class DistressCondition(models.Model):
     condition_notes = models.TextField(blank=True)
 
     class Meta:
+        verbose_name = "Distress condition"
+        verbose_name_plural = "Distress conditions"
         unique_together = ("distress", "severity_code", "extent_code")
         ordering = ["distress__distress_code", "severity_code", "extent_code"]
 
@@ -234,6 +268,8 @@ class DistressActivity(models.Model):
     notes = models.TextField(blank=True)
 
     class Meta:
+        verbose_name = "Distress activity"
+        verbose_name_plural = "Distress activities"
         unique_together = ("condition", "activity")
 
     def __str__(self) -> str:  # pragma: no cover - simple repr
@@ -325,6 +361,10 @@ class Road(models.Model):
     year_of_update = models.DateField(null=True, blank=True, help_text="Date of last MCI update")
     remarks = models.TextField(blank=True, help_text="Additional notes or remarks")
 
+    class Meta:
+        verbose_name = "Road"
+        verbose_name_plural = "Roads"
+
     def __str__(self) -> str:  # pragma: no cover
         return f"Road {self.id}: {self.road_name_from}–{self.road_name_to}"
 
@@ -379,6 +419,10 @@ class RoadSection(models.Model):
     geometry = LineStringField(srid=4326, null=True, blank=True, help_text="Section geometry (LineString)")
     attachments = models.JSONField(null=True, blank=True, help_text="Photos/documents URLs or metadata")
 
+    class Meta:
+        verbose_name = "Road section"
+        verbose_name_plural = "Road sections"
+
     def __str__(self) -> str:  # pragma: no cover
         return f"Section {self.section_number} of Road {self.road_id}"
 
@@ -424,6 +468,10 @@ class RoadSegment(models.Model):
     carriageway_width_m = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
     comment = models.TextField(blank=True, help_text="Notes or comments for this segment")
 
+    class Meta:
+        verbose_name = "Road segment"
+        verbose_name_plural = "Road segments"
+
     @property
     def length_km(self) -> float:
         """Return computed length based on chainage values."""
@@ -468,6 +516,10 @@ class StructureInventory(models.Model):
     created_date = models.DateTimeField(auto_now_add=True)
     modified_date = models.DateTimeField(auto_now=True)
 
+    class Meta:
+        verbose_name = "Structure inventory"
+        verbose_name_plural = "Structure inventories"
+
     def __str__(self) -> str:  # pragma: no cover
         return f"Structure {self.id} ({self.structure_category} at {self.station_km} km)"
 
@@ -494,6 +546,10 @@ class BridgeDetail(models.Model):
     width_m = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True)
     length_m = models.DecimalField(max_digits=8, decimal_places=2, null=True, blank=True)
     has_head_walls = models.BooleanField(default=False, help_text="Head walls present")
+
+    class Meta:
+        verbose_name = "Bridge detail"
+        verbose_name_plural = "Bridge details"
 
     def __str__(self) -> str:  # pragma: no cover
         return f"Bridge detail for structure {self.structure_id}"
@@ -523,6 +579,10 @@ class CulvertDetail(models.Model):
     pipe_diameter_m = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True, help_text="Pipe diameter (m)")
     has_head_walls = models.BooleanField(default=False)
 
+    class Meta:
+        verbose_name = "Culvert detail"
+        verbose_name_plural = "Culvert details"
+
     def __str__(self) -> str:  # pragma: no cover
         return f"Culvert detail for structure {self.structure_id}"
 
@@ -534,6 +594,10 @@ class FordDetail(models.Model):
         primary_key=True,
         limit_choices_to={"structure_category": "Ford"},
     )
+
+    class Meta:
+        verbose_name = "Ford detail"
+        verbose_name_plural = "Ford details"
 
     def __str__(self) -> str:  # pragma: no cover
         return f"Ford detail for structure {self.structure_id}"
@@ -547,6 +611,10 @@ class RetainingWallDetail(models.Model):
         limit_choices_to={"structure_category": "Retaining Wall"},
     )
 
+    class Meta:
+        verbose_name = "Retaining wall detail"
+        verbose_name_plural = "Retaining wall details"
+
     def __str__(self) -> str:  # pragma: no cover
         return f"Retaining wall detail for structure {self.structure_id}"
 
@@ -558,6 +626,10 @@ class GabionWallDetail(models.Model):
         primary_key=True,
         limit_choices_to={"structure_category": "Gabion Wall"},
     )
+
+    class Meta:
+        verbose_name = "Gabion wall detail"
+        verbose_name_plural = "Gabion wall details"
 
     def __str__(self) -> str:  # pragma: no cover
         return f"Gabion wall detail for structure {self.structure_id}"
@@ -582,6 +654,10 @@ class FurnitureInventory(models.Model):
     comments = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     modified_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Furniture inventory"
+        verbose_name_plural = "Furniture inventories"
 
     def __str__(self) -> str:  # pragma: no cover
         return f"{self.furniture_type} on segment {self.road_segment_id}"
@@ -608,6 +684,10 @@ class StructureConditionSurvey(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     modified_at = models.DateTimeField(auto_now=True)
 
+    class Meta:
+        verbose_name = "Structure condition survey"
+        verbose_name_plural = "Structure condition surveys"
+
     def __str__(self) -> str:  # pragma: no cover
         return f"Structure survey {self.id} ({self.structure_id})"
 
@@ -626,6 +706,10 @@ class BridgeConditionSurvey(models.Model):
     expansion_joint_ok = models.BooleanField(default=False, help_text="Expansion joint present/OK")
     remarks = models.TextField(blank=True)
 
+    class Meta:
+        verbose_name = "Bridge condition survey"
+        verbose_name_plural = "Bridge condition surveys"
+
     def __str__(self) -> str:  # pragma: no cover
         return f"Bridge survey details {self.structure_survey_id}"
 
@@ -643,6 +727,10 @@ class CulvertConditionSurvey(models.Model):
     headwall_condition = models.ForeignKey(ConditionFactor, on_delete=models.SET_NULL, null=True, related_name="+")
     remarks = models.TextField(blank=True)
 
+    class Meta:
+        verbose_name = "Culvert condition survey"
+        verbose_name_plural = "Culvert condition surveys"
+
     def __str__(self) -> str:  # pragma: no cover
         return f"Culvert survey details {self.structure_survey_id}"
 
@@ -652,6 +740,10 @@ class OtherStructureConditionSurvey(models.Model):
     wall_condition = models.ForeignKey(ConditionFactor, on_delete=models.SET_NULL, null=True, related_name="+")
     ford_condition = models.ForeignKey(ConditionFactor, on_delete=models.SET_NULL, null=True, related_name="+")
     remarks = models.TextField(blank=True)
+
+    class Meta:
+        verbose_name = "Other structure condition survey"
+        verbose_name_plural = "Other structure condition surveys"
 
     def __str__(self) -> str:  # pragma: no cover
         return f"Other structure survey details {self.structure_survey_id}"
@@ -690,6 +782,10 @@ class RoadConditionSurvey(models.Model):
     )
     intervention_recommended = models.TextField(blank=True, help_text="Suggested intervention based on condition")
 
+    class Meta:
+        verbose_name = "Road condition survey"
+        verbose_name_plural = "Road condition surveys"
+
     def save(self, *args, **kwargs) -> None:
         factors: Iterable[Optional[Decimal]] = (
             self.surface_condition_factor,
@@ -717,6 +813,10 @@ class FurnitureConditionSurvey(models.Model):
     inspection_date = models.DateField(null=True, blank=True)
     qa_status = models.ForeignKey(QAStatus, on_delete=models.PROTECT, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Furniture condition survey"
+        verbose_name_plural = "Furniture condition surveys"
 
     def __str__(self) -> str:  # pragma: no cover
         return f"Furniture survey {self.id} ({self.furniture_id})"
@@ -771,6 +871,8 @@ class RoadConditionDetailedSurvey(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
+        verbose_name = "Road condition detailed survey"
+        verbose_name_plural = "Road condition detailed surveys"
         ordering = ["-inspection_date", "road_segment_id"]
 
     def __str__(self) -> str:  # pragma: no cover
@@ -823,6 +925,8 @@ class StructureConditionDetailedSurvey(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
+        verbose_name = "Structure condition detailed survey"
+        verbose_name_plural = "Structure condition detailed surveys"
         ordering = ["-inspection_date", "structure_id"]
 
     def __str__(self) -> str:  # pragma: no cover
@@ -871,6 +975,8 @@ class FurnitureConditionDetailedSurvey(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
+        verbose_name = "Furniture condition detailed survey"
+        verbose_name_plural = "Furniture condition detailed surveys"
         ordering = ["-inspection_date", "furniture_id"]
 
     def __str__(self) -> str:  # pragma: no cover
@@ -917,6 +1023,10 @@ class TrafficSurvey(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     approved_at = models.DateTimeField(null=True, blank=True)
 
+    class Meta:
+        verbose_name = "Traffic survey"
+        verbose_name_plural = "Traffic surveys"
+
     def __str__(self) -> str:  # pragma: no cover
         return f"TrafficSurvey {self.id} (Yr {self.survey_year}, Segment {self.road_segment_id})"
 
@@ -947,6 +1057,10 @@ class TrafficCountRecord(models.Model):
     is_market_day = models.BooleanField(default=False, help_text="Market day indicator for this count")
     created_at = models.DateTimeField(auto_now_add=True)
 
+    class Meta:
+        verbose_name = "Traffic count record"
+        verbose_name_plural = "Traffic count records"
+
     def __str__(self) -> str:  # pragma: no cover
         return f"TrafficCountRecord {self.id} ({self.vehicle_class})"
 
@@ -964,6 +1078,8 @@ class TrafficCycleSummary(models.Model):
     qc_flag = models.TextField(blank=True, help_text="Quality control notes/flags")
 
     class Meta:
+        verbose_name = "Traffic cycle summary"
+        verbose_name_plural = "Traffic cycle summaries"
         unique_together = ("traffic_survey", "vehicle_class", "cycle_number")
 
     def __str__(self) -> str:  # pragma: no cover
@@ -982,6 +1098,10 @@ class TrafficSurveySummary(models.Model):
     confidence_score = models.DecimalField(max_digits=5, decimal_places=2, help_text="Data confidence (0–100)")
     computed_at = models.DateTimeField(auto_now_add=True)
 
+    class Meta:
+        verbose_name = "Traffic survey summary"
+        verbose_name_plural = "Traffic survey summaries"
+
     def __str__(self) -> str:  # pragma: no cover
         return f"Survey summary {self.traffic_survey_id} ({self.vehicle_class})"
 
@@ -993,6 +1113,10 @@ class TrafficQC(models.Model):
     issue_detail = models.TextField(help_text="Detailed description of the issue")
     resolved = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Traffic quality check"
+        verbose_name_plural = "Traffic quality checks"
 
     def __str__(self) -> str:  # pragma: no cover
         return f"Traffic QC {self.id}: {self.issue_type}"
@@ -1008,6 +1132,8 @@ class TrafficForPrioritization(models.Model):
     prepared_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
+        verbose_name = "Traffic for prioritization record"
+        verbose_name_plural = "Traffic for prioritization records"
         unique_together = ("road", "fiscal_year", "value_type", "road_segment")
 
     def __str__(self) -> str:  # pragma: no cover
@@ -1033,6 +1159,10 @@ class StructureIntervention(models.Model):
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Structure intervention"
+        verbose_name_plural = "Structure interventions"
 
     def __str__(self) -> str:  # pragma: no cover
         return f"Structure intervention {self.id} ({self.structure_id})"
@@ -1060,6 +1190,10 @@ class RoadSectionIntervention(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    class Meta:
+        verbose_name = "Road section intervention"
+        verbose_name_plural = "Road section interventions"
+
     def __str__(self) -> str:  # pragma: no cover
         return f"Section intervention {self.id} ({self.section_id})"
 
@@ -1075,6 +1209,10 @@ class BenefitFactor(models.Model):
     total_benefit_score = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
     last_calculated = models.DateField(null=True, blank=True)
     notes = models.TextField(blank=True)
+
+    class Meta:
+        verbose_name = "Benefit factor"
+        verbose_name_plural = "Benefit factors"
 
     def __str__(self) -> str:  # pragma: no cover
         return f"Benefit factors for road {self.road_id}"
@@ -1095,6 +1233,8 @@ class PrioritizationResult(models.Model):
     notes = models.TextField(blank=True)
 
     class Meta:
+        verbose_name = "Prioritization result"
+        verbose_name_plural = "Prioritization results"
         ordering = ["fiscal_year", "priority_rank"]
 
     def __str__(self) -> str:  # pragma: no cover
@@ -1129,6 +1269,8 @@ class AnnualWorkPlan(models.Model):
     approved_by = models.CharField(max_length=150, null=True, blank=True)
 
     class Meta:
+        verbose_name = "Annual work plan"
+        verbose_name_plural = "Annual work plans"
         unique_together = ("fiscal_year", "road")
 
     def __str__(self) -> str:  # pragma: no cover
