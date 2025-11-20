@@ -68,6 +68,7 @@
         let endMarker;
         let mapLoaded = false;
         let routeLine;
+        let roadLine;
 
         function showStatus(message, level) {
             if (!statusEl) {
@@ -105,6 +106,39 @@
         function syncMarkersFromInputs() {
             updateMarkerPosition(startMarker, startLat, startLng);
             updateMarkerPosition(endMarker, endLat, endLng);
+        }
+
+        function getRoadCoordinates() {
+            const coords = {
+                start: [parseFloat(startLat.value), parseFloat(startLng.value)],
+                end: [parseFloat(endLat.value), parseFloat(endLng.value)],
+            };
+            if (!coords.start.every(Number.isFinite) || !coords.end.every(Number.isFinite)) {
+                return null;
+            }
+            return coords;
+        }
+
+        function drawRoadLine(shouldFit) {
+            if (!map || !window.L) {
+                return false;
+            }
+            const coords = getRoadCoordinates();
+            if (!coords) {
+                if (roadLine && map.hasLayer(roadLine)) {
+                    map.removeLayer(roadLine);
+                }
+                roadLine = null;
+                return false;
+            }
+            if (roadLine && map.hasLayer(roadLine)) {
+                map.removeLayer(roadLine);
+            }
+            roadLine = L.polyline([coords.start, coords.end]).addTo(map);
+            if (shouldFit) {
+                map.fitBounds(roadLine.getBounds(), { padding: [40, 40] });
+            }
+            return true;
         }
 
         function ensureMapContainer() {
@@ -165,8 +199,6 @@
                     showStatus("Map context loaded.", "success");
                     if (!mapLoaded) {
                         initialiseMap(payload);
-                    } else {
-                        updateMapViewport(payload);
                     }
                     if (payload.start && !startLat.value) {
                         setInputsFromPoint(payload.start, "start");
@@ -175,6 +207,10 @@
                         setInputsFromPoint(payload.end, "end");
                     }
                     syncMarkersFromInputs();
+                    const hasRoadLine = drawRoadLine(true);
+                    if (!hasRoadLine && mapLoaded) {
+                        updateMapViewport(payload);
+                    }
                 })
                 .catch(function (err) {
                     showStatus(err.message, "error");
@@ -189,7 +225,7 @@
                 return;
             }
             mapLoaded = true;
-            map = L.map(mapNode).setView([center.lat, center.lng], 10);
+            map = L.map(mapNode).setView([center.lat, center.lng], 8);
             L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
                 attribution: "© OpenStreetMap contributors",
                 maxZoom: 19,
@@ -209,6 +245,7 @@
                     startLng.value = lng.toFixed(6);
                 }
                 syncMarkersFromInputs();
+                drawRoadLine(true);
             });
         }
 
@@ -305,11 +342,17 @@
         }
 
         [startLat, startLng, endLat, endLng].forEach(function (input) {
-            input.addEventListener("change", syncMarkersFromInputs);
+            input.addEventListener("change", function () {
+                syncMarkersFromInputs();
+                drawRoadLine(true);
+            });
             input.addEventListener("input", function () {
                 // Delay updates to avoid noisy marker moves during typing.
                 clearTimeout(input._roadAdminTimer);
-                input._roadAdminTimer = setTimeout(syncMarkersFromInputs, 400);
+                input._roadAdminTimer = setTimeout(function () {
+                    syncMarkersFromInputs();
+                    drawRoadLine(true);
+                }, 400);
             });
         });
 

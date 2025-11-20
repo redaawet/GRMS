@@ -15,6 +15,7 @@ from django.core.exceptions import ValidationError
 from django.db import models
 
 from .gis_fields import LineStringField, PointField
+from .utils import make_point, utm_to_wgs84
 
 # ---------------------------------------------------------------------------
 # Lookup tables
@@ -275,7 +276,35 @@ class Road(models.Model):
         help_text="Administrative Woreda",
     )
     total_length_km = models.DecimalField(max_digits=6, decimal_places=2)
+    start_easting = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="UTM easting for the start point (Zone 38N)",
+    )
+    start_northing = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="UTM northing for the start point (Zone 38N)",
+    )
     road_start_coordinates = PointField(srid=4326, null=True, blank=True)
+    end_easting = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="UTM easting for the end point (Zone 38N)",
+    )
+    end_northing = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="UTM northing for the end point (Zone 38N)",
+    )
     road_end_coordinates = PointField(srid=4326, null=True, blank=True)
     surface_type = models.CharField(
         max_length=10,
@@ -305,6 +334,25 @@ class Road(models.Model):
                 raise ValidationError(
                     {"admin_woreda": "Selected woreda does not belong to the selected zone."}
                 )
+
+    def _point_from_utm(self, easting: Optional[Decimal], northing: Optional[Decimal]):
+        if easting is None or northing is None:
+            return None
+        lat, lon = utm_to_wgs84(float(easting), float(northing), zone=38)
+        return make_point(lat, lon)
+
+    def save(self, *args, **kwargs):
+        # Update WGS84 coordinates from UTM inputs when provided. Zone and
+        # woreda selections are left untouched.
+        start_point = self._point_from_utm(self.start_easting, self.start_northing)
+        if start_point:
+            self.road_start_coordinates = start_point
+
+        end_point = self._point_from_utm(self.end_easting, self.end_northing)
+        if end_point:
+            self.road_end_coordinates = end_point
+
+        super().save(*args, **kwargs)
 
 
 class RoadSection(models.Model):
