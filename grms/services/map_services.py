@@ -14,6 +14,23 @@ USER_AGENT = "GRMS/1.0 (https://github.com/WorldBank-Transport/GRMS)"
 TRAVEL_MODES = {"DRIVING", "WALKING", "BICYCLING"}
 OSRM_PROFILES = {"DRIVING": "driving", "WALKING": "walking", "BICYCLING": "cycling"}
 
+# Default to the centre of the Tigray region in Ethiopia so map widgets have a
+# sensible starting viewport even if we cannot look up a specific admin area.
+DEFAULT_MAP_REGION = {
+    "formatted_address": "Tigray, Ethiopia",
+    "center": {"lat": 13.5, "lng": 39.5},
+    # The bounds cover the approximate extent of the region and are also used
+    # as the viewport when fitting the map to show the whole area.
+    "bounds": {
+        "northeast": {"lat": 15.1, "lng": 40.3},
+        "southwest": {"lat": 12.4, "lng": 37.9},
+    },
+    "viewport": {
+        "northeast": {"lat": 15.1, "lng": 40.3},
+        "southwest": {"lat": 12.4, "lng": 37.9},
+    },
+}
+
 
 class MapServiceError(RuntimeError):
     """Raised when the backing map services return an error response."""
@@ -73,6 +90,14 @@ def _request_json(url: str) -> Any:
             return json.loads(data)
     except error.URLError as exc:  # pragma: no cover - network errors
         raise MapServiceError(str(exc)) from exc
+
+
+def get_default_map_region() -> Dict[str, Any]:
+    """Return a copy of the default Tigray map region configuration."""
+
+    # Copy via JSON round-trip to avoid accidental mutation of the module
+    # constant in request handlers.
+    return json.loads(json.dumps(DEFAULT_MAP_REGION))
 
 
 def get_directions(
