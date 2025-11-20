@@ -54,7 +54,9 @@ ROOT_URLCONF = 'project.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        # Load the custom admin templates (grouped dashboard and base site)
+        # before falling back to app templates.
+        'DIRS': [BASE_DIR / 'grms' / 'templates'],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [

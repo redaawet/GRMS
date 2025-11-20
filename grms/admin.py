@@ -157,10 +157,13 @@ class GRMSAdminSite(AdminSite):
         return redirect("admin:index")
 
 
-# Use the default AdminSite instance so every generated link and template helper
-# (e.g., {% url 'admin:index' %}) stays in sync with this custom site instead of
-# falling back to Django's built-in AdminSite instance.
-grms_admin_site: GRMSAdminSite = admin.site  # type: ignore[assignment]
+# Instantiate a single GRMSAdminSite so every generated link and template helper
+# (e.g., {% url 'admin:index' %}) routes through the grouped dashboard instead
+# of Django's stock admin. Replace Django's default site object so add/change
+# pages also inherit the grouped layout.
+grms_admin_site = GRMSAdminSite(name="admin")
+admin.site = grms_admin_site
+admin.sites.site = grms_admin_site
 
 
 class RoadAdminForm(forms.ModelForm):
