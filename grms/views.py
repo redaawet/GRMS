@@ -282,12 +282,17 @@ def road_map_context(request: Request, pk: int) -> Response:
 
     woreda_for_lookup = woreda if woreda and zone and woreda.zone_id == zone.id else None
 
-    try:
-        map_region = map_services.get_admin_area_viewport(
-            zone.name if zone else None, woreda_for_lookup.name if woreda_for_lookup else None
-        )
-    except map_services.MapServiceError as exc:
-        return Response({"detail": str(exc)}, status=status.HTTP_502_BAD_GATEWAY)
+    map_region = map_services.get_default_map_region()
+    if zone or woreda_for_lookup:
+        try:
+            map_region = map_services.get_admin_area_viewport(
+                zone.name if zone else None, woreda_for_lookup.name if woreda_for_lookup else None
+            )
+        except map_services.MapServiceError:
+            # Fall back to the default region (Tigray) if we cannot determine a
+            # more precise viewport. This keeps the map usable even when the
+            # geocoding service is unavailable.
+            map_region = map_services.get_default_map_region()
 
     return Response(
         {
