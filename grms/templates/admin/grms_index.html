@@ -1,8 +1,6 @@
 {% extends "admin/base_site.html" %}
 {% load i18n %}
 
-{% block nav-sidebar %}{% endblock %}
-
 {% block content %}
 <div id="content-main">
   {% if sections or app_list %}
@@ -83,59 +81,48 @@
 {% endblock %}
 
 {% block extrastyle %}
-  {{ block.super }}
-  <style>
-    /* Hide the default sidebar and reclaim the horizontal space */
-    #nav-sidebar,
-    .toggle-nav-sidebar {
-      display: none !important;
-    }
+    {{ block.super }}
+    <style>
+      .dashboard-filter {
+        display: flex;
+        justify-content: flex-end;
+        margin-bottom: 1rem;
+      }
 
-    .main,
-    .main.shifted {
-      margin-left: 0;
-    }
+      #dashboard-filter-input {
+        min-width: 18rem;
+        max-width: 24rem;
+        padding: 0.35rem 0.5rem;
+      }
 
-    .dashboard-filter {
-      display: flex;
-      justify-content: flex-end;
-      margin-bottom: 1rem;
-    }
+      .dashboard-summary {
+        margin-top: 0;
+        margin-bottom: 1.5rem;
+        color: var(--body-quiet-color);
+        font-size: 0.95rem;
+      }
 
-    #dashboard-filter-input {
-      min-width: 18rem;
-      max-width: 24rem;
-      padding: 0.35rem 0.5rem;
-    }
+      .no-matches {
+        margin-top: 1.5rem;
+        font-style: italic;
+        color: var(--body-quiet-color);
+      }
 
-    .dashboard-summary {
-      margin-top: 0;
-      margin-bottom: 1.5rem;
-      color: var(--body-quiet-color);
-      font-size: 0.95rem;
-    }
+      .empty-dashboard {
+        color: var(--body-quiet-color);
+      }
 
-    .no-matches {
-      margin-top: 1.5rem;
-      font-style: italic;
-      color: var(--body-quiet-color);
-    }
-
-    .empty-dashboard {
-      color: var(--body-quiet-color);
-    }
-
-    .visually-hidden {
-      position: absolute;
-      width: 1px;
-      height: 1px;
-      padding: 0;
-      margin: -1px;
-      overflow: hidden;
-      clip: rect(0, 0, 0, 0);
-      border: 0;
-    }
-  </style>
+      .visually-hidden {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        border: 0;
+      }
+    </style>
 {% endblock %}
 
 {% block extrahead %}
@@ -179,5 +166,4 @@
   </script>
 {% endblock %}
 
-{# Hide the default sidebar app list to avoid duplicating the grouped dashboard #}
-{% block sidebar %}{% endblock %}
+  {% block sidebar %}{% endblock %}
