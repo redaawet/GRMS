@@ -1,0 +1,139 @@
+{% extends "admin/base.html" %}
+{% load i18n %}
+
+{% block title %}{{ site_title|default:_('Django site admin') }}{% endblock %}
+
+{% block branding %}
+<h1 id="site-name"><a href="{% url 'admin:index' %}">{{ site_header|default:_('Django administration') }}</a></h1>
+{% endblock %}
+
+{% block nav-global %}
+  <div class="nav-global-wrapper">
+    <a class="dashboard-link" href="{% url 'admin:index' %}">{% trans 'Dashboard' %}</a>
+  </div>
+{% endblock %}
+
+{% block nav-sidebar %}
+  <nav class="dashboard-sidebar" aria-label="{% trans 'Admin navigation' %}">
+    <div class="sidebar-header">{% trans 'Navigation' %}</div>
+    <a class="sidebar-home" href="{% url 'admin:index' %}">{% trans 'Dashboard' %}</a>
+
+    {% if available_apps %}
+      {% for app in available_apps %}
+        <section class="sidebar-section">
+          <h3>{{ app.name }}</h3>
+          <ul>
+            {% for model in app.models %}
+              <li>
+                {% if model.admin_url %}
+                  <a href="{{ model.admin_url }}">{{ model.name }}</a>
+                {% else %}
+                  {{ model.name }}
+                {% endif %}
+              </li>
+            {% endfor %}
+          </ul>
+        </section>
+      {% endfor %}
+    {% endif %}
+  </nav>
+{% endblock %}
+
+{% block extrastyle %}
+  {{ block.super }}
+  <style>
+    .nav-global-wrapper {
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.25rem 1rem;
+      background: var(--body-bg);
+    }
+
+    .nav-global-wrapper .dashboard-link {
+      padding: 0.35rem 0.75rem;
+      border-radius: 4px;
+      background: var(--accent);
+      color: #fff;
+      text-decoration: none;
+      font-weight: 600;
+    }
+
+    .nav-global-wrapper .dashboard-link:hover,
+    .nav-global-wrapper .dashboard-link:focus-visible {
+      background: var(--hairline-color);
+      color: var(--body-fg);
+    }
+
+    /* Custom sidebar navigation that replaces the default Django app list */
+    #nav-sidebar {
+      display: block;
+      width: 280px;
+      padding: 1rem;
+      background: #f7f7f7;
+      border-right: 1px solid var(--hairline-color);
+    }
+
+    .dashboard-sidebar {
+      position: sticky;
+      top: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .sidebar-header {
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.02em;
+      color: var(--body-quiet-color);
+      font-size: 0.85rem;
+    }
+
+    .sidebar-home {
+      padding: 0.4rem 0.6rem;
+      border-radius: 4px;
+      background: var(--accent);
+      color: #fff;
+      text-decoration: none;
+      font-weight: 600;
+    }
+
+    .sidebar-section h3 {
+      margin: 0.25rem 0;
+      font-size: 0.95rem;
+      color: var(--body-fg);
+    }
+
+    .sidebar-section ul {
+      list-style: none;
+      margin: 0;
+      padding-left: 0;
+    }
+
+    .sidebar-section li {
+      margin: 0.1rem 0;
+    }
+
+    .sidebar-section a {
+      text-decoration: none;
+      color: var(--link-fg);
+    }
+
+    .sidebar-section a:hover,
+    .sidebar-section a:focus-visible {
+      text-decoration: underline;
+    }
+
+    .main,
+    .main.shifted {
+      margin-left: 280px;
+    }
+    
+    /* Hide the default toggle button because the sidebar is always visible */
+    .toggle-nav-sidebar {
+      display: none !important;
+    }
+  </style>
+{% endblock %}
