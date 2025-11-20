@@ -68,6 +68,7 @@
         let endMarker;
         let mapLoaded = false;
         let routeLine;
+        let roadLine;
 
         function showStatus(message, level) {
             if (!statusEl) {
@@ -105,6 +106,39 @@
         function syncMarkersFromInputs() {
             updateMarkerPosition(startMarker, startLat, startLng);
             updateMarkerPosition(endMarker, endLat, endLng);
+        }
+
+        function getRoadCoordinates() {
+            const coords = {
+                start: [parseFloat(startLat.value), parseFloat(startLng.value)],
+                end: [parseFloat(endLat.value), parseFloat(endLng.value)],
+            };
+            if (!coords.start.every(Number.isFinite) || !coords.end.every(Number.isFinite)) {
+                return null;
+            }
+            return coords;
+        }
+
+        function drawRoadLine(shouldFit) {
+            if (!map || !window.L) {
+                return false;
+            }
+            const coords = getRoadCoordinates();
+            if (!coords) {
+                if (roadLine && map.hasLayer(roadLine)) {
+                    map.removeLayer(roadLine);
+                }
+                roadLine = null;
+                return false;
+            }
+            if (roadLine && map.hasLayer(roadLine)) {
+                map.removeLayer(roadLine);
+            }
+            roadLine = L.polyline([coords.start, coords.end]).addTo(map);
+            if (shouldFit) {
+                map.fitBounds(roadLine.getBounds(), { padding: [40, 40] });
+            }
+            return true;
         }
 
         function ensureMapContainer() {
@@ -165,8 +199,6 @@
                     showStatus("Map context loaded.", "success");
                     if (!mapLoaded) {
                         initialiseMap(payload);
-                    } else {
-                        updateMapViewport(payload);
                     }
                     if (payload.start && !startLat.value) {
                         setInputsFromPoint(payload.start, "start");
@@ -175,6 +207,10 @@
                         setInputsFromPoint(payload.end, "end");
                     }
                     syncMarkersFromInputs();
+                    const hasRoadLine = drawRoadLine(true);
+                    if (!hasRoadLine && mapLoaded) {
+                        updateMapViewport(payload);
+                    }
                 })
                 .catch(function (err) {
                     showStatus(err.message, "error");
@@ -189,7 +225,7 @@
                 return;
             }
             mapLoaded = true;
-            map = L.map(mapNode).setView([center.lat, center.lng], 10);
+            map = L.map(mapNode).setView([center.lat, center.lng], 8);
             L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
                 attribution: "© OpenStreetMap contributors",
                 maxZoom: 19,
@@ -209,6 +245,7 @@
                     startLng.value = lng.toFixed(6);
                 }
                 syncMarkersFromInputs();
+                drawRoadLine(true);
             });
         }
 
@@ -236,14 +273,32 @@
                 start_lng: parseFloat(startLng.value),
                 end_lat: parseFloat(endLat.value),
                 end_lng: parseFloat(endLng.value),
+                start_easting: parseFloat(document.getElementById("id_start_easting")?.value),
+                start_northing: parseFloat(document.getElementById("id_start_northing")?.value),
+                end_easting: parseFloat(document.getElementById("id_end_easting")?.value),
+                end_northing: parseFloat(document.getElementById("id_end_northing")?.value),
             };
-            if (!isFinite(values.start_lat) || !isFinite(values.start_lng)) {
-                throw new Error("Enter a valid start latitude and longitude.");
+
+            const startHasLatLng = Number.isFinite(values.start_lat) && Number.isFinite(values.start_lng);
+            const endHasLatLng = Number.isFinite(values.end_lat) && Number.isFinite(values.end_lng);
+            const startHasUtm = Number.isFinite(values.start_easting) && Number.isFinite(values.start_northing);
+            const endHasUtm = Number.isFinite(values.end_easting) && Number.isFinite(values.end_northing);
+
+            if (!startHasLatLng && !startHasUtm) {
+                throw new Error("Enter a valid start latitude/longitude or UTM easting/northing.");
             }
-            if (!isFinite(values.end_lat) || !isFinite(values.end_lng)) {
-                throw new Error("Enter a valid end latitude and longitude.");
+            if (!endHasLatLng && !endHasUtm) {
+                throw new Error("Enter a valid end latitude/longitude or UTM easting/northing.");
             }
-            return values;
+
+            return {
+                start: startHasLatLng
+                    ? { lat: values.start_lat, lng: values.start_lng }
+                    : { easting: values.start_easting, northing: values.start_northing },
+                end: endHasLatLng
+                    ? { lat: values.end_lat, lng: values.end_lng }
+                    : { easting: values.end_easting, northing: values.end_northing },
+            };
         }
 
         function previewRoute() {
@@ -267,8 +322,8 @@
                     "X-CSRFToken": getCsrfToken(),
                 },
                 body: JSON.stringify({
-                    start: { lat: coords.start_lat, lng: coords.start_lng },
-                    end: { lat: coords.end_lat, lng: coords.end_lng },
+                    start: coords.start,
+                    end: coords.end,
                     travel_mode: travelModeSelect ? travelModeSelect.value : "DRIVING",
                 }),
             })
@@ -286,6 +341,12 @@
                         showStatus(summary, "success");
                     } else {
                         showStatus("Route retrieved successfully.", "success");
+                    }
+                    if (payload.start && payload.end) {
+                        startLat.value = payload.start.lat;
+                        startLng.value = payload.start.lng;
+                        endLat.value = payload.end.lat;
+                        endLng.value = payload.end.lng;
                     }
                     if (payload.route && payload.route.geometry && payload.route.geometry.length && map) {
                         if (routeLine) {
@@ -305,11 +366,17 @@
         }
 
         [startLat, startLng, endLat, endLng].forEach(function (input) {
-            input.addEventListener("change", syncMarkersFromInputs);
+            input.addEventListener("change", function () {
+                syncMarkersFromInputs();
+                drawRoadLine(true);
+            });
             input.addEventListener("input", function () {
                 // Delay updates to avoid noisy marker moves during typing.
                 clearTimeout(input._roadAdminTimer);
-                input._roadAdminTimer = setTimeout(syncMarkersFromInputs, 400);
+                input._roadAdminTimer = setTimeout(function () {
+                    syncMarkersFromInputs();
+                    drawRoadLine(true);
+                }, 400);
             });
         });
 

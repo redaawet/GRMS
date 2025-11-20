@@ -2,7 +2,7 @@
 
 from rest_framework import serializers
 
-from . import models
+from . import models, utils
 from .services import map_services
 
 
@@ -59,8 +59,27 @@ class AdminWoredaSerializer(serializers.ModelSerializer):
 
 
 class CoordinateSerializer(serializers.Serializer):
-    lat = serializers.FloatField()
-    lng = serializers.FloatField()
+    lat = serializers.FloatField(required=False)
+    lng = serializers.FloatField(required=False)
+    easting = serializers.FloatField(required=False)
+    northing = serializers.FloatField(required=False)
+
+    def validate(self, attrs):
+        lat = attrs.get("lat")
+        lng = attrs.get("lng")
+        easting = attrs.get("easting")
+        northing = attrs.get("northing")
+
+        if lat is not None and lng is not None:
+            return {"lat": lat, "lng": lng}
+
+        if easting is not None and northing is not None:
+            lat, lon = utils.utm_to_wgs84(easting, northing, zone=37)
+            return {"lat": lat, "lng": lon, "easting": easting, "northing": northing}
+
+        raise serializers.ValidationError(
+            "Provide latitude/longitude or easting/northing for each coordinate."
+        )
 
 
 class RoadRouteRequestSerializer(serializers.Serializer):
