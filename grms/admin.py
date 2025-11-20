@@ -9,7 +9,7 @@ from django.shortcuts import redirect
 
 from . import models
 from .services import map_services
-from .utils import make_point, point_to_lat_lng, utm_to_wgs84
+from .utils import make_point, point_to_lat_lng, utm_to_wgs84, wgs84_to_utm
 
 
 class GRMSAdminSite(AdminSite):
@@ -204,34 +204,59 @@ class RoadAdminForm(forms.ModelForm):
         if getattr(self.instance, "end_northing", None) is not None:
             self.fields["end_northing"].initial = self.instance.end_northing
 
-    def _populate_from_utm(self, prefix: str):
-        easting = self.cleaned_data.get(f"{prefix}_easting")
-        northing = self.cleaned_data.get(f"{prefix}_northing")
-        if easting is None or northing is None:
+    def _require_pair(self, prefix: str, first: str, second: str, label: str):
+        one = self.cleaned_data.get(f"{prefix}_{first}")
+        two = self.cleaned_data.get(f"{prefix}_{second}")
+        if one is None and two is None:
             return None
+        if one is None or two is None:
+            missing = first if one is None else second
+            raise forms.ValidationError({f"{prefix}_{missing}": label})
+        return one, two
+
+    def _populate_from_utm(self, prefix: str):
+        pair = self._require_pair(prefix, "easting", "northing", "Provide both easting and northing.")
+        if not pair:
+            return None
+        lat = self.cleaned_data.get(f"{prefix}_lat")
+        lng = self.cleaned_data.get(f"{prefix}_lng")
+        if lat is not None and lng is not None:
+            return {"lat": lat, "lng": lng}
         try:
-            lat, lon = utm_to_wgs84(float(easting), float(northing), zone=38)
+            lat, lon = utm_to_wgs84(float(pair[0]), float(pair[1]), zone=37)
         except ImportError as exc:
             raise forms.ValidationError(str(exc))
         self.cleaned_data[f"{prefix}_lat"] = lat
         self.cleaned_data[f"{prefix}_lng"] = lon
         return {"lat": lat, "lng": lon}
 
+    def _populate_from_latlng(self, prefix: str):
+        pair = self._require_pair(prefix, "lat", "lng", "Both latitude and longitude are required.")
+        if not pair:
+            return None
+        if self.cleaned_data.get(f"{prefix}_easting") is not None and self.cleaned_data.get(f"{prefix}_northing") is not None:
+            return {"lat": float(pair[0]), "lng": float(pair[1])}
+        try:
+            easting, northing = wgs84_to_utm(float(pair[0]), float(pair[1]), zone=37)
+        except ImportError as exc:
+            raise forms.ValidationError(str(exc))
+        self.cleaned_data[f"{prefix}_easting"] = easting
+        self.cleaned_data[f"{prefix}_northing"] = northing
+        return {"lat": float(pair[0]), "lng": float(pair[1])}
+
     def _clean_point(self, prefix: str):
         lat = self.cleaned_data.get(f"{prefix}_lat")
         lng = self.cleaned_data.get(f"{prefix}_lng")
         if lat is None and lng is None:
             return None
-        if lat is None or lng is None:
-            raise forms.ValidationError(
-                {f"{prefix}_lat" if lat is None else f"{prefix}_lng": "Both latitude and longitude are required."}
-            )
         return make_point(lat, lng)
 
     def clean(self):
         cleaned = super().clean()
         self._populate_from_utm("start")
         self._populate_from_utm("end")
+        self._populate_from_latlng("start")
+        self._populate_from_latlng("end")
         start = self._clean_point("start")
         end = self._clean_point("end")
         cleaned["road_start_coordinates"] = start
@@ -289,7 +314,7 @@ class RoadAdmin(admin.ModelAdmin):
         (
             "Alignment coordinates",
             {
-                "description": "Capture the start and end of the road in UTM (Zone 38N) or decimal degrees (WGS84).",
+                "description": "Capture the start and end of the road in UTM (Zone 37N) or decimal degrees (WGS84).",
                 "fields": (
                     ("start_easting", "start_northing"),
                     ("end_easting", "end_northing"),

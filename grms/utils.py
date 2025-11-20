@@ -10,10 +10,10 @@ except ImportError:  # pragma: no cover - handled at runtime for clarity
     Transformer = None
 
 
-def utm_to_wgs84(easting: float, northing: float, zone: int = 38) -> tuple[float, float]:
+def utm_to_wgs84(easting: float, northing: float, zone: int = 37) -> tuple[float, float]:
     """Convert UTM coordinates to WGS84 latitude/longitude.
 
-    The default UTM zone corresponds to the Tigray region.
+    The default UTM zone corresponds to the Tigray region (37N).
     """
 
     if Transformer is None:
@@ -22,6 +22,20 @@ def utm_to_wgs84(easting: float, northing: float, zone: int = 38) -> tuple[float
     transformer = Transformer.from_crs(f"EPSG:326{zone}", "EPSG:4326", always_xy=True)
     lon, lat = transformer.transform(easting, northing)
     return lat, lon
+
+
+def wgs84_to_utm(lat: float, lon: float, zone: int = 37) -> tuple[float, float]:
+    """Convert WGS84 latitude/longitude to UTM coordinates.
+
+    The default UTM zone corresponds to the Tigray region (37N).
+    """
+
+    if Transformer is None:
+        raise ImportError("pyproj is required for WGS84 to UTM conversion. Install pyproj to continue.")
+
+    transformer = Transformer.from_crs("EPSG:4326", f"EPSG:326{zone}", always_xy=True)
+    easting, northing = transformer.transform(lon, lat)
+    return easting, northing
 
 from django.conf import settings
 

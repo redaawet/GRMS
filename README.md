@@ -7,6 +7,12 @@ Quick start:
    cd GRMS
    ```
 2. Create and activate a virtual environment, then install requirements: `pip install -r requirements.txt`
+   - On Debian/Ubuntu you may need system geospatial libraries for `pyproj` and PostGIS builds:
+     ```bash
+     sudo apt-get update
+     sudo apt-get install -y libproj-dev proj-data proj-bin libgeos-dev
+     ```
+   - If you are compiling against PostGIS locally, also install `postgresql-server-dev-15` (or your PostgreSQL major version).
 3. Configure a PostGIS database connection in `project/settings.py`
 4. Apply database migrations: `python manage.py migrate`
 5. Load the seed data (optional but recommended): `python manage.py loaddata fixtures.json`

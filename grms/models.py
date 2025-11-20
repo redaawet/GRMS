@@ -281,14 +281,14 @@ class Road(models.Model):
         decimal_places=2,
         null=True,
         blank=True,
-        help_text="UTM easting for the start point (Zone 38N)",
+        help_text="UTM easting for the start point (Zone 37N)",
     )
     start_northing = models.DecimalField(
         max_digits=12,
         decimal_places=2,
         null=True,
         blank=True,
-        help_text="UTM northing for the start point (Zone 38N)",
+        help_text="UTM northing for the start point (Zone 37N)",
     )
     road_start_coordinates = PointField(srid=4326, null=True, blank=True)
     end_easting = models.DecimalField(
@@ -296,14 +296,14 @@ class Road(models.Model):
         decimal_places=2,
         null=True,
         blank=True,
-        help_text="UTM easting for the end point (Zone 38N)",
+        help_text="UTM easting for the end point (Zone 37N)",
     )
     end_northing = models.DecimalField(
         max_digits=12,
         decimal_places=2,
         null=True,
         blank=True,
-        help_text="UTM northing for the end point (Zone 38N)",
+        help_text="UTM northing for the end point (Zone 37N)",
     )
     road_end_coordinates = PointField(srid=4326, null=True, blank=True)
     surface_type = models.CharField(
@@ -338,7 +338,7 @@ class Road(models.Model):
     def _point_from_utm(self, easting: Optional[Decimal], northing: Optional[Decimal]):
         if easting is None or northing is None:
             return None
-        lat, lon = utm_to_wgs84(float(easting), float(northing), zone=38)
+        lat, lon = utm_to_wgs84(float(easting), float(northing), zone=37)
         return make_point(lat, lon)
 
     def save(self, *args, **kwargs):
