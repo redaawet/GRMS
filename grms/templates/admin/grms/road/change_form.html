@@ -6,13 +6,8 @@
     {% if road_admin_config %}
         {{ road_admin_config|json_script:"road-admin-config" }}
     {% endif %}
-    <link rel="stylesheet"
-          href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-          integrity="sha256-o9N1j7kGStG0uH0hCkWxK7ftP7Bennwqb1oxA6pKm30="
-          crossorigin="" />
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-            integrity="sha256-XQoYMqMTK8LvdxXYG3nZ448hOEQiglfqkJs1NOQV44c="
-            crossorigin=""></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <link rel="stylesheet" href="{% static 'grms/css/road-admin.css' %}">
     <script src="{% static 'grms/js/road-admin.js' %}" defer></script>
 {% endblock %}
