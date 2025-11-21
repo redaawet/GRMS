@@ -95,7 +95,6 @@ class GRMSAdminSite(AdminSite):
             "title": "Reference data",
             "models": (
                 models.ConditionRating._meta.verbose_name_plural,
-                models.ConditionFactor._meta.verbose_name_plural,
                 models.QAStatus._meta.verbose_name_plural,
                 models.ActivityLookup._meta.verbose_name_plural,
                 models.InterventionLookup._meta.verbose_name_plural,
@@ -523,6 +522,18 @@ class RoadSectionAdmin(admin.ModelAdmin):
         (
             "Chainage and length",
             {"fields": (("start_chainage_km", "end_chainage_km"), "length_km")},
+        ),
+        (
+            "Alignment coordinates",
+            {
+                "description": "Capture start/end alignment in UTM (Zone 37N) or decimal degrees. Both UTM and lat/lng are stored for validation.",
+                "fields": (
+                    ("start_easting", "start_northing"),
+                    ("end_easting", "end_northing"),
+                    ("start_lat", "start_lng"),
+                    ("end_lat", "end_lng"),
+                ),
+            },
         ),
         (
             "Physical characteristics",
@@ -1143,7 +1154,6 @@ for model in [
     models.DistressCondition,
     models.DistressActivity,
     models.ConditionRating,
-    models.ConditionFactor,
     models.InterventionLookup,
     models.UnitCost,
     models.PCULookup,

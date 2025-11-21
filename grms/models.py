@@ -34,22 +34,6 @@ class ConditionRating(models.Model):
 
     def __str__(self) -> str:  # pragma: no cover - simple repr
         return self.name
-
-
-class ConditionFactor(models.Model):
-    """Component condition factor for structure surveys."""
-
-    factor = models.CharField(max_length=50, unique=True)
-    factor_value = models.PositiveSmallIntegerField(null=True, blank=True)
-
-    class Meta:
-        verbose_name = "Condition factor"
-        verbose_name_plural = "Condition factors"
-
-    def __str__(self) -> str:  # pragma: no cover - simple repr
-        return self.factor
-
-
 class QAStatus(models.Model):
     """Quality assurance status for survey records."""
 
@@ -874,10 +858,10 @@ class BridgeConditionSurvey(models.Model):
         primary_key=True,
         limit_choices_to={"structure__structure_category": "Bridge"},
     )
-    deck_condition = models.ForeignKey(ConditionFactor, on_delete=models.SET_NULL, null=True, related_name="+")
-    abutment_condition = models.ForeignKey(ConditionFactor, on_delete=models.SET_NULL, null=True, related_name="+")
-    pier_condition = models.ForeignKey(ConditionFactor, on_delete=models.SET_NULL, null=True, related_name="+")
-    wearing_surface = models.ForeignKey(ConditionFactor, on_delete=models.SET_NULL, null=True, related_name="+")
+    deck_condition = models.ForeignKey(ConditionRating, on_delete=models.SET_NULL, null=True, related_name="+")
+    abutment_condition = models.ForeignKey(ConditionRating, on_delete=models.SET_NULL, null=True, related_name="+")
+    pier_condition = models.ForeignKey(ConditionRating, on_delete=models.SET_NULL, null=True, related_name="+")
+    wearing_surface = models.ForeignKey(ConditionRating, on_delete=models.SET_NULL, null=True, related_name="+")
     expansion_joint_ok = models.BooleanField(default=False, help_text="Expansion joint present/OK")
     remarks = models.TextField(blank=True)
 
@@ -896,10 +880,10 @@ class CulvertConditionSurvey(models.Model):
         primary_key=True,
         limit_choices_to={"structure__structure_category": "Culvert"},
     )
-    inlet_condition = models.ForeignKey(ConditionFactor, on_delete=models.SET_NULL, null=True, related_name="+")
-    outlet_condition = models.ForeignKey(ConditionFactor, on_delete=models.SET_NULL, null=True, related_name="+")
-    barrel_condition = models.ForeignKey(ConditionFactor, on_delete=models.SET_NULL, null=True, related_name="+")
-    headwall_condition = models.ForeignKey(ConditionFactor, on_delete=models.SET_NULL, null=True, related_name="+")
+    inlet_condition = models.ForeignKey(ConditionRating, on_delete=models.SET_NULL, null=True, related_name="+")
+    outlet_condition = models.ForeignKey(ConditionRating, on_delete=models.SET_NULL, null=True, related_name="+")
+    barrel_condition = models.ForeignKey(ConditionRating, on_delete=models.SET_NULL, null=True, related_name="+")
+    headwall_condition = models.ForeignKey(ConditionRating, on_delete=models.SET_NULL, null=True, related_name="+")
     remarks = models.TextField(blank=True)
 
     class Meta:
@@ -912,8 +896,8 @@ class CulvertConditionSurvey(models.Model):
 
 class OtherStructureConditionSurvey(models.Model):
     structure_survey = models.OneToOneField(StructureConditionSurvey, on_delete=models.CASCADE, primary_key=True)
-    wall_condition = models.ForeignKey(ConditionFactor, on_delete=models.SET_NULL, null=True, related_name="+")
-    ford_condition = models.ForeignKey(ConditionFactor, on_delete=models.SET_NULL, null=True, related_name="+")
+    wall_condition = models.ForeignKey(ConditionRating, on_delete=models.SET_NULL, null=True, related_name="+")
+    ford_condition = models.ForeignKey(ConditionRating, on_delete=models.SET_NULL, null=True, related_name="+")
     remarks = models.TextField(blank=True)
 
     class Meta:
