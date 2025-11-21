@@ -54,7 +54,9 @@
                 </div>
                 <div class="form-field">
                     <label>Length (km)</label>
+                    {{ form.length_km }}
                     <div class="length-preview" id="length-preview" aria-live="polite">Enter start and end chainages to auto-calculate.</div>
+                    {{ form.length_km.errors }}
                 </div>
                 <div class="form-field">
                     <label for="id_surface_type">Surface type</label>
