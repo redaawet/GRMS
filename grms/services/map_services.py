@@ -14,20 +14,20 @@ USER_AGENT = "GRMS/1.0 (https://github.com/WorldBank-Transport/GRMS)"
 TRAVEL_MODES = {"DRIVING", "WALKING", "BICYCLING"}
 OSRM_PROFILES = {"DRIVING": "driving", "WALKING": "walking", "BICYCLING": "cycling"}
 
-# Default to the centre of the Tigray region in Ethiopia so map widgets have a
-# sensible starting viewport even if we cannot look up a specific admin area.
+# Default to the centre of Ethiopia's UTM Zone 37N footprint so map widgets are
+# immediately relevant for the national GRMS deployment rather than the Tigray
+# subset. The bounds cover Ethiopia within the 37N zone, keeping Leaflet
+# previews focused on the correct corridor even when no admin lookup succeeds.
 DEFAULT_MAP_REGION = {
-    "formatted_address": "Tigray, Ethiopia",
-    "center": {"lat": 13.5, "lng": 39.5},
-    # The bounds cover the approximate extent of the region and are also used
-    # as the viewport when fitting the map to show the whole area.
+    "formatted_address": "Ethiopia (UTM Zone 37N)",
+    "center": {"lat": 9.0, "lng": 38.7, "zoom": 7},
     "bounds": {
-        "northeast": {"lat": 15.1, "lng": 40.3},
-        "southwest": {"lat": 12.4, "lng": 37.9},
+        "northeast": {"lat": 15.0, "lng": 42.0},
+        "southwest": {"lat": 4.0, "lng": 35.0},
     },
     "viewport": {
-        "northeast": {"lat": 15.1, "lng": 40.3},
-        "southwest": {"lat": 12.4, "lng": 37.9},
+        "northeast": {"lat": 15.0, "lng": 42.0},
+        "southwest": {"lat": 4.0, "lng": 35.0},
     },
 }
 
