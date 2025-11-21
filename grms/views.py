@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from decimal import Decimal
 from typing import Dict, List, Optional
 
@@ -15,7 +16,7 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 
 from . import models, serializers
-from .forms import RoadSectionBasicForm
+from .forms import RoadAlignmentForm, RoadBasicForm, RoadSectionBasicForm
 from .services import map_services
 from .utils import make_point, point_to_lat_lng
 
@@ -201,6 +202,94 @@ class PrioritizationResultViewSet(viewsets.ModelViewSet):
 class AnnualWorkPlanViewSet(viewsets.ModelViewSet):
     queryset = models.AnnualWorkPlan.objects.select_related("road").all()
     serializer_class = serializers.AnnualWorkPlanSerializer
+
+
+@require_http_methods(["GET", "POST"])
+def road_basic_info(request: Request):
+    """First step of the road wizard – capture basic information."""
+
+    form = RoadBasicForm(request.POST or None)
+
+    if request.method == "POST" and form.is_valid():
+        road = form.save()
+        return redirect("road_alignment", road_id=road.id)
+
+    progress_steps = [
+        {"label": "Basic Info", "active": True, "complete": False},
+        {"label": "Alignment", "active": False, "complete": False},
+        {"label": "Completed", "active": False, "complete": False},
+    ]
+
+    return render(
+        request,
+        "roads/road_basic_form.html",
+        {"form": form, "progress_steps": progress_steps},
+    )
+
+
+@require_http_methods(["GET", "POST"])
+def road_alignment(request: Request, road_id: int):
+    """Second step of the road wizard – capture alignment and preview map."""
+
+    road = get_object_or_404(models.Road, pk=road_id)
+    form = RoadAlignmentForm(request.POST or None, instance=road)
+
+    start_point = point_to_lat_lng(getattr(road, "road_start_coordinates", None))
+    end_point = point_to_lat_lng(getattr(road, "road_end_coordinates", None))
+    map_region = map_services.get_default_map_region()
+
+    if request.method == "POST" and form.is_valid():
+        form.save()
+        return redirect("road_detail", road_id=road.id)
+
+    progress_steps = [
+        {"label": "Basic Info", "active": False, "complete": True},
+        {"label": "Alignment", "active": True, "complete": False},
+        {"label": "Completed", "active": False, "complete": False},
+    ]
+
+    map_config = json.dumps(
+        {
+            "map_region": map_region,
+            "start": start_point,
+            "end": end_point,
+        }
+    )
+
+    return render(
+        request,
+        "roads/road_alignment_form.html",
+        {"form": form, "road": road, "progress_steps": progress_steps, "map_config": map_config},
+    )
+
+
+@require_http_methods(["GET"])
+def road_detail(request: Request, road_id: int):
+    """Simple road detail page shown after completing the wizard."""
+
+    road = get_object_or_404(
+        models.Road.objects.select_related("admin_zone", "admin_woreda"), pk=road_id
+    )
+
+    progress_steps = [
+        {"label": "Basic Info", "active": False, "complete": True},
+        {"label": "Alignment", "active": False, "complete": True},
+        {"label": "Completed", "active": True, "complete": True},
+    ]
+
+    start_point = point_to_lat_lng(getattr(road, "road_start_coordinates", None))
+    end_point = point_to_lat_lng(getattr(road, "road_end_coordinates", None))
+
+    return render(
+        request,
+        "roads/road_detail.html",
+        {
+            "road": road,
+            "progress_steps": progress_steps,
+            "start_point_json": json.dumps(start_point),
+            "end_point_json": json.dumps(end_point),
+        },
+    )
 
 
 @require_http_methods(["GET", "POST"])
