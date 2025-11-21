@@ -359,6 +359,7 @@ class Road(models.Model):
     )
     population_served = models.IntegerField(null=True, blank=True, help_text="Population served")
     year_of_update = models.DateField(null=True, blank=True, help_text="Date of last MCI update")
+    last_mci_update = models.DateField(null=True, blank=True, help_text="Most recent MCI update date")
     remarks = models.TextField(blank=True, help_text="Additional notes or remarks")
 
     class Meta:
