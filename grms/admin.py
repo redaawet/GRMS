@@ -331,11 +331,17 @@ class RoadAdmin(admin.ModelAdmin):
     def changeform_view(self, request, object_id=None, form_url="", extra_context=None):
         extra_context = extra_context or {}
         road_id = int(object_id) if object_id and object_id.isdigit() else None
+        if road_id:
+            map_context_url = self._reverse_or_empty("road_map_context", road_id)
+        else:
+            from django.urls import reverse
+
+            map_context_url = reverse("road_map_context_default")
         extra_context["road_admin_config"] = {
             "road_id": road_id,
             "api": {
                 "route": self._reverse_or_empty("road_route", road_id),
-                "map_context": self._reverse_or_empty("road_map_context", road_id),
+                "map_context": map_context_url,
             },
         }
         extra_context["travel_modes"] = sorted(map_services.TRAVEL_MODES)

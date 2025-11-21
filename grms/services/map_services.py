@@ -96,7 +96,7 @@ def _request_json(url: str) -> Any:
 
 
 def get_default_map_region() -> Dict[str, Any]:
-    """Return a copy of the default Tigray map region configuration."""
+    """Return a copy of the default UTM Zone 37N map region configuration."""
 
     # Copy via JSON round-trip to avoid accidental mutation of the module
     # constant in request handlers.

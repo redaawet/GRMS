@@ -524,16 +524,21 @@ def update_road_route(request: Request, pk: int) -> Response:
 
 
 @api_view(["GET"])
-def road_map_context(request: Request, pk: int) -> Response:
-    """Return context to display a Leaflet map for the selected road."""
+def road_map_context(request: Request, pk: Optional[int] = None) -> Response:
+    """Return context to display a Leaflet map for a road or default region."""
 
-    road = get_object_or_404(models.Road.objects.select_related("admin_zone", "admin_woreda"), pk=pk)
+    road: Optional[models.Road] = None
+    start = None
+    end = None
+    zone: Optional[models.AdminZone] = None
+    woreda: Optional[models.AdminWoreda] = None
 
-    start = point_to_lat_lng(road.road_start_coordinates)
-    end = point_to_lat_lng(road.road_end_coordinates)
-
-    zone = road.admin_zone
-    woreda = road.admin_woreda
+    if pk is not None:
+        road = get_object_or_404(models.Road.objects.select_related("admin_zone", "admin_woreda"), pk=pk)
+        start = point_to_lat_lng(road.road_start_coordinates)
+        end = point_to_lat_lng(road.road_end_coordinates)
+        zone = road.admin_zone
+        woreda = road.admin_woreda
 
     zone_override = request.query_params.get("zone_id")
     woreda_override = request.query_params.get("woreda_id")
@@ -548,6 +553,8 @@ def road_map_context(request: Request, pk: int) -> Response:
                 status=status.HTTP_400_BAD_REQUEST,
             )
         zone = woreda.zone
+    elif woreda and zone and woreda.zone_id != zone.id:
+        woreda = None
 
     woreda_for_lookup = woreda if woreda and zone and woreda.zone_id == zone.id else None
 
@@ -557,7 +564,7 @@ def road_map_context(request: Request, pk: int) -> Response:
 
     return Response(
         {
-            "road": road.id,
+            "road": road.id if road else None,
             "zone": {"id": zone.id, "name": zone.name} if zone else None,
             "woreda": {"id": woreda.id, "name": woreda.name} if woreda else None,
             "start": start,
