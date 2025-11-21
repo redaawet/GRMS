@@ -1,3 +1,4 @@
+from django.contrib import admin
 from django.contrib.auth import get_user_model
 from django.test import Client, RequestFactory, TestCase
 from django.urls import reverse
@@ -28,6 +29,10 @@ class GRMSAdminSiteTests(TestCase):
             any(model["object_name"] == "Road" for section in sections for model in section["models"])
         )
 
+    def test_custom_admin_site_replaces_default_django_site(self):
+        self.assertIs(admin.site, grms_admin_site)
+        self.assertIs(admin.sites.site, grms_admin_site)
+
     def test_app_index_redirects_to_dashboard(self):
         response = self.client.get("/admin/auth/")
         self.assertEqual(response.status_code, 302)
@@ -44,3 +49,20 @@ class GRMSAdminSiteTests(TestCase):
                 models_seen.append(model["object_name"])
 
         self.assertEqual(len(models_seen), len(set(models_seen)))
+
+    def test_section_builder_appends_other_models_when_unassigned(self):
+        request = self.factory.get("/admin/")
+        request.user = self.user
+
+        original_definitions = grms_admin_site.SECTION_DEFINITIONS
+        custom_definitions = (
+            {"title": "Only roads", "models": ("Roads",)},
+        )
+        grms_admin_site.SECTION_DEFINITIONS = custom_definitions
+        self.addCleanup(setattr, grms_admin_site, "SECTION_DEFINITIONS", original_definitions)
+
+        sections = grms_admin_site._build_sections(request)
+
+        self.assertTrue(any(section["title"] == "Other models" for section in sections))
+        other_section = next(section for section in sections if section["title"] == "Other models")
+        self.assertTrue(any(model["object_name"] == "RoadSection" for model in other_section["models"]))
