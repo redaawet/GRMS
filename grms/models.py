@@ -495,7 +495,7 @@ class RoadSection(models.Model):
                 if self.start_chainage_km > road_length:
                     errors["start_chainage_km"] = "Section start exceeds the parent road length."
                 if (self.end_chainage_km - self.start_chainage_km) > road_length:
-                    errors["length_km"] = "Section length cannot be greater than the parent road length."
+                    errors["end_chainage_km"] = "Section length cannot be greater than the parent road length."
 
                 overlaps = (
                     RoadSection.objects.filter(road_id=self.road_id)
