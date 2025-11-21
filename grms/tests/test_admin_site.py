@@ -66,3 +66,50 @@ class GRMSAdminSiteTests(TestCase):
         self.assertTrue(any(section["title"] == "Other models" for section in sections))
         other_section = next(section for section in sections if section["title"] == "Other models")
         self.assertTrue(any(model["object_name"] == "RoadSection" for model in other_section["models"]))
+
+    def test_section_builder_includes_models_with_duplicate_names_across_apps(self):
+        request = self.factory.get("/admin/")
+        request.user = self.user
+
+        original_get_app_list = grms_admin_site.get_app_list
+
+        def fake_app_list(_request):
+            return [
+                {
+                    "app_label": "app_one",
+                    "models": [
+                        {
+                            "object_name": "SharedModel",
+                            "name": "SharedModel",
+                            "admin_url": "/admin/app_one/sharedmodel/",
+                            "add_url": "/admin/app_one/sharedmodel/add/",
+                            "view_only": False,
+                        }
+                    ],
+                },
+                {
+                    "app_label": "app_two",
+                    "models": [
+                        {
+                            "object_name": "SharedModel",
+                            "name": "SharedModel",
+                            "admin_url": "/admin/app_two/sharedmodel/",
+                            "add_url": "/admin/app_two/sharedmodel/add/",
+                            "view_only": False,
+                        }
+                    ],
+                },
+            ]
+
+        grms_admin_site.get_app_list = fake_app_list
+        self.addCleanup(setattr, grms_admin_site, "get_app_list", original_get_app_list)
+
+        sections = grms_admin_site._build_sections(request)
+
+        self.assertEqual(len(sections), 1)
+        self.assertEqual(len(sections[0]["models"]), 2)
+        identifiers = {(model.get("app_label"), model["object_name"]) for model in sections[0]["models"]}
+        self.assertEqual(
+            identifiers,
+            {("app_one", "SharedModel"), ("app_two", "SharedModel")},
+        )
