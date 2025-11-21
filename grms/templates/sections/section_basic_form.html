@@ -1,0 +1,79 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Section Basic Information</title>
+    <link rel="stylesheet" href="{% static 'grms/css/section-wizard.css' %}">
+</head>
+<body>
+<div class="wizard-container">
+    <h1>Road Section Wizard</h1>
+    <div class="wizard-progress">
+        {% for step in progress_steps %}
+            <div class="wizard-progress__step {% if step.complete %}complete{% endif %} {% if step.active %}active{% endif %}">
+                <span class="wizard-progress__index">{{ forloop.counter }}</span>
+                <span class="wizard-progress__label">{{ step.label }}</span>
+            </div>
+            {% if not forloop.last %}
+                <div class="wizard-progress__divider">→</div>
+            {% endif %}
+        {% endfor %}
+    </div>
+
+    <div class="wizard-card">
+        <h2>Step 1 — Section Basic Information</h2>
+        <p class="wizard-description">
+            Sections are stored under the parent road. Road ID <strong>{{ road.id }}</strong> is pre-selected and cannot be changed.
+        </p>
+        <form method="post" novalidate>
+            {% csrf_token %}
+            {{ form.non_field_errors }}
+            {{ form.road }}
+            <div class="form-grid">
+                <div class="form-field">
+                    <label for="id_section_number">Section number</label>
+                    {{ form.section_number }}
+                    {{ form.section_number.errors }}
+                    <p class="help">Must be unique within this road.</p>
+                </div>
+                <div class="form-field">
+                    <label for="id_section_sequence">Section sequence</label>
+                    {{ form.section_sequence }}
+                    {{ form.section_sequence.errors }}
+                </div>
+                <div class="form-field">
+                    <label for="id_start_chainage_km">Start chainage (km)</label>
+                    {{ form.start_chainage_km }}
+                    {{ form.start_chainage_km.errors }}
+                </div>
+                <div class="form-field">
+                    <label for="id_end_chainage_km">End chainage (km)</label>
+                    {{ form.end_chainage_km }}
+                    {{ form.end_chainage_km.errors }}
+                </div>
+                <div class="form-field">
+                    <label>Length (km)</label>
+                    <div class="length-preview" id="length-preview" aria-live="polite">Enter start and end chainages to auto-calculate.</div>
+                </div>
+                <div class="form-field">
+                    <label for="id_surface_type">Surface type</label>
+                    {{ form.surface_type }}
+                    {{ form.surface_type.errors }}
+                </div>
+                <div class="form-field">
+                    <label for="id_surface_thickness_cm">Thickness (cm)</label>
+                    {{ form.surface_thickness_cm }}
+                    {{ form.surface_thickness_cm.errors }}
+                    <p class="help">Required for Gravel, DBST, Asphalt, and Sealed sections.</p>
+                </div>
+            </div>
+            <div class="wizard-actions">
+                <button type="submit" class="btn-primary">Save &amp; Continue to Map</button>
+            </div>
+        </form>
+    </div>
+</div>
+<script src="{% static 'grms/js/section-wizard.js' %}"></script>
+</body>
+</html>
