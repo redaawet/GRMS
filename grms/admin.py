@@ -27,6 +27,14 @@ def _road_map_context_url(road_id):
     return reverse("road_map_context", args=[road_id])
 
 
+def _reverse_or_empty(name: str, object_id):
+    from django.urls import reverse
+
+    if not object_id:
+        return ""
+    return reverse(name, args=[object_id])
+
+
 class GRMSAdminSite(AdminSite):
     site_header = "GRMS Administration"
     site_title = "GRMS Admin"
@@ -343,7 +351,7 @@ class RoadAdmin(admin.ModelAdmin):
         extra_context = extra_context or {}
         road_id = int(object_id) if object_id and object_id.isdigit() else None
         if road_id:
-            map_context_url = self._reverse_or_empty("road_map_context", road_id)
+            map_context_url = _reverse_or_empty("road_map_context", road_id)
         else:
             from django.urls import reverse
 
@@ -351,7 +359,7 @@ class RoadAdmin(admin.ModelAdmin):
         extra_context["road_admin_config"] = {
             "road_id": road_id,
             "api": {
-                "route": self._reverse_or_empty("road_route", road_id),
+                "route": _reverse_or_empty("road_route", road_id),
                 "map_context": map_context_url,
             },
         }
@@ -468,15 +476,6 @@ class RoadSectionAdminForm(forms.ModelForm):
             instance.save()
             self.save_m2m()
         return instance
-
-    @staticmethod
-    def _reverse_or_empty(name: str, object_id):
-        from django.urls import reverse
-
-        if not object_id:
-            return ""
-        return reverse(name, args=[object_id])
-
 
 grms_admin_site.register(models.Road, RoadAdmin)
 
