@@ -425,14 +425,9 @@ def section_map_preview(request: Request, road_id: int, section_id: int):
 
     woreda_for_lookup = woreda if woreda and zone and woreda.zone_id == zone.id else None
 
-    map_region = map_services.get_default_map_region()
-    if zone or woreda_for_lookup:
-        try:
-            map_region = map_services.get_admin_area_viewport(
-                zone.name if zone else None, woreda_for_lookup.name if woreda_for_lookup else None
-            )
-        except map_services.MapServiceError:
-            map_region = map_services.get_default_map_region()
+    map_region = map_services.get_admin_area_viewport_or_default(
+        zone.name if zone else None, woreda_for_lookup.name if woreda_for_lookup else None
+    )
 
     start = point_to_lat_lng(getattr(road, "road_start_coordinates", None))
     end = point_to_lat_lng(getattr(road, "road_end_coordinates", None))
@@ -556,17 +551,9 @@ def road_map_context(request: Request, pk: int) -> Response:
 
     woreda_for_lookup = woreda if woreda and zone and woreda.zone_id == zone.id else None
 
-    map_region = map_services.get_default_map_region()
-    if zone or woreda_for_lookup:
-        try:
-            map_region = map_services.get_admin_area_viewport(
-                zone.name if zone else None, woreda_for_lookup.name if woreda_for_lookup else None
-            )
-        except map_services.MapServiceError:
-            # Fall back to the default region (Tigray) if we cannot determine a
-            # more precise viewport. This keeps the map usable even when the
-            # geocoding service is unavailable.
-            map_region = map_services.get_default_map_region()
+    map_region = map_services.get_admin_area_viewport_or_default(
+        zone.name if zone else None, woreda_for_lookup.name if woreda_for_lookup else None
+    )
 
     return Response(
         {
