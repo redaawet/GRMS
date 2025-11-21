@@ -569,6 +569,7 @@ def road_map_context(request: Request, pk: Optional[int] = None) -> Response:
             "woreda": {"id": woreda.id, "name": woreda.name} if woreda else None,
             "start": start,
             "end": end,
+            "road_length_km": float(road.total_length_km) if road and road.total_length_km else None,
             "map_region": map_region,
             "travel_modes": sorted(map_services.TRAVEL_MODES),
         }
