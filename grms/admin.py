@@ -659,10 +659,8 @@ class RoadSectionAdmin(admin.ModelAdmin):
         start = obj.start_chainage_km or Decimal("0.000")
         end = obj.end_chainage_km or Decimal("0.000")
         return format_html(
-            "<p>Map preview uses the provided alignment between <strong>{}</strong> km and <strong>{}</strong> km.</p>"
-            "<ul><li>Validates chainage continuity and coordinate spacing</li>"
-            "<li>Highlights the section extents</li>"
-            "<li>Shows admin boundaries, towns, and optional base layers</li></ul>",
+            "<p>Map preview uses the provided alignment between <strong>{}</strong> km and <strong>{}</strong> km." \
+            " Use the refresh button below to redraw the map with your saved coordinates.</p>",
             start,
             end,
         )
