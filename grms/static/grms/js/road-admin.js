@@ -54,6 +54,12 @@
 
     const defaultMapPayload = { map_region: DEFAULT_MAP_REGION };
 
+    const ROUTE_STYLES = {
+        DRIVING: { color: "#2563eb", weight: 4, opacity: 0.85 },
+        WALKING: { color: "#16a34a", weight: 4, opacity: 0.9 },
+        BICYCLING: { color: "#f97316", weight: 4, opacity: 0.9 },
+    };
+
     function initRoadAdmin() {
         const config = parseJSONScript("road-admin-config");
         const panel = document.getElementById("road-map-panel");
@@ -366,7 +372,9 @@
                         const latLngs = payload.route.geometry.map(function (coord) {
                             return [coord[1], coord[0]];
                         });
-                        routeLine = L.polyline(latLngs, { color: "#007bff", weight: 4, opacity: 0.85 }).addTo(map);
+                        const style = ROUTE_STYLES[(payload.travel_mode || travelModeSelect.value || "DRIVING").toUpperCase()] ||
+                            ROUTE_STYLES.DRIVING;
+                        routeLine = L.polyline(latLngs, style).addTo(map);
                         map.fitBounds(routeLine.getBounds(), { padding: [20, 20] });
                     }
                     syncMarkersFromInputs();
@@ -374,6 +382,16 @@
                 .catch(function (err) {
                     showStatus(err.message, "error");
                 });
+        }
+
+        function setDefaultTravelMode() {
+            if (!travelModeSelect) {
+                return;
+            }
+            const desired = "DRIVING";
+            if (travelModeSelect.querySelector(`option[value="${desired}"]`)) {
+                travelModeSelect.value = desired;
+            }
         }
 
         [startLat, startLng, endLat, endLng].forEach(function (input) {
@@ -429,6 +447,8 @@
                 routeButton.addEventListener("click", previewRoute);
             }
         }
+
+        setDefaultTravelMode();
 
         if (!config.road_id) {
             showStatus(

@@ -63,16 +63,48 @@
         },
     };
 
+    const ROUTE_STYLES = {
+        DRIVING: { color: "#2563eb", weight: 5, opacity: 0.85 },
+        WALKING: { color: "#16a34a", weight: 5, opacity: 0.9 },
+        BICYCLING: { color: "#f97316", weight: 5, opacity: 0.9 },
+    };
+
+    function formatRouteSummary(summary) {
+        if (!summary) {
+            return "";
+        }
+        const parts = [];
+        if (summary.distance_text) {
+            parts.push("Distance: " + summary.distance_text);
+        }
+        if (summary.duration_text) {
+            parts.push("Duration: " + summary.duration_text);
+        }
+        if (summary.start_address) {
+            parts.push("From: " + summary.start_address);
+        }
+        if (summary.end_address) {
+            parts.push("To: " + summary.end_address);
+        }
+        return parts.join(" · ");
+    }
+
     function initMapAdmin() {
         const config = parseJSONScript("map-admin-config");
         const panel = document.getElementById("map-panel");
         const refreshButton = document.getElementById("map-panel-refresh");
         const statusEl = document.getElementById("map-panel-status");
         const viewport = document.getElementById("map-panel-viewport");
+        const travelModeSelect = document.getElementById("map-travel-mode");
+        const routeButton = document.getElementById("map-route-preview");
         const startLatInput = document.getElementById("id_start_lat");
         const startLngInput = document.getElementById("id_start_lng");
         const endLatInput = document.getElementById("id_end_lat");
         const endLngInput = document.getElementById("id_end_lng");
+        const startEastingInput = document.getElementById("id_start_easting");
+        const startNorthingInput = document.getElementById("id_start_northing");
+        const endEastingInput = document.getElementById("id_end_easting");
+        const endNorthingInput = document.getElementById("id_end_northing");
         const markerRadios = document.querySelectorAll('input[name="section-marker"]');
         const allowEditing = Boolean(startLatInput && startLngInput && endLatInput && endLngInput);
 
@@ -91,10 +123,12 @@
         let map;
         let overlay;
         let markers;
+        let routes;
         let mapClickBound = false;
         let activeMarker = "start";
         const editableMarkers = {};
         let lastPayload = null;
+        let routeLine;
 
         function showStatus(message, level) {
             if (!statusEl) {
@@ -115,6 +149,40 @@
             }
             latInput.value = lat.toFixed(6);
             lngInput.value = lng.toFixed(6);
+        }
+
+        function ensureCoordinates() {
+            const values = {
+                start_lat: parseFloat(startLatInput?.value),
+                start_lng: parseFloat(startLngInput?.value),
+                end_lat: parseFloat(endLatInput?.value),
+                end_lng: parseFloat(endLngInput?.value),
+                start_easting: parseFloat(startEastingInput?.value),
+                start_northing: parseFloat(startNorthingInput?.value),
+                end_easting: parseFloat(endEastingInput?.value),
+                end_northing: parseFloat(endNorthingInput?.value),
+            };
+
+            const startHasLatLng = Number.isFinite(values.start_lat) && Number.isFinite(values.start_lng);
+            const endHasLatLng = Number.isFinite(values.end_lat) && Number.isFinite(values.end_lng);
+            const startHasUtm = Number.isFinite(values.start_easting) && Number.isFinite(values.start_northing);
+            const endHasUtm = Number.isFinite(values.end_easting) && Number.isFinite(values.end_northing);
+
+            if (!startHasLatLng && !startHasUtm) {
+                throw new Error("Enter a valid start latitude/longitude or UTM easting/northing.");
+            }
+            if (!endHasLatLng && !endHasUtm) {
+                throw new Error("Enter a valid end latitude/longitude or UTM easting/northing.");
+            }
+
+            return {
+                start: startHasLatLng
+                    ? { lat: values.start_lat, lng: values.start_lng }
+                    : { easting: values.start_easting, northing: values.start_northing },
+                end: endHasLatLng
+                    ? { lat: values.end_lat, lng: values.end_lng }
+                    : { easting: values.end_easting, northing: values.end_northing },
+            };
         }
 
         function setActiveMarker(value) {
@@ -194,6 +262,97 @@
             return mapNode;
         }
 
+        function setTravelModeOptions(modes) {
+            if (!travelModeSelect || !Array.isArray(modes) || !modes.length) {
+                return;
+            }
+            travelModeSelect.innerHTML = "";
+            modes.forEach(function (mode) {
+                const option = document.createElement("option");
+                option.value = mode;
+                option.textContent = mode.charAt(0) + mode.slice(1).toLowerCase();
+                travelModeSelect.appendChild(option);
+            });
+            setDefaultTravelMode();
+        }
+
+        function setDefaultTravelMode() {
+            if (!travelModeSelect) {
+                return;
+            }
+            const desired = (config.default_travel_mode || "DRIVING").toUpperCase();
+            if (travelModeSelect.querySelector(`option[value="${desired}"]`)) {
+                travelModeSelect.value = desired;
+            }
+        }
+
+        function previewRoute() {
+            if (!routeButton || !allowEditing || !config.api || !config.api.route) {
+                return;
+            }
+            let coords;
+            try {
+                coords = ensureCoordinates();
+            } catch (err) {
+                showStatus(err.message, "error");
+                return;
+            }
+
+            const travelMode = travelModeSelect ? travelModeSelect.value : (config.default_travel_mode || "DRIVING");
+            showStatus("Requesting route preview…");
+
+            fetch(config.api.route, {
+                method: "POST",
+                credentials: "same-origin",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRFToken": document.cookie.match(/csrftoken=([^;]+)/)?.[1] || "",
+                },
+                body: JSON.stringify({
+                    start: coords.start,
+                    end: coords.end,
+                    travel_mode: travelMode,
+                }),
+            })
+                .then(function (response) {
+                    if (!response.ok) {
+                        return response.json().catch(function () { return {}; }).then(function (payload) {
+                            throw new Error(payload.detail || "Unable to fetch a route preview.");
+                        });
+                    }
+                    return response.json();
+                })
+                .then(function (payload) {
+                    const summary = formatRouteSummary(payload.route);
+                    if (summary) {
+                        showStatus(summary, "success");
+                    } else {
+                        showStatus("Route retrieved successfully.", "success");
+                    }
+
+                    if (payload.start && payload.end) {
+                        setInputsFromLatLng("start", payload.start.lat, payload.start.lng);
+                        setInputsFromLatLng("end", payload.end.lat, payload.end.lng);
+                    }
+
+                    if (payload.route && payload.route.geometry && payload.route.geometry.length && map) {
+                        if (routes) {
+                            routes.clearLayers();
+                        }
+                        const latLngs = payload.route.geometry.map(function (coord) {
+                            return [coord[1], coord[0]];
+                        });
+                        const style = ROUTE_STYLES[(payload.travel_mode || travelMode || "DRIVING").toUpperCase()] || ROUTE_STYLES.DRIVING;
+                        routeLine = L.polyline(latLngs, style).addTo(routes || map);
+                        map.fitBounds(routeLine.getBounds(), { padding: [20, 20] });
+                    }
+                    syncEditableMarkers(readPointFromInputs(startLatInput, startLngInput), readPointFromInputs(endLatInput, endLngInput));
+                })
+                .catch(function (err) {
+                    showStatus(err.message, "error");
+                });
+        }
+
         function addViewport(region) {
             if (!region || !overlay) {
                 return null;
@@ -232,10 +391,14 @@
                 }).addTo(map);
                 overlay = L.layerGroup().addTo(map);
                 markers = L.layerGroup().addTo(map);
+                routes = L.layerGroup().addTo(map);
             } else if (overlay) {
                 overlay.clearLayers();
                 if (markers) {
                     markers.clearLayers();
+                }
+                if (routes) {
+                    routes.clearLayers();
                 }
             }
 
@@ -318,6 +481,10 @@
                     );
                 }
             }
+
+            if (Array.isArray(lastPayload && lastPayload.travel_modes) && travelModeSelect) {
+                setTravelModeOptions(lastPayload.travel_modes);
+            }
         }
 
         function buildQueryString() {
@@ -396,6 +563,12 @@
                 fetchMapContext();
             });
         }
+
+        if (routeButton && allowEditing && config.api && config.api.route) {
+            routeButton.addEventListener("click", previewRoute);
+        }
+
+        setDefaultTravelMode();
 
         fetchMapContext();
     }
