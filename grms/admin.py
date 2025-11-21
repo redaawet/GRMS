@@ -95,7 +95,6 @@ class GRMSAdminSite(AdminSite):
             "title": "Reference data",
             "models": (
                 models.ConditionRating._meta.verbose_name_plural,
-                models.ConditionFactor._meta.verbose_name_plural,
                 models.QAStatus._meta.verbose_name_plural,
                 models.ActivityLookup._meta.verbose_name_plural,
                 models.InterventionLookup._meta.verbose_name_plural,
@@ -548,18 +547,6 @@ class RoadSectionAdmin(admin.ModelAdmin):
             },
         ),
         ("Notes", {"fields": ("notes",)}),
-        (
-            "Alignment coordinates",
-            {
-                "description": "Provide both start and end coordinates in UTM (Zone 37N) or decimal degrees so the map preview and validations can run.",
-                "fields": (
-                    ("start_easting", "start_northing"),
-                    ("end_easting", "end_northing"),
-                    ("start_lat", "start_lng"),
-                    ("end_lat", "end_lng"),
-                ),
-            },
-        ),
         (
             "Map preview",
             {
@@ -1145,7 +1132,6 @@ for model in [
     models.DistressCondition,
     models.DistressActivity,
     models.ConditionRating,
-    models.ConditionFactor,
     models.InterventionLookup,
     models.UnitCost,
     models.PCULookup,
