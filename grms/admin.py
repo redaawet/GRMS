@@ -510,7 +510,6 @@ class RoadSectionAdmin(admin.ModelAdmin):
     search_fields = ("road__road_name_from", "road__road_name_to", "name")
     readonly_fields = (
         "length_km",
-        "map_preview",
     )
     change_form_template = "admin/grms/roadsection/change_form.html"
     fieldsets = (
@@ -545,13 +544,6 @@ class RoadSectionAdmin(admin.ModelAdmin):
                     ("start_lat", "start_lng"),
                     ("end_lat", "end_lng"),
                 ),
-            },
-        ),
-        (
-            "Map preview",
-            {
-                "fields": ("map_preview",),
-                "description": "Preview uses the supplied alignment coordinates; refresh to confirm continuity.",
             },
         ),
     )
@@ -638,20 +630,6 @@ class RoadSectionAdmin(admin.ModelAdmin):
                 "woreda_id": section.admin_woreda_override_id or road.admin_woreda_id,
             },
         }
-
-    @staticmethod
-    def map_preview(obj):
-        if not obj:
-            return "Map preview will appear after saving the section and providing alignment coordinates."
-
-        start = obj.start_chainage_km or Decimal("0.000")
-        end = obj.end_chainage_km or Decimal("0.000")
-        return format_html(
-            "<p>Map preview uses the provided alignment between <strong>{}</strong> km and <strong>{}</strong> km." \
-            " Use the refresh button below to redraw the map with your saved coordinates.</p>",
-            start,
-            end,
-        )
 
     @staticmethod
     def _section_point(section, end: bool = False):
