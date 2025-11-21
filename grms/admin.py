@@ -524,18 +524,6 @@ class RoadSectionAdmin(admin.ModelAdmin):
             {"fields": (("start_chainage_km", "end_chainage_km"), "length_km")},
         ),
         (
-            "Alignment coordinates",
-            {
-                "description": "Capture start/end alignment in UTM (Zone 37N) or decimal degrees. Both UTM and lat/lng are stored for validation.",
-                "fields": (
-                    ("start_easting", "start_northing"),
-                    ("end_easting", "end_northing"),
-                    ("start_lat", "start_lng"),
-                    ("end_lat", "end_lng"),
-                ),
-            },
-        ),
-        (
             "Physical characteristics",
             {"fields": ("surface_type", "surface_thickness_cm")},
         ),
