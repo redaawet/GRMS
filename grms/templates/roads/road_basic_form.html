@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Create Road - Basic Info</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-WBkoXOwTeyKclOHuWtc+i2uENFpDZ9YPdf5Hf+D7ewM=" crossorigin="">
+    <style>
+        body { font-family: Arial, sans-serif; margin: 2rem; }
+        .wizard { display: flex; gap: 1rem; margin-bottom: 1rem; }
+        .wizard-step { padding: 0.5rem 0.75rem; border-radius: 4px; border: 1px solid #ccc; background: #f5f5f5; }
+        .wizard-step.active { border-color: #0d6efd; background: #e7f1ff; }
+        .wizard-step.complete { border-color: #198754; background: #e8f5e9; }
+        form { max-width: 720px; }
+        label { font-weight: bold; display: block; margin-top: 1rem; }
+        input, select, textarea { width: 100%; padding: 0.5rem; margin-top: 0.25rem; }
+        .actions { margin-top: 1.5rem; display: flex; justify-content: flex-end; gap: 0.5rem; }
+        .errorlist { color: #b94a48; margin: 0.25rem 0; }
+    </style>
+</head>
+<body>
+    <h1>Road Inventory – Step 1: Basic Information</h1>
+    <div class="wizard">
+        {% for step in progress_steps %}
+            <div class="wizard-step {% if step.active %}active{% endif %} {% if step.complete %}complete{% endif %}">
+                {{ step.label }}
+            </div>
+        {% endfor %}
+    </div>
+
+    <form method="post" novalidate>
+        {% csrf_token %}
+        {{ form.non_field_errors }}
+        {% for field in form %}
+            <label for="{{ field.id_for_label }}">{{ field.label }}{% if field.field.required %}*{% endif %}</label>
+            {{ field }}
+            {% if field.help_text %}<small>{{ field.help_text }}</small>{% endif %}
+            {% for error in field.errors %}
+                <div class="errorlist">{{ error }}</div>
+            {% endfor %}
+        {% endfor %}
+        <div class="actions">
+            <button type="submit">Save &amp; Continue</button>
+        </div>
+    </form>
+</body>
+</html>
