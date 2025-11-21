@@ -1,0 +1,41 @@
+{% extends "admin/change_form.html" %}
+{% load static %}
+
+{% block extrahead %}
+    {{ block.super }}
+    {% if map_admin_config %}
+        {{ map_admin_config|json_script:"map-admin-config" }}
+    {% endif %}
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <link rel="stylesheet" href="{% static 'grms/css/road-admin.css' %}">
+    <script src="{% static 'grms/js/map-admin.js' %}" defer></script>
+{% endblock %}
+
+{% block after_field_sets %}
+    {{ block.super }}
+    <div id="map-panel"
+         class="road-map-panel {% if not map_admin_config %}road-map-panel--disabled{% endif %}"
+         data-map-scope="{{ map_admin_config.scope|default_if_none:'' }}"
+         data-map-context-url="{{ map_admin_config.api.map_context|default_if_none:'' }}">
+        <div class="road-map-panel__placeholder">
+            <h3>Section map preview</h3>
+            <p>
+                {% if map_admin_config %}
+                    Use the refresh button to load the parent road and highlight this section on the map.
+                {% else %}
+                    Save the section first to enable the map preview.
+                {% endif %}
+            </p>
+        </div>
+    </div>
+    <div class="road-map-panel__status" id="map-panel-status"></div>
+    {% if map_admin_config %}
+        <div class="road-map-panel__actions">
+            <div class="road-map-panel__selectors">
+                <button type="button" class="button" id="map-panel-refresh">Refresh map</button>
+            </div>
+            <p class="help">The blue highlight represents this section along the parent road.</p>
+        </div>
+    {% endif %}
+{% endblock %}
