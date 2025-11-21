@@ -114,7 +114,7 @@ class RoutePlanningTests(RoadNetworkMixin, APITestCase):
         self.assertEqual(payload["start"], {"lat": 13.1, "lng": 39.1})
         self.assertEqual(payload["travel_modes"], sorted(map_services.TRAVEL_MODES))
         self.assertEqual(payload["map_region"]["formatted_address"], "Mekelle, Tigray, Ethiopia")
-        mock_geo.assert_called_once_with(road.admin_zone.name, road.admin_woreda.name)
+        mock_geo.assert_called_once_with(zone_name=road.admin_zone.name, woreda_name=road.admin_woreda.name)
 
     @mock.patch("grms.services.map_services.get_admin_area_viewport", side_effect=map_services.MapServiceError("geocode"))
     def test_map_context_falls_back_to_default_region_on_error(self, mock_geo):
@@ -123,7 +123,7 @@ class RoutePlanningTests(RoadNetworkMixin, APITestCase):
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         payload = response.json()
-        self.assertEqual(payload["map_region"]["center"], {"lat": 13.5, "lng": 39.5})
+        self.assertEqual(payload["map_region"]["center"], {"lat": 9.0, "lng": 39.0})
         mock_geo.assert_called_once()
 
     @mock.patch("grms.services.map_services.get_admin_area_viewport")
@@ -138,7 +138,7 @@ class RoutePlanningTests(RoadNetworkMixin, APITestCase):
         payload = response.json()
         self.assertEqual(payload["zone"], {"id": zone.id, "name": zone.name})
         self.assertEqual(payload["woreda"], {"id": woreda.id, "name": woreda.name})
-        mock_geo.assert_called_once_with(zone.name, woreda.name)
+        mock_geo.assert_called_once_with(zone_name=zone.name, woreda_name=woreda.name)
 
     @mock.patch("grms.services.map_services.get_admin_area_viewport")
     def test_map_context_validates_mismatched_overrides(self, mock_geo):
@@ -152,4 +152,27 @@ class RoutePlanningTests(RoadNetworkMixin, APITestCase):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("detail", response.json())
         mock_geo.assert_not_called()
+
+    def test_default_map_context_returns_zone_37n_region(self):
+        url = reverse("road_map_context_default")
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        payload = response.json()
+        self.assertEqual(payload["map_region"]["center"], {"lat": 9.0, "lng": 39.0})
+        self.assertIn("bounds", payload["map_region"])
+
+    @mock.patch("grms.services.map_services.get_admin_area_viewport_or_default")
+    def test_default_map_context_uses_admin_selection_when_provided(self, mock_viewport):
+        mock_viewport.return_value = {"center": {"lat": 13.5, "lng": 39.5}}
+        zone = models.AdminZone.objects.create(name="Zone 37N")
+        woreda = models.AdminWoreda.objects.create(name="Woreda 37N", zone=zone)
+
+        url = reverse("road_map_context_default")
+        response = self.client.get(url + f"?zone_id={zone.id}&woreda_id={woreda.id}")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        payload = response.json()
+        self.assertEqual(payload["zone"], {"id": zone.id, "name": zone.name})
+        self.assertEqual(payload["woreda"], {"id": woreda.id, "name": woreda.name})
+        mock_viewport.assert_called_once_with(zone.name, woreda.name)
 

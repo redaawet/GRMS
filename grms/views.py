@@ -240,7 +240,15 @@ def section_map_preview(request: Request, road_id: int, section_id: int):
     if request.method == "POST":
         return redirect(f"/roads/{road.id}/sections/{section.id}/details")
 
-    map_region = map_services.get_default_map_region()
+    zone = section.admin_zone_override or road.admin_zone
+    woreda = section.admin_woreda_override or road.admin_woreda
+
+    woreda_for_lookup = woreda if woreda and zone and woreda.zone_id == zone.id else None
+
+    map_region = map_services.get_admin_area_viewport_or_default(
+        zone.name if zone else None, woreda_for_lookup.name if woreda_for_lookup else None
+    )
+
     start = point_to_lat_lng(getattr(road, "road_start_coordinates", None))
     end = point_to_lat_lng(getattr(road, "road_end_coordinates", None))
 
@@ -257,8 +265,14 @@ def section_map_preview(request: Request, road_id: int, section_id: int):
             "road": road,
             "section": section,
             "progress_steps": progress_steps,
+            "map_has_admin_boundary": bool(map_region.get("viewport")),
             "map_config": {
                 "map_region": map_region,
+                "admin_area": {
+                    "zone": {"id": zone.id, "name": zone.name} if zone else None,
+                    "woreda": {"id": woreda.id, "name": woreda.name} if woreda else None,
+                    "has_boundary": bool(map_region.get("viewport")),
+                },
                 "road": {
                     "id": road.id,
                     "length_km": float(road.total_length_km) if road.total_length_km is not None else None,
@@ -330,16 +344,21 @@ def update_road_route(request: Request, pk: int) -> Response:
 
 
 @api_view(["GET"])
-def road_map_context(request: Request, pk: int) -> Response:
-    """Return context to display a Leaflet map for the selected road."""
+def road_map_context(request: Request, pk: Optional[int] = None) -> Response:
+    """Return context to display a Leaflet map for a road or default region."""
 
-    road = get_object_or_404(models.Road.objects.select_related("admin_zone", "admin_woreda"), pk=pk)
+    road: Optional[models.Road] = None
+    start = None
+    end = None
+    zone: Optional[models.AdminZone] = None
+    woreda: Optional[models.AdminWoreda] = None
 
-    start = point_to_lat_lng(road.road_start_coordinates)
-    end = point_to_lat_lng(road.road_end_coordinates)
-
-    zone = road.admin_zone
-    woreda = road.admin_woreda
+    if pk is not None:
+        road = get_object_or_404(models.Road.objects.select_related("admin_zone", "admin_woreda"), pk=pk)
+        start = point_to_lat_lng(road.road_start_coordinates)
+        end = point_to_lat_lng(road.road_end_coordinates)
+        zone = road.admin_zone
+        woreda = road.admin_woreda
 
     zone_override = request.query_params.get("zone_id")
     woreda_override = request.query_params.get("woreda_id")
@@ -354,24 +373,18 @@ def road_map_context(request: Request, pk: int) -> Response:
                 status=status.HTTP_400_BAD_REQUEST,
             )
         zone = woreda.zone
+    elif woreda and zone and woreda.zone_id != zone.id:
+        woreda = None
 
     woreda_for_lookup = woreda if woreda and zone and woreda.zone_id == zone.id else None
 
-    map_region = map_services.get_default_map_region()
-    if zone or woreda_for_lookup:
-        try:
-            map_region = map_services.get_admin_area_viewport(
-                zone.name if zone else None, woreda_for_lookup.name if woreda_for_lookup else None
-            )
-        except map_services.MapServiceError:
-            # Fall back to the default region (Tigray) if we cannot determine a
-            # more precise viewport. This keeps the map usable even when the
-            # geocoding service is unavailable.
-            map_region = map_services.get_default_map_region()
+    map_region = map_services.get_admin_area_viewport_or_default(
+        zone.name if zone else None, woreda_for_lookup.name if woreda_for_lookup else None
+    )
 
     return Response(
         {
-            "road": road.id,
+            "road": road.id if road else None,
             "zone": {"id": zone.id, "name": zone.name} if zone else None,
             "woreda": {"id": woreda.id, "name": woreda.name} if woreda else None,
             "start": start,

@@ -14,20 +14,23 @@ USER_AGENT = "GRMS/1.0 (https://github.com/WorldBank-Transport/GRMS)"
 TRAVEL_MODES = {"DRIVING", "WALKING", "BICYCLING"}
 OSRM_PROFILES = {"DRIVING": "driving", "WALKING": "walking", "BICYCLING": "cycling"}
 
-# Default to the centre of the Tigray region in Ethiopia so map widgets have a
-# sensible starting viewport even if we cannot look up a specific admin area.
+# Default to the centre of UTM Zone 37N so every map widget opens on a
+# predictable, nationally relevant viewport even when we cannot look up a more
+# specific admin area. The bounds roughly span the Ethiopian extent of Zone
+# 37N; we use them both for fitting and to validate admin lookups so the map
+# never recentres far outside the intended coordinate system.
 DEFAULT_MAP_REGION = {
-    "formatted_address": "Tigray, Ethiopia",
-    "center": {"lat": 13.5, "lng": 39.5},
-    # The bounds cover the approximate extent of the region and are also used
-    # as the viewport when fitting the map to show the whole area.
+    "formatted_address": "UTM Zone 37N (Ethiopia)",
+    "center": {"lat": 9.0, "lng": 39.0},
+    # The bounds span the main north–south extent of Ethiopia that sits inside
+    # Zone 37N; they also provide a viewport for initial map fitting.
     "bounds": {
-        "northeast": {"lat": 15.1, "lng": 40.3},
-        "southwest": {"lat": 12.4, "lng": 37.9},
+        "northeast": {"lat": 15.0, "lng": 42.0},
+        "southwest": {"lat": 3.0, "lng": 36.0},
     },
     "viewport": {
-        "northeast": {"lat": 15.1, "lng": 40.3},
-        "southwest": {"lat": 12.4, "lng": 37.9},
+        "northeast": {"lat": 15.0, "lng": 42.0},
+        "southwest": {"lat": 3.0, "lng": 36.0},
     },
 }
 
@@ -93,11 +96,49 @@ def _request_json(url: str) -> Any:
 
 
 def get_default_map_region() -> Dict[str, Any]:
-    """Return a copy of the default Tigray map region configuration."""
+    """Return a copy of the default UTM Zone 37N map region configuration."""
 
     # Copy via JSON round-trip to avoid accidental mutation of the module
     # constant in request handlers.
     return json.loads(json.dumps(DEFAULT_MAP_REGION))
+
+
+def _region_center(region: Dict[str, Any]) -> tuple[Optional[float], Optional[float]]:
+    center = region.get("center") or {}
+    return center.get("lat"), center.get("lng")
+
+
+def _is_within_zone_37n(lat: Optional[float], lng: Optional[float]) -> bool:
+    return lat is not None and lng is not None and 3.0 <= lat <= 15.0 and 36.0 <= lng <= 42.0
+
+
+def get_admin_area_viewport_or_default(
+    zone_name: Optional[str] = None, woreda_name: Optional[str] = None
+) -> Dict[str, Any]:
+    """Resolve an admin viewport but clamp it to the UTM Zone 37N extent.
+
+    When the lookup fails or resolves outside Zone 37N, the default map region
+    centred on Zone 37N is returned so that map widgets consistently initialise
+    within the desired coordinate system.
+    """
+
+    if not zone_name and not woreda_name:
+        return get_default_map_region()
+
+    try:
+        region = get_admin_area_viewport(zone_name=zone_name, woreda_name=woreda_name)
+    except MapServiceError:
+        return get_default_map_region()
+
+    lat, lng = _region_center(region)
+    if not _is_within_zone_37n(lat, lng):
+        return get_default_map_region()
+
+    # Normalise viewport so callers can rely on it.
+    if not region.get("viewport") and region.get("bounds"):
+        region["viewport"] = region["bounds"]
+
+    return region
 
 
 def get_directions(

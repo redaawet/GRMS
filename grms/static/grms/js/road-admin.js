@@ -39,9 +39,20 @@
         return parts.join(" · ");
     }
 
-    const DEFAULT_MAP_CENTER = { lat: 9.0, lng: 38.0 };
+    const DEFAULT_MAP_REGION = {
+        formatted_address: "UTM Zone 37N (Ethiopia)",
+        center: { lat: 9.0, lng: 39.0 },
+        bounds: {
+            northeast: { lat: 15.0, lng: 42.0 },
+            southwest: { lat: 3.0, lng: 36.0 },
+        },
+        viewport: {
+            northeast: { lat: 15.0, lng: 42.0 },
+            southwest: { lat: 3.0, lng: 36.0 },
+        },
+    };
 
-    const defaultMapPayload = { map_region: { center: DEFAULT_MAP_CENTER } };
+    const defaultMapPayload = { map_region: DEFAULT_MAP_REGION };
 
     function initRoadAdmin() {
         const config = parseJSONScript("road-admin-config");
