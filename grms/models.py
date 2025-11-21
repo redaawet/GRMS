@@ -385,13 +385,18 @@ class Road(models.Model):
     def save(self, *args, **kwargs):
         # Update WGS84 coordinates from UTM inputs when provided. Zone and
         # woreda selections are left untouched.
-        start_point = self._point_from_utm(self.start_easting, self.start_northing)
-        if start_point:
-            self.road_start_coordinates = start_point
+        update_fields = kwargs.get("update_fields")
+        allow_autofill = not update_fields or "start_easting" in update_fields or "start_northing" in update_fields
+        if allow_autofill:
+            start_point = self._point_from_utm(self.start_easting, self.start_northing)
+            if start_point:
+                self.road_start_coordinates = start_point
 
-        end_point = self._point_from_utm(self.end_easting, self.end_northing)
-        if end_point:
-            self.road_end_coordinates = end_point
+        allow_autofill_end = not update_fields or "end_easting" in update_fields or "end_northing" in update_fields
+        if allow_autofill_end:
+            end_point = self._point_from_utm(self.end_easting, self.end_northing)
+            if end_point:
+                self.road_end_coordinates = end_point
 
         super().save(*args, **kwargs)
 
@@ -444,6 +449,36 @@ class RoadSection(models.Model):
         help_text="Override when the section crosses into a different woreda",
     )
     notes = models.TextField(blank=True, help_text="Inventory notes for this section")
+    start_easting = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="UTM easting for the section start (Zone 37N)",
+    )
+    start_northing = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="UTM northing for the section start (Zone 37N)",
+    )
+    section_start_coordinates = PointField(srid=4326, null=True, blank=True)
+    end_easting = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="UTM easting for the section end (Zone 37N)",
+    )
+    end_northing = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="UTM northing for the section end (Zone 37N)",
+    )
+    section_end_coordinates = PointField(srid=4326, null=True, blank=True)
 
     class Meta:
         verbose_name = "Road section"
@@ -495,9 +530,67 @@ class RoadSection(models.Model):
                         "Section overlaps with existing sections on this road: " + overlap_list
                     )
 
+                siblings = RoadSection.objects.filter(road_id=self.road_id).exclude(pk=self.pk)
+                previous = siblings.filter(end_chainage_km__lte=self.start_chainage_km).order_by("-end_chainage_km").first()
+                next_section = siblings.filter(start_chainage_km__gte=self.end_chainage_km).order_by("start_chainage_km").first()
+
+                tolerance = Decimal("0.001")
+                if previous and (self.start_chainage_km - previous.end_chainage_km).copy_abs() > tolerance:
+                    errors["start_chainage_km"] = (
+                        f"Gap detected before this section; previous section {previous.section_number} ends at {previous.end_chainage_km} km."
+                    )
+                if next_section and (next_section.start_chainage_km - self.end_chainage_km).copy_abs() > tolerance:
+                    errors["end_chainage_km"] = (
+                        f"Gap detected after this section; next section {next_section.section_number} starts at {next_section.start_chainage_km} km."
+                    )
+
+                if previous and previous.sequence_on_road >= self.sequence_on_road:
+                    errors["sequence_on_road"] = (
+                        f"Sequence order must follow chainage; section {previous.section_number} comes before this one."
+                    )
+                if next_section and next_section.sequence_on_road <= self.sequence_on_road:
+                    errors["sequence_on_road"] = (
+                        f"Sequence order must follow chainage; section {next_section.section_number} should come after this one."
+                    )
+
         if self.surface_type in {"Gravel", "DBST", "Asphalt", "Sealed"}:
             if self.surface_thickness_cm is None:
                 errors["surface_thickness_cm"] = "Thickness is required for gravel or paved surfaces."
+
+        start_pair_complete = self.start_easting is not None and self.start_northing is not None
+        end_pair_complete = self.end_easting is not None and self.end_northing is not None
+        start_point_set = self.section_start_coordinates is not None
+        end_point_set = self.section_end_coordinates is not None
+
+        if start_pair_complete and not start_point_set:
+            lat, lng = utm_to_wgs84(float(self.start_easting), float(self.start_northing), zone=37)
+            self.section_start_coordinates = make_point(lat, lng)
+            start_point_set = True
+        if end_pair_complete and not end_point_set:
+            lat, lng = utm_to_wgs84(float(self.end_easting), float(self.end_northing), zone=37)
+            self.section_end_coordinates = make_point(lat, lng)
+            end_point_set = True
+
+        if not start_pair_complete:
+            errors["start_easting"] = "Provide start easting and northing to anchor the section alignment."
+        if not end_pair_complete:
+            errors["end_easting"] = "Provide end easting and northing to anchor the section alignment."
+
+        if start_pair_complete != start_point_set:
+            errors["section_start_coordinates"] = "Start point (lat/lng) must align with the supplied UTM coordinates."
+        if end_pair_complete != end_point_set:
+            errors["section_end_coordinates"] = "End point (lat/lng) must align with the supplied UTM coordinates."
+
+        if start_pair_complete and end_pair_complete and self.start_chainage_km is not None and self.end_chainage_km is not None:
+            dx = (self.end_easting - self.start_easting).copy_abs()
+            dy = (self.end_northing - self.start_northing).copy_abs()
+            coordinate_length_km = ((dx * dx + dy * dy).sqrt() / Decimal("1000")).quantize(Decimal("0.001"))
+            chainage_length_km = (self.end_chainage_km - self.start_chainage_km).quantize(Decimal("0.001"))
+            tolerance = max(Decimal("0.050"), chainage_length_km * Decimal("0.05"))
+            if (coordinate_length_km - chainage_length_km).copy_abs() > tolerance:
+                errors["end_easting"] = (
+                    f"Coordinate distance ({coordinate_length_km} km) should align with chainage length ({chainage_length_km} km)."
+                )
 
         if errors:
             raise ValidationError(errors)
