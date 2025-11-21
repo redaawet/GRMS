@@ -7,6 +7,19 @@
     background: #f8f8f8;
 }
 
+.road-map-panel__info {
+    padding: 16px 18px 0;
+}
+
+.road-map-panel__info h3 {
+    margin: 0 0 6px;
+}
+
+.road-map-panel__viewport {
+    min-height: 360px;
+    position: relative;
+}
+
 .road-map-panel__placeholder {
     padding: 24px;
     text-align: center;
@@ -48,7 +61,7 @@
     margin-bottom: 8px;
 }
 
-#road-map {
+.road-map {
     height: 100%;
     width: 100%;
     position: absolute;
