@@ -14,20 +14,19 @@ USER_AGENT = "GRMS/1.0 (https://github.com/WorldBank-Transport/GRMS)"
 TRAVEL_MODES = {"DRIVING", "WALKING", "BICYCLING"}
 OSRM_PROFILES = {"DRIVING": "driving", "WALKING": "walking", "BICYCLING": "cycling"}
 
-# Default to the centre of the Tigray region in Ethiopia so map widgets have a
-# sensible starting viewport even if we cannot look up a specific admin area.
+# Default to Mekelle, Tigray so wizard previews open in the expected GRMS
+# geography instead of centring on Addis Ababa. Bounds roughly cover the Tigray
+# region to keep the initial viewport relevant until admin lookups refine it.
 DEFAULT_MAP_REGION = {
-    "formatted_address": "Tigray, Ethiopia",
-    "center": {"lat": 13.5, "lng": 39.5},
-    # The bounds cover the approximate extent of the region and are also used
-    # as the viewport when fitting the map to show the whole area.
+    "formatted_address": "Mekelle, Tigray",
+    "center": {"lat": 13.4967, "lng": 39.4763, "zoom": 12},
     "bounds": {
-        "northeast": {"lat": 15.1, "lng": 40.3},
-        "southwest": {"lat": 12.4, "lng": 37.9},
+        "northeast": {"lat": 14.6, "lng": 40.4},
+        "southwest": {"lat": 12.4, "lng": 38.6},
     },
     "viewport": {
-        "northeast": {"lat": 15.1, "lng": 40.3},
-        "southwest": {"lat": 12.4, "lng": 37.9},
+        "northeast": {"lat": 14.6, "lng": 40.4},
+        "southwest": {"lat": 12.4, "lng": 38.6},
     },
 }
 
