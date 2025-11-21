@@ -8,6 +8,7 @@ from django import forms
 from django.contrib import admin
 from django.contrib.admin import AdminSite
 from django.shortcuts import redirect
+from django.utils.html import format_html
 
 from . import models
 from .services import map_services
@@ -365,33 +366,62 @@ class AdminWoredaAdmin(admin.ModelAdmin):
 
 @admin.register(models.RoadSection, site=grms_admin_site)
 class RoadSectionAdmin(admin.ModelAdmin):
-    list_display = ("road", "section_number", "length_km", "surface_type")
+    list_display = (
+        "road",
+        "section_number",
+        "sequence_on_road",
+        "length_km",
+        "surface_type",
+    )
     list_filter = ("surface_type", "road__admin_zone")
-    search_fields = ("road__road_name_from", "road__road_name_to")
+    search_fields = ("road__road_name_from", "road__road_name_to", "name")
+    readonly_fields = ("length_km", "map_preview")
     fieldsets = (
-        ("Parent road", {"fields": ("road", "section_number")}),
+        ("Parent road", {"fields": ("road",)}),
+        (
+            "Section identification",
+            {"fields": (("section_number", "sequence_on_road"), "name")},
+        ),
         (
             "Chainage and length",
+            {"fields": (("start_chainage_km", "end_chainage_km"), "length_km")},
+        ),
+        (
+            "Physical characteristics",
+            {"fields": ("surface_type", "surface_thickness_cm")},
+        ),
+        (
+            "Administrative overrides",
             {
-                "fields": (
-                    ("start_chainage_km", "end_chainage_km"),
-                    "length_km",
-                    "surface_type",
-                    "gravel_thickness_cm",
-                )
+                "description": "Use only when the section crosses into a new zone or woreda; otherwise the parent road values apply.",
+                "fields": ("admin_zone_override", "admin_woreda_override"),
             },
         ),
         (
-            "Geometry",
+            "Map preview",
             {
-                "fields": (
-                    ("start_coordinates", "end_coordinates"),
-                    "geometry",
-                )
+                "fields": ("map_preview",),
+                "description": "Geometry is derived automatically; no manual line editing is needed.",
             },
         ),
-        ("Inspection", {"fields": (("inspector_name", "inspection_date"), "attachments")}),
+        ("Notes", {"fields": ("notes",)}),
     )
+
+    @staticmethod
+    def map_preview(obj):
+        if not obj:
+            return "Map preview will appear after saving the section; it is generated from the parent road geometry."
+
+        start = obj.start_chainage_km or Decimal("0.000")
+        end = obj.end_chainage_km or Decimal("0.000")
+        return format_html(
+            "<p>Map preview is auto-generated from the parent road between <strong>{}</strong> km and <strong>{}</strong> km.</p>"
+            "<ul><li>Highlights the section extents</li>"
+            "<li>Shows admin boundaries, towns, and optional base layers</li>"
+            "<li>No manual geometry entry is required</li></ul>",
+            start,
+            end,
+        )
 
 
 @admin.register(models.RoadSegment, site=grms_admin_site)

@@ -14,7 +14,7 @@ from typing import Iterable, Optional
 from django.core.exceptions import ValidationError
 from django.db import models
 
-from .gis_fields import LineStringField, PointField
+from .gis_fields import PointField
 from .utils import make_point, utm_to_wgs84
 
 # ---------------------------------------------------------------------------
@@ -396,35 +396,86 @@ class Road(models.Model):
 
 
 class RoadSection(models.Model):
+    SURFACE_TYPES = [
+        ("Earth", "Earth"),
+        ("Gravel", "Gravel"),
+        ("DBST", "DBST"),
+        ("Asphalt", "Asphalt"),
+        ("Sealed", "Sealed"),
+    ]
+
     road = models.ForeignKey(Road, on_delete=models.CASCADE, related_name="sections")
-    section_number = models.PositiveIntegerField(help_text="Section sequence on the road")
+    section_number = models.PositiveIntegerField(help_text="Section identifier within the road")
+    sequence_on_road = models.PositiveIntegerField(
+        default=1, help_text="Ordered position of this section along the parent road"
+    )
+    name = models.CharField(max_length=150, blank=True, help_text="Optional section name or landmark")
     start_chainage_km = models.DecimalField(max_digits=8, decimal_places=3, help_text="Section start chainage (km)")
     end_chainage_km = models.DecimalField(max_digits=8, decimal_places=3, help_text="Section end chainage (km)")
-    length_km = models.DecimalField(max_digits=8, decimal_places=3, help_text="Section length (km)")
-    start_coordinates = PointField(srid=4326, null=True, blank=True, help_text="Section start GPS")
-    end_coordinates = PointField(srid=4326, null=True, blank=True, help_text="Section end GPS")
-    surface_type = models.CharField(
-        max_length=10,
-        choices=[("Earth", "Earth"), ("Gravel", "Gravel"), ("Asphalt", "Asphalt")],
+    length_km = models.DecimalField(
+        max_digits=8,
+        decimal_places=3,
+        help_text="Section length (km) computed from chainage",
+        editable=False,
     )
-    gravel_thickness_cm = models.DecimalField(
+    surface_type = models.CharField(max_length=10, choices=SURFACE_TYPES)
+    surface_thickness_cm = models.DecimalField(
         max_digits=5,
         decimal_places=2,
         null=True,
         blank=True,
-        help_text="Gravel thickness (cm) if applicable",
+        help_text="Wearing course or gravel thickness (cm) for gravel/paved surfaces",
     )
-    inspector_name = models.CharField(max_length=150, blank=True)
-    inspection_date = models.DateField(null=True, blank=True)
-    geometry = LineStringField(srid=4326, null=True, blank=True, help_text="Section geometry (LineString)")
-    attachments = models.JSONField(null=True, blank=True, help_text="Photos/documents URLs or metadata")
+    admin_zone_override = models.ForeignKey(
+        AdminZone,
+        on_delete=models.PROTECT,
+        related_name="section_overrides",
+        null=True,
+        blank=True,
+        help_text="Override when the section crosses into a different zone",
+    )
+    admin_woreda_override = models.ForeignKey(
+        AdminWoreda,
+        on_delete=models.PROTECT,
+        related_name="section_overrides",
+        null=True,
+        blank=True,
+        help_text="Override when the section crosses into a different woreda",
+    )
+    notes = models.TextField(blank=True, help_text="Inventory notes for this section")
 
     class Meta:
         verbose_name = "Road section"
         verbose_name_plural = "Road sections"
+        ordering = ("road", "sequence_on_road", "section_number")
+        unique_together = (("road", "section_number"), ("road", "sequence_on_road"))
 
     def __str__(self) -> str:  # pragma: no cover
         return f"Section {self.section_number} of Road {self.road_id}"
+
+    def clean(self):  # pragma: no cover - simple validation
+        errors = {}
+
+        if self.admin_zone_override_id and self.admin_woreda_override_id:
+            if self.admin_woreda_override.zone_id != self.admin_zone_override_id:
+                errors["admin_woreda_override"] = "Selected woreda does not belong to the selected zone."
+
+        if self.start_chainage_km is not None and self.end_chainage_km is not None:
+            if self.start_chainage_km >= self.end_chainage_km:
+                errors["end_chainage_km"] = "End chainage must be greater than start chainage."
+
+        if self.surface_type in {"Gravel", "DBST", "Asphalt", "Sealed"}:
+            if self.surface_thickness_cm is None:
+                errors["surface_thickness_cm"] = "Thickness is required for gravel or paved surfaces."
+
+        if errors:
+            raise ValidationError(errors)
+
+    def save(self, *args, **kwargs):
+        if self.start_chainage_km is not None and self.end_chainage_km is not None:
+            self.length_km = (self.end_chainage_km - self.start_chainage_km).quantize(Decimal("0.001"))
+        self.full_clean()
+        super().save(*args, **kwargs)
 
 
 class RoadSegment(models.Model):
