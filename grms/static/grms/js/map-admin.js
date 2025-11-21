@@ -56,8 +56,9 @@
         const panel = document.getElementById("map-panel");
         const refreshButton = document.getElementById("map-panel-refresh");
         const statusEl = document.getElementById("map-panel-status");
+        const viewport = document.getElementById("map-panel-viewport");
 
-        if (!config || !panel) {
+        if (!config || !panel || !viewport) {
             return;
         }
 
@@ -81,15 +82,16 @@
         }
 
         function ensureMapContainer() {
-            const existing = panel.querySelector("#map-view");
+            const existing = viewport.querySelector("#map-view");
             if (existing) {
                 return existing;
             }
-            panel.innerHTML = "";
+            viewport.innerHTML = "";
             const mapNode = document.createElement("div");
             mapNode.id = "map-view";
+            mapNode.className = "road-map";
             mapNode.style.minHeight = "360px";
-            panel.appendChild(mapNode);
+            viewport.appendChild(mapNode);
             return mapNode;
         }
 
