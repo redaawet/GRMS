@@ -20,10 +20,10 @@
         data-map-context-url="{{ map_admin_config.api.map_context|default_if_none:'' }}">
         <div class="road-map-panel__info">
             <h3>Map preview</h3>
-            {% if map_admin_config and map_admin_config.section %}
+                {% if map_admin_config and map_admin_config.section %}
                 {% if map_admin_config.section.start_chainage_km and map_admin_config.section.end_chainage_km %}
                     <p class="help">
-                        Map preview is auto-generated from the parent road between
+                        Map preview uses your provided alignment between
                         <strong>{{ map_admin_config.section.start_chainage_km|floatformat:"3" }}</strong> km and
                         <strong>{{ map_admin_config.section.end_chainage_km|floatformat:"3" }}</strong> km.
                     </p>
@@ -41,14 +41,14 @@
                         </p>
                     {% endif %}
                 {% else %}
-                    <p class="help">Geometry is derived automatically; no manual line editing is needed.</p>
+                    <p class="help">Provide chainage and alignment coordinates to enable the preview.</p>
                 {% endif %}
             {% else %}
                 <p class="help">Save the section first to enable the map preview.</p>
             {% endif %}
             <p class="help">Highlights the section extents.</p>
             <p class="help">Shows admin boundaries, towns, and optional base layers.</p>
-            <p class="help">No manual geometry entry is required.</p>
+            <p class="help">Keep chainage, sequence order, and alignment coordinates in sync for a clean validation report.</p>
         </div>
         <div class="road-map-panel__viewport" id="map-panel-viewport">
             <div class="road-map-panel__placeholder">
