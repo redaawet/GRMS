@@ -11,6 +11,7 @@ from django.urls import reverse
 from rest_framework.test import APIClient, APITestCase
 
 from grms import models
+from grms.utils import make_point, utm_to_wgs84
 
 
 class RoadNetworkMixin:
@@ -19,7 +20,11 @@ class RoadNetworkMixin:
     def create_network(self, prefix: str = "Test"):
         zone, _ = models.AdminZone.objects.get_or_create(name="Zone")
         woreda, _ = models.AdminWoreda.objects.get_or_create(name="Woreda", zone=zone)
-        road = models.Road.objects.create(
+        missing_coords = "Missing" in prefix
+        start_lat, start_lng = utm_to_wgs84(500000, 1000000, zone=37)
+        end_lat, end_lng = utm_to_wgs84(500000, 1010000, zone=37)
+
+        road_kwargs = dict(
             road_name_from=f"{prefix} From",
             road_name_to=f"{prefix} To",
             design_standard="DC1",
@@ -31,6 +36,21 @@ class RoadNetworkMixin:
             population_served=1000,
             remarks="",
         )
+
+        if not missing_coords:
+            road_kwargs.update(
+                start_easting=Decimal("500000.00"),
+                start_northing=Decimal("1000000.00"),
+                road_start_coordinates=make_point(start_lat, start_lng),
+                end_easting=Decimal("500000.00"),
+                end_northing=Decimal("1010000.00"),
+                road_end_coordinates=make_point(end_lat, end_lng),
+            )
+
+        road = models.Road.objects.create(**road_kwargs)
+        section_start_lat, section_start_lng = utm_to_wgs84(500000, 1000000, zone=37)
+        section_end_lat, section_end_lng = utm_to_wgs84(500000, 1010000, zone=37)
+
         section = models.RoadSection.objects.create(
             road=road,
             section_number=1,
@@ -38,6 +58,12 @@ class RoadNetworkMixin:
             end_chainage_km=Decimal("10"),
             length_km=Decimal("10"),
             surface_type="Earth",
+            start_easting=Decimal("500000.00"),
+            start_northing=Decimal("1000000.00"),
+            section_start_coordinates=make_point(section_start_lat, section_start_lng),
+            end_easting=Decimal("500000.00"),
+            end_northing=Decimal("1010000.00"),
+            section_end_coordinates=make_point(section_end_lat, section_end_lng),
         )
         segment = models.RoadSegment.objects.create(
             section=section,
