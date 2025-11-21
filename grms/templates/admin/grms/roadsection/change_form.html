@@ -20,34 +20,28 @@
         data-map-context-url="{{ map_admin_config.api.map_context|default_if_none:'' }}">
         <div class="road-map-panel__info">
             <h3>Map preview</h3>
-                {% if map_admin_config and map_admin_config.section %}
+            {% if map_admin_config and map_admin_config.section %}
                 {% if map_admin_config.section.start_chainage_km and map_admin_config.section.end_chainage_km %}
                     <p class="help">
-                        Map preview uses your provided alignment between
+                        Preview uses your start and end alignment between
                         <strong>{{ map_admin_config.section.start_chainage_km|floatformat:"3" }}</strong> km and
                         <strong>{{ map_admin_config.section.end_chainage_km|floatformat:"3" }}</strong> km.
                     </p>
                     {% if map_admin_config.section.points.start and map_admin_config.section.points.end %}
                         <p class="help">
-                            Alignment coordinates:
-                            <br>Start (Lat/Lng): {{ map_admin_config.section.points.start.lat|floatformat:"6" }}, {{ map_admin_config.section.points.start.lng|floatformat:"6" }}
-                            {% if map_admin_config.section.points.start.easting %}
-                                <br>Start (UTM): {{ map_admin_config.section.points.start.easting|floatformat:"2" }} E, {{ map_admin_config.section.points.start.northing|floatformat:"2" }} N
-                            {% endif %}
-                            <br>End (Lat/Lng): {{ map_admin_config.section.points.end.lat|floatformat:"6" }}, {{ map_admin_config.section.points.end.lng|floatformat:"6" }}
-                            {% if map_admin_config.section.points.end.easting %}
-                                <br>End (UTM): {{ map_admin_config.section.points.end.easting|floatformat:"2" }} E, {{ map_admin_config.section.points.end.northing|floatformat:"2" }} N
-                            {% endif %}
+                            Start coordinates: {{ map_admin_config.section.points.start.lat|floatformat:"6" }}, {{ map_admin_config.section.points.start.lng|floatformat:"6" }}{% if map_admin_config.section.points.start.easting %} ({{ map_admin_config.section.points.start.easting|floatformat:"2" }} E / {{ map_admin_config.section.points.start.northing|floatformat:"2" }} N){% endif %}
+                            <br>End coordinates: {{ map_admin_config.section.points.end.lat|floatformat:"6" }}, {{ map_admin_config.section.points.end.lng|floatformat:"6" }}{% if map_admin_config.section.points.end.easting %} ({{ map_admin_config.section.points.end.easting|floatformat:"2" }} E / {{ map_admin_config.section.points.end.northing|floatformat:"2" }} N){% endif %}
                         </p>
+                    {% else %}
+                        <p class="help">Enter both start and end coordinates to render the preview.</p>
                     {% endif %}
                 {% else %}
-                    <p class="help">Provide chainage and alignment coordinates to enable the preview.</p>
+                    <p class="help">Provide start/end chainage plus both alignment coordinates to enable the preview.</p>
                 {% endif %}
             {% else %}
                 <p class="help">Save the section first to enable the map preview.</p>
             {% endif %}
-            <p class="help">Highlights the section extents.</p>
-            <p class="help">Shows admin boundaries, towns, and optional base layers.</p>
+            <p class="help">Highlights the section extents alongside admin boundaries, towns, and optional base layers.</p>
             <p class="help">Keep chainage, sequence order, and alignment coordinates in sync for a clean validation report.</p>
         </div>
         <div class="road-map-panel__viewport" id="map-panel-viewport">

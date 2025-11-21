@@ -549,6 +549,18 @@ class RoadSectionAdmin(admin.ModelAdmin):
         ),
         ("Notes", {"fields": ("notes",)}),
         (
+            "Alignment coordinates",
+            {
+                "description": "Provide both start and end coordinates in UTM (Zone 37N) or decimal degrees so the map preview and validations can run.",
+                "fields": (
+                    ("start_easting", "start_northing"),
+                    ("end_easting", "end_northing"),
+                    ("start_lat", "start_lng"),
+                    ("end_lat", "end_lng"),
+                ),
+            },
+        ),
+        (
             "Map preview",
             {
                 "fields": ("map_preview",),
