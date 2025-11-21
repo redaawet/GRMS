@@ -1,0 +1,52 @@
+{% extends "admin/change_form.html" %}
+{% load static %}
+
+{% block extrahead %}
+    {{ block.super }}
+    {% if map_admin_config %}
+        {{ map_admin_config|json_script:"map-admin-config" }}
+    {% endif %}
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <link rel="stylesheet" href="{% static 'grms/css/road-admin.css' %}">
+    <script src="{% static 'grms/js/map-admin.js' %}" defer></script>
+{% endblock %}
+
+{% block after_field_sets %}
+    {{ block.super }}
+    <div id="map-panel"
+         class="road-map-panel {% if not map_admin_config %}road-map-panel--disabled{% endif %}"
+         data-map-scope="{{ map_admin_config.scope|default_if_none:'' }}"
+         data-map-context-url="{{ map_admin_config.api.map_context|default_if_none:'' }}">
+        <div class="road-map-panel__info">
+            <h3>Map preview</h3>
+            <p class="help">Geometry is derived automatically; no manual line editing is needed.</p>
+            <p class="help">
+                Map preview highlights the segment and its parent section, and loads helpful overlays like admin
+                boundaries and optional base layers.
+            </p>
+            <p class="help">No geometry entry is required to see the map preview.</p>
+        </div>
+        <div class="road-map-panel__viewport" id="map-panel-viewport">
+            <div class="road-map-panel__placeholder">
+                <h3>Segment map preview</h3>
+                <p>
+                    {% if map_admin_config %}
+                        Use the refresh button to load the parent road and highlight this segment on the map.
+                    {% else %}
+                        Save the segment first to enable the map preview.
+                    {% endif %}
+                </p>
+            </div>
+        </div>
+        <div class="road-map-panel__status" id="map-panel-status"></div>
+        {% if map_admin_config %}
+            <div class="road-map-panel__actions">
+                <div class="road-map-panel__selectors">
+                    <button type="button" class="button" id="map-panel-refresh">Refresh map</button>
+                </div>
+                <p class="help">Orange highlight shows the segment; blue shows its parent section.</p>
+            </div>
+        {% endif %}
+    </div>
+{% endblock %}
