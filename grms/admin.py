@@ -569,6 +569,33 @@ class RoadSectionAdmin(admin.ModelAdmin):
         ),
     )
 
+    def get_fieldsets(self, request, obj=None):
+        """Ensure fields are not repeated across fieldsets to satisfy admin checks."""
+
+        cleaned_fieldsets = []
+        seen_fields = set()
+
+        for name, options in super().get_fieldsets(request, obj):
+            fields = options.get("fields", ())
+            normalised = []
+
+            for entry in fields:
+                if isinstance(entry, (list, tuple)):
+                    row = [field for field in entry if field not in seen_fields]
+                    if row:
+                        normalised.append(tuple(row))
+                        seen_fields.update(row)
+                else:
+                    if entry not in seen_fields:
+                        normalised.append(entry)
+                        seen_fields.add(entry)
+
+            options = dict(options)
+            options["fields"] = tuple(normalised)
+            cleaned_fieldsets.append((name, options))
+
+        return tuple(cleaned_fieldsets)
+
     def changeform_view(self, request, object_id=None, form_url="", extra_context=None):
         extra_context = extra_context or {}
         instance = self.get_object(request, object_id)
