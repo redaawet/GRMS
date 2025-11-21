@@ -42,6 +42,18 @@
         ];
     }
 
+    function readPointFromInputs(latInput, lngInput) {
+        if (!latInput || !lngInput) {
+            return null;
+        }
+        const lat = parseFloat(latInput.value);
+        const lng = parseFloat(lngInput.value);
+        if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+            return null;
+        }
+        return { lat: lat, lng: lng };
+    }
+
     const DEFAULT_MAP_REGION = {
         formatted_address: "UTM Zone 37N (Ethiopia)",
         center: { lat: 9.0, lng: 39.0 },
@@ -57,6 +69,12 @@
         const refreshButton = document.getElementById("map-panel-refresh");
         const statusEl = document.getElementById("map-panel-status");
         const viewport = document.getElementById("map-panel-viewport");
+        const startLatInput = document.getElementById("id_start_lat");
+        const startLngInput = document.getElementById("id_start_lng");
+        const endLatInput = document.getElementById("id_end_lat");
+        const endLngInput = document.getElementById("id_end_lng");
+        const markerRadios = document.querySelectorAll('input[name="section-marker"]');
+        const allowEditing = Boolean(startLatInput && startLngInput && endLatInput && endLngInput);
 
         if (!config || !panel || !viewport) {
             return;
@@ -73,6 +91,10 @@
         let map;
         let overlay;
         let markers;
+        let mapClickBound = false;
+        let activeMarker = "start";
+        const editableMarkers = {};
+        let lastPayload = null;
 
         function showStatus(message, level) {
             if (!statusEl) {
@@ -80,6 +102,82 @@
             }
             statusEl.textContent = message || "";
             statusEl.className = "road-map-panel__status" + (level ? " " + level : "");
+        }
+
+        function setInputsFromLatLng(prefix, lat, lng) {
+            if (!allowEditing) {
+                return;
+            }
+            const latInput = prefix === "end" ? endLatInput : startLatInput;
+            const lngInput = prefix === "end" ? endLngInput : startLngInput;
+            if (!latInput || !lngInput) {
+                return;
+            }
+            latInput.value = lat.toFixed(6);
+            lngInput.value = lng.toFixed(6);
+        }
+
+        function setActiveMarker(value) {
+            activeMarker = value === "end" ? "end" : "start";
+        }
+
+        markerRadios.forEach(function (radio) {
+            radio.addEventListener("change", function (event) {
+                if (event.target.checked) {
+                    setActiveMarker(event.target.value);
+                }
+            });
+        });
+
+        function updateEditableMarker(prefix, point) {
+            if (!allowEditing || !markers || !point || !window.L) {
+                return;
+            }
+            let marker = editableMarkers[prefix];
+            if (!marker) {
+                marker = L.marker([point.lat, point.lng], { draggable: true, title: prefix === "end" ? "Section end" : "Section start" });
+                marker.on("dragend", function (event) {
+                    const pos = event.target.getLatLng();
+                    setInputsFromLatLng(prefix, pos.lat, pos.lng);
+                    refreshFromInputs();
+                });
+                editableMarkers[prefix] = marker;
+            } else {
+                marker.setLatLng([point.lat, point.lng]);
+            }
+            if (!markers.hasLayer(marker)) {
+                marker.addTo(markers);
+            }
+        }
+
+        function syncEditableMarkers(startPoint, endPoint) {
+            if (!allowEditing || !markers) {
+                return;
+            }
+            if (startPoint) {
+                updateEditableMarker("start", startPoint);
+            }
+            if (endPoint) {
+                updateEditableMarker("end", endPoint);
+            }
+        }
+
+        function refreshFromInputs() {
+            if (!lastPayload) {
+                return;
+            }
+            renderMap(lastPayload);
+        }
+
+        function bindMapClick() {
+            if (!allowEditing || !map || mapClickBound) {
+                return;
+            }
+            map.on("click", function (event) {
+                setInputsFromLatLng(activeMarker, event.latlng.lat, event.latlng.lng);
+                refreshFromInputs();
+            });
+            mapClickBound = true;
         }
 
         function ensureMapContainer() {
@@ -117,13 +215,14 @@
         }
 
         function renderMap(payload) {
+            lastPayload = payload || lastPayload || {};
             const mapNode = ensureMapContainer();
-            const mapRegion = (payload && payload.map_region) || DEFAULT_MAP_REGION;
+            const mapRegion = (lastPayload && lastPayload.map_region) || DEFAULT_MAP_REGION;
             const center = (mapRegion && mapRegion.center) || DEFAULT_MAP_REGION.center;
 
-            const roadStart = (payload && payload.start) || (config.road && config.road.start);
-            const roadEnd = (payload && payload.end) || (config.road && config.road.end);
-            const roadLength = (config.road && config.road.length_km) || (payload && payload.road_length_km) || null;
+            const roadStart = (lastPayload && lastPayload.start) || (config.road && config.road.start);
+            const roadEnd = (lastPayload && lastPayload.end) || (config.road && config.road.end);
+            const roadLength = (config.road && config.road.length_km) || (lastPayload && lastPayload.road_length_km) || null;
 
             if (!map) {
                 map = L.map(mapNode).setView([center.lat, center.lng], mapRegion.zoom || 7);
@@ -139,6 +238,8 @@
                     markers.clearLayers();
                 }
             }
+
+            bindMapClick();
 
             const viewportBounds = addViewport(mapRegion);
 
@@ -170,29 +271,40 @@
                 );
             }
 
-            const points = (config.section && config.section.points) || {};
-            if (points.start && markers) {
-                L.circleMarker([points.start.lat, points.start.lng], {
-                    radius: 7,
-                    color: "#0ea5e9",
-                    weight: 3,
-                    fillColor: "#38bdf8",
-                    fillOpacity: 0.8,
-                })
-                    .bindTooltip("Section start", { permanent: false })
-                    .addTo(markers);
+            const configPoints = (config.section && config.section.points) || {};
+            const startPoint = readPointFromInputs(startLatInput, startLngInput) || configPoints.start;
+            const endPoint = readPointFromInputs(endLatInput, endLngInput) || configPoints.end;
+
+            if (startPoint && markers) {
+                if (allowEditing) {
+                    syncEditableMarkers(startPoint, null);
+                } else {
+                    L.circleMarker([startPoint.lat, startPoint.lng], {
+                        radius: 7,
+                        color: "#0ea5e9",
+                        weight: 3,
+                        fillColor: "#38bdf8",
+                        fillOpacity: 0.8,
+                    })
+                        .bindTooltip("Section start", { permanent: false })
+                        .addTo(markers);
+                }
             }
 
-            if (points.end && markers) {
-                L.circleMarker([points.end.lat, points.end.lng], {
-                    radius: 7,
-                    color: "#0ea5e9",
-                    weight: 3,
-                    fillColor: "#0ea5e9",
-                    fillOpacity: 0.85,
-                })
-                    .bindTooltip("Section end", { permanent: false })
-                    .addTo(markers);
+            if (endPoint && markers) {
+                if (allowEditing) {
+                    syncEditableMarkers(null, endPoint);
+                } else {
+                    L.circleMarker([endPoint.lat, endPoint.lng], {
+                        radius: 7,
+                        color: "#0ea5e9",
+                        weight: 3,
+                        fillColor: "#0ea5e9",
+                        fillOpacity: 0.85,
+                    })
+                        .bindTooltip("Section end", { permanent: false })
+                        .addTo(markers);
+                }
             }
 
             if (config.scope === "segment" && config.segment) {
@@ -264,6 +376,19 @@
                 .catch(function (err) {
                     showStatus(err.message, "error");
                 });
+        }
+
+        if (allowEditing) {
+            [startLatInput, startLngInput, endLatInput, endLngInput].forEach(function (input) {
+                if (!input) {
+                    return;
+                }
+                input.addEventListener("change", refreshFromInputs);
+                input.addEventListener("input", function () {
+                    clearTimeout(input._mapAdminTimer);
+                    input._mapAdminTimer = setTimeout(refreshFromInputs, 350);
+                });
+            });
         }
 
         if (refreshButton) {
