@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Gravel Road Management System (GRMS) - SRAD Slides</title>
+  <style>
+    body {
+      font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+      margin: 0;
+      background: #f4f6fb;
+      color: #102a43;
+    }
+    .deck {
+      width: 960px;
+      margin: 0 auto;
+      padding: 40px 0 80px;
+    }
+    .slide {
+      background: #fff;
+      border-radius: 16px;
+      box-shadow: 0 12px 40px rgba(15, 23, 42, 0.12);
+      padding: 48px 56px;
+      margin-bottom: 40px;
+      page-break-after: always;
+    }
+    h1, h2, h3 {
+      margin-top: 0;
+    }
+    h1 {
+      font-size: 36px;
+    }
+    h2 {
+      font-size: 30px;
+    }
+    h3 {
+      font-size: 22px;
+      margin-bottom: 12px;
+      color: #486581;
+    }
+    p, li {
+      font-size: 18px;
+      line-height: 1.5;
+    }
+    ul {
+      padding-left: 24px;
+      margin: 0;
+    }
+    .subtitle {
+      font-size: 22px;
+      color: #627d98;
+      margin-top: 8px;
+    }
+    .meta {
+      margin-top: 24px;
+      font-size: 18px;
+      color: #829ab1;
+    }
+    .emoji {
+      font-size: 24px;
+      margin-right: 8px;
+    }
+  </style>
+</head>
+<body>
+  <div class="deck">
+    <section class="slide" id="slide-1">
+      <h1>Gravel Road Management System (GRMS)</h1>
+      <p class="subtitle">System Requirements Analysis &amp; Design (SRAD)</p>
+      <div class="meta">
+        <div><strong>Project:</strong> GRMS System Requirements Analysis &amp; Design</div>
+        <div><strong>Date:</strong> November 2025</div>
+      </div>
+    </section>
+
+    <section class="slide" id="slide-2">
+      <h2>The Problem</h2>
+      <ul>
+        <li>RRAs rely on fragmented tools such as spreadsheets, paper forms, and isolated databases.</li>
+        <li>Inconsistent data creates duplication of effort and slows decision-making.</li>
+        <li>Maintenance work is typically reactive rather than planned.</li>
+        <li>Funding requests often lack reliable, data-driven justification.</li>
+      </ul>
+    </section>
+
+    <section class="slide" id="slide-3">
+      <h2>Project Goal &amp; Objectives</h2>
+      <h3>Overall Goal</h3>
+      <p>Modernize RRA gravel road management with an integrated, data-driven system that centralizes data and improves transparency.</p>
+      <h3>Key Objectives</h3>
+      <ul>
+        <li>Create a single source of truth for road and structure inventories.</li>
+        <li>Standardize condition surveys, traffic counts, and planning workflows.</li>
+        <li>Enable decision support with prioritization and costing tools.</li>
+        <li>Use automated analysis (e.g., MCI) to accelerate maintenance planning.</li>
+      </ul>
+    </section>
+
+    <section class="slide" id="slide-4">
+      <h2>Success Criteria (Phase 1)</h2>
+      <ul>
+        <li>Deliver a working prototype on schedule.</li>
+        <li>Generate a prioritized maintenance list in under 10 minutes.</li>
+        <li>Successfully train at least three RRA users.</li>
+        <li>Achieve ≥98% accuracy for imported data.</li>
+        <li>Receive positive feedback from RRA management.</li>
+      </ul>
+    </section>
+
+    <section class="slide" id="slide-5">
+      <h2>Key Stakeholders</h2>
+      <ul>
+        <li>RRA Management (Directors/Planners) for reports and funding justification.</li>
+        <li>RRA Engineers and Technicians who collect data and plan maintenance.</li>
+        <li>GIS/IT Specialists who maintain databases, GIS layers, and availability.</li>
+        <li>Donor Agencies &amp; Ministry stakeholders needing condition and fund-use reports.</li>
+        <li>Development Team responsible for building GRMS and training staff.</li>
+      </ul>
+    </section>
+
+    <section class="slide" id="slide-6">
+      <h2>Scope: In-Scope (Phase 1) – Part 1</h2>
+      <ul>
+        <li>Road Inventory: registry of roads, sections, segments, and key attributes.</li>
+        <li>Condition Survey Module: record defects using ERA standards and compute MCI.</li>
+        <li>Structure Inventory &amp; Inspections: catalog bridges and culverts with condition records.</li>
+      </ul>
+    </section>
+
+    <section class="slide" id="slide-7">
+      <h2>Scope: In-Scope (Phase 1) – Part 2</h2>
+      <ul>
+        <li>Traffic Data Management with ADT/PCU calculations and seasonal adjustments.</li>
+        <li>Decision Support catalog of maintenance actions, unit costs, and recommendations.</li>
+        <li>Prioritization Engine using multi-criteria ranking.</li>
+        <li>Reporting &amp; Export to Excel, PDF, and GIS formats.</li>
+      </ul>
+    </section>
+
+    <section class="slide" id="slide-8">
+      <h2>Scope: Out-of-Scope (Future Phases)</h2>
+      <ul>
+        <li>Phase 2 offline mobile survey app with sync capabilities.</li>
+        <li>Future rich web UI (modern SPA) replacing basic Django admin pages.</li>
+        <li>Advanced GIS mapping with interactive layers and spatial analysis.</li>
+        <li>Enhanced integrations, aerial imagery, and AI-driven defect detection.</li>
+      </ul>
+    </section>
+
+    <section class="slide" id="slide-9">
+      <h2>System Architecture Overview</h2>
+      <ul>
+        <li>Backend built on Django (Python).</li>
+        <li>PostgreSQL + PostGIS database for spatial data.</li>
+        <li>Browser-based UI via Django templates/Admin in Phase 1.</li>
+        <li>RESTful JSON APIs for integrations and future mobile apps.</li>
+        <li>Secure API endpoints for ERA data exchange.</li>
+        <li>Modular presentation, application, and data layers for scalability.</li>
+        <li>Cloud-agnostic deployment that supports local or cloud servers.</li>
+      </ul>
+    </section>
+
+    <section class="slide" id="slide-10">
+      <h2>High-Level Data Flow</h2>
+      <ol>
+        <li>Field engineers collect condition and traffic data.</li>
+        <li>Data is entered or synchronized into the GRMS database.</li>
+        <li>The system computes MCI and traffic metrics, then identifies interventions.</li>
+        <li>Planners run the prioritization engine and apply budget constraints.</li>
+        <li>Reports, dashboards, and maps are produced for stakeholders.</li>
+        <li>Key data synchronizes with national databases via secure APIs.</li>
+      </ol>
+    </section>
+
+    <section class="slide" id="slide-11">
+      <h2>Technology Stack</h2>
+      <ul>
+        <li>Backend: Django (Python).</li>
+        <li>Database: PostgreSQL + PostGIS.</li>
+        <li>Web Front-End (Phase 1): Django templates/Admin (HTML/JS).</li>
+        <li>Mobile (Phase 2): Android app or progressive web app.</li>
+        <li>GIS Tools: exports compatible with ArcGIS/QGIS via Shapefile or GeoJSON.</li>
+        <li>Standards: RESTful APIs, SQL, GeoJSON, and open-source tooling.</li>
+      </ul>
+    </section>
+
+    <section class="slide" id="slide-12">
+      <h2>Core Module: Condition &amp; Structures</h2>
+      <ul>
+        <li>Record detailed defects with severity and extent per segment.</li>
+        <li>Automatically calculate Maintenance Condition Index (0–100).</li>
+        <li>Classify segments as Good, Fair, Poor, or Bad and link recommended actions.</li>
+        <li>Maintain a registry of structures with IDs, locations, and materials.</li>
+        <li>Track inspection dates, component ratings, and integrate with road plans.</li>
+      </ul>
+    </section>
+
+    <section class="slide" id="slide-13">
+      <h2>Core Module: Prioritization Engine</h2>
+      <ul>
+        <li>Ranks road segments and structures to identify critical repairs.</li>
+        <li>Uses weighted scoring for condition, traffic, population, strategic importance, and safety.</li>
+        <li>Outputs priority scores and ranked lists for evidence-based maintenance plans.</li>
+      </ul>
+    </section>
+
+    <section class="slide" id="slide-14">
+      <h2>Non-Functional Requirements</h2>
+      <ul>
+        <li>Prioritization runs for thousands of segments in under 10 minutes.</li>
+        <li>Dashboards load in roughly three seconds.</li>
+        <li>&gt;99% uptime during business hours with automated backups.</li>
+        <li>Security: HTTPS-only, RBAC, input validation, and audit logging.</li>
+        <li>Localization-ready with support for multiple languages.</li>
+      </ul>
+    </section>
+
+    <section class="slide" id="slide-15">
+      <h2>Implementation Roadmap</h2>
+      <ul>
+        <li><strong>Phase 1 (6–9 months):</strong> build core modules, pilot, and deliver prototype work plan.</li>
+        <li><strong>Phase 2 (3–6 months):</strong> pilot deployment, offline mobile app, richer GIS maps, and integration testing.</li>
+        <li><strong>Phase 3 (6+ months):</strong> national scale-up, full mobile/AI rollout, and transition to ERA IT.</li>
+      </ul>
+    </section>
+
+    <section class="slide" id="slide-16">
+      <h2>Transformative Impact</h2>
+      <ul>
+        <li>Shift from reactive, fragmented planning to data-driven prioritization.</li>
+        <li>Enable effective resource allocation and defensible funding requests.</li>
+        <li>Provide a modular, future-proof system ready for mobile and AI enhancements.</li>
+      </ul>
+    </section>
+
+    <section class="slide" id="slide-17">
+      <h2>Thank You</h2>
+      <p class="subtitle">Questions?</p>
+    </section>
+  </div>
+</body>
+</html>
