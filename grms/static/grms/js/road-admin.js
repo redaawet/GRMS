@@ -419,9 +419,7 @@
         }
 
         if (!config.road_id) {
-            showStatus("Save the road record before using the map integration. Displaying default map.");
-            initialiseMap(defaultMapPayload);
-            return;
+            showStatus("Displaying default map view (Zone 37N). Save the road to enable full map integration.");
         }
 
         refreshMap();
