@@ -152,3 +152,8 @@ h1 {
 .map-legend .legend.section {
     background: #0ea5e9;
 }
+
+.map-legend .legend.admin {
+    background: linear-gradient(90deg, #22c55e 0, #22c55e 50%, transparent 50%, transparent 100%);
+    border: 1px dashed #22c55e;
+}
