@@ -306,10 +306,6 @@
         }
 
         function previewRoute() {
-            if (!config.api.route) {
-                showStatus("Save the road before requesting a preview.", "error");
-                return;
-            }
             let coords;
             try {
                 coords = ensureCoordinates();
@@ -415,11 +411,18 @@
         }
 
         if (routeButton) {
-            routeButton.addEventListener("click", previewRoute);
+            if (!config.api.route) {
+                routeButton.disabled = true;
+                routeButton.title = "Save the road to enable server-powered route previews.";
+            } else {
+                routeButton.addEventListener("click", previewRoute);
+            }
         }
 
         if (!config.road_id) {
-            showStatus("Displaying default map view (Zone 37N). Save the road to enable full map integration.");
+            showStatus(
+                "Displaying default map view (Zone 37N). Set start/end coordinates now; saving will keep them and enable routing.",
+            );
         }
 
         refreshMap();
