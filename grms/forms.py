@@ -137,6 +137,9 @@ class RoadSectionBasicForm(forms.ModelForm):
     section_sequence = forms.IntegerField(
         label="Section sequence", min_value=1, help_text="Ordered position along the road"
     )
+    length_km = forms.DecimalField(
+        label="Length (km)", max_digits=8, decimal_places=3, required=False, widget=forms.HiddenInput
+    )
 
     class Meta:
         model = models.RoadSection
@@ -160,6 +163,8 @@ class RoadSectionBasicForm(forms.ModelForm):
         # Align the displayed sequence with the underlying model field name.
         if self.instance and self.instance.pk:
             self.fields["section_sequence"].initial = self.instance.sequence_on_road
+            if self.instance.length_km is not None:
+                self.fields["length_km"].initial = self.instance.length_km
 
     def clean_surface_thickness_cm(self) -> Optional[Decimal]:
         value = self.cleaned_data.get("surface_thickness_cm")

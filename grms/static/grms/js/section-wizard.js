@@ -12,6 +12,7 @@
         const startInput = document.querySelector('#id_start_chainage_km');
         const endInput = document.querySelector('#id_end_chainage_km');
         const target = document.getElementById('length-preview');
+        const lengthField = document.querySelector('#id_length_km');
         if (!startInput || !endInput || !target) {
             return;
         }
@@ -23,8 +24,14 @@
                 const length = roundTo3(end - start);
                 if (length !== null && length > 0) {
                     target.textContent = `${length.toFixed(3)} km`;
+                    if (lengthField) {
+                        lengthField.value = length.toFixed(3);
+                    }
                     return;
                 }
+            }
+            if (lengthField) {
+                lengthField.value = '';
             }
             target.textContent = "Enter start and end chainages to auto-calculate.";
         }
