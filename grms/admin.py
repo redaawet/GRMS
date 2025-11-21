@@ -15,6 +15,18 @@ from .services import map_services
 from .utils import make_point, point_to_lat_lng, utm_to_wgs84, wgs84_to_utm
 
 
+def _to_float(value):
+    return float(value) if value is not None else None
+
+
+def _road_map_context_url(road_id):
+    from django.urls import reverse
+
+    if not road_id:
+        return ""
+    return reverse("road_map_context", args=[road_id])
+
+
 class GRMSAdminSite(AdminSite):
     site_header = "GRMS Administration"
     site_title = "GRMS Admin"
@@ -385,7 +397,12 @@ class RoadSectionAdmin(admin.ModelAdmin):
     )
     list_filter = ("surface_type", "road__admin_zone")
     search_fields = ("road__road_name_from", "road__road_name_to", "name")
-    readonly_fields = ("length_km", "map_preview")
+    readonly_fields = (
+        "length_km",
+        "section_alignment_coordinates",
+        "map_preview",
+    )
+    change_form_template = "admin/grms/roadsection/change_form.html"
     fieldsets = (
         ("Parent road", {"fields": ("road",)}),
         (
@@ -395,6 +412,13 @@ class RoadSectionAdmin(admin.ModelAdmin):
         (
             "Chainage and length",
             {"fields": (("start_chainage_km", "end_chainage_km"), "length_km")},
+        ),
+        (
+            "Alignment coordinates",
+            {
+                "description": "Auto-derived from the parent road alignment; no manual edits are required.",
+                "fields": ("section_alignment_coordinates",),
+            },
         ),
         (
             "Physical characteristics",
@@ -407,6 +431,7 @@ class RoadSectionAdmin(admin.ModelAdmin):
                 "fields": ("admin_zone_override", "admin_woreda_override"),
             },
         ),
+        ("Notes", {"fields": ("notes",)}),
         (
             "Map preview",
             {
@@ -414,8 +439,51 @@ class RoadSectionAdmin(admin.ModelAdmin):
                 "description": "Geometry is derived automatically; no manual line editing is needed.",
             },
         ),
-        ("Notes", {"fields": ("notes",)}),
     )
+
+    def changeform_view(self, request, object_id=None, form_url="", extra_context=None):
+        extra_context = extra_context or {}
+        instance = self.get_object(request, object_id)
+        extra_context["map_admin_config"] = self._build_map_config(instance) if instance else None
+        return super().changeform_view(request, object_id, form_url, extra_context)
+
+    def _build_map_config(self, section):
+        if not section:
+            return None
+
+        road = section.road
+        start_point = self._section_point(section, section.start_chainage_km)
+        end_point = self._section_point(section, section.end_chainage_km)
+        return {
+            "scope": "section",
+            "api": {"map_context": _road_map_context_url(road.id)},
+            "road": {
+                "id": road.id,
+                "length_km": _to_float(road.total_length_km),
+                "start": point_to_lat_lng(getattr(road, "road_start_coordinates", None)),
+                "end": point_to_lat_lng(getattr(road, "road_end_coordinates", None)),
+            },
+            "section": {
+                "name": section.name,
+                "start_chainage_km": _to_float(section.start_chainage_km),
+                "end_chainage_km": _to_float(section.end_chainage_km),
+                "length_km": _to_float(section.length_km),
+                "zone_override_id": section.admin_zone_override_id,
+                "woreda_override_id": section.admin_woreda_override_id,
+                "points": {
+                    "start": start_point,
+                    "end": end_point,
+                },
+            },
+            "admin_fields": {
+                "zone_override": "id_admin_zone_override",
+                "woreda_override": "id_admin_woreda_override",
+            },
+            "default_admin_selection": {
+                "zone_id": section.admin_zone_override_id or road.admin_zone_id,
+                "woreda_id": section.admin_woreda_override_id or road.admin_woreda_id,
+            },
+        }
 
     @staticmethod
     def map_preview(obj):
@@ -433,11 +501,62 @@ class RoadSectionAdmin(admin.ModelAdmin):
             end,
         )
 
+    @staticmethod
+    def _section_point(section, chainage):
+        if not section or chainage is None:
+            return None
+
+        road = section.road
+        road_length = road.total_length_km
+        start = point_to_lat_lng(getattr(road, "road_start_coordinates", None))
+        end = point_to_lat_lng(getattr(road, "road_end_coordinates", None))
+
+        if not road_length or road_length <= 0 or not start or not end:
+            return None
+
+        fraction = float(chainage) / float(road_length)
+        fraction = max(0.0, min(1.0, fraction))
+        lat = start["lat"] + (end["lat"] - start["lat"]) * fraction
+        lng = start["lng"] + (end["lng"] - start["lng"]) * fraction
+
+        try:
+            easting, northing = wgs84_to_utm(lat, lng, zone=37)
+        except ImportError:
+            easting = northing = None
+
+        return {
+            "lat": lat,
+            "lng": lng,
+            "easting": easting,
+            "northing": northing,
+        }
+
+    def section_alignment_coordinates(self, obj):
+        start = self._section_point(obj, getattr(obj, "start_chainage_km", None)) if obj else None
+        end = self._section_point(obj, getattr(obj, "end_chainage_km", None)) if obj else None
+
+        if not start or not end:
+            return "Alignment coordinates are available after saving a section with chainage and road start/end points."
+
+        def format_point(label, point):
+            parts = [
+                f"<strong>{label}</strong>",
+                f"Lat/Lng: {point['lat']:.6f}, {point['lng']:.6f}",
+            ]
+            if point.get("easting") is not None and point.get("northing") is not None:
+                parts.append(f"UTM: {point['easting']:.2f} E, {point['northing']:.2f} N")
+            return "<br>".join(parts)
+
+        return format_html("<p>{}</p><p>{}</p>", format_point("Start", start), format_point("End", end))
+
+    section_alignment_coordinates.short_description = "Alignment coordinates"
+
 
 @admin.register(models.RoadSegment, site=grms_admin_site)
 class RoadSegmentAdmin(admin.ModelAdmin):
     list_display = ("section", "station_from_km", "station_to_km", "cross_section")
     search_fields = ("section__road__road_name_from", "section__road__road_name_to")
+    change_form_template = "admin/grms/roadsegment/change_form.html"
     fieldsets = (
         ("Identification", {"fields": ("section",)}),
         (
@@ -465,6 +584,45 @@ class RoadSegmentAdmin(admin.ModelAdmin):
         ),
         ("Notes", {"fields": ("comment",)}),
     )
+
+    def changeform_view(self, request, object_id=None, form_url="", extra_context=None):
+        extra_context = extra_context or {}
+        instance = self.get_object(request, object_id)
+        extra_context["map_admin_config"] = self._build_map_config(instance) if instance else None
+        return super().changeform_view(request, object_id, form_url, extra_context)
+
+    def _build_map_config(self, segment):
+        if not segment:
+            return None
+
+        section = segment.section
+        road = section.road
+        return {
+            "scope": "segment",
+            "api": {"map_context": _road_map_context_url(road.id)},
+            "road": {
+                "id": road.id,
+                "length_km": _to_float(road.total_length_km),
+                "start": point_to_lat_lng(getattr(road, "road_start_coordinates", None)),
+                "end": point_to_lat_lng(getattr(road, "road_end_coordinates", None)),
+            },
+            "section": {
+                "name": section.name,
+                "start_chainage_km": _to_float(section.start_chainage_km),
+                "end_chainage_km": _to_float(section.end_chainage_km),
+                "length_km": _to_float(section.length_km),
+                "zone_override_id": section.admin_zone_override_id,
+                "woreda_override_id": section.admin_woreda_override_id,
+            },
+            "segment": {
+                "station_from_km": _to_float(segment.station_from_km),
+                "station_to_km": _to_float(segment.station_to_km),
+            },
+            "default_admin_selection": {
+                "zone_id": section.admin_zone_override_id or road.admin_zone_id,
+                "woreda_id": section.admin_woreda_override_id or road.admin_woreda_id,
+            },
+        }
 
 
 @admin.register(models.StructureInventory, site=grms_admin_site)
