@@ -8,6 +8,7 @@ from django import forms
 from django.contrib import admin
 from django.contrib.admin import AdminSite
 from django.shortcuts import redirect
+from django.urls import reverse
 from django.utils.html import format_html
 
 from . import models
@@ -589,32 +590,48 @@ class RoadSectionAdmin(admin.ModelAdmin):
     def changeform_view(self, request, object_id=None, form_url="", extra_context=None):
         extra_context = extra_context or {}
         instance = self.get_object(request, object_id)
-        extra_context["map_admin_config"] = self._build_map_config(instance) if instance else None
+        extra_context["map_admin_config"] = self._build_map_config(instance, request=request)
+        extra_context["travel_modes"] = sorted(map_services.TRAVEL_MODES)
         return super().changeform_view(request, object_id, form_url, extra_context)
 
-    def _build_map_config(self, section):
-        if not section:
-            return None
+    def _build_map_config(self, section, request=None):
+        road = getattr(section, "road", None)
+        if not road and request:
+            road_id = request.GET.get("road") or request.GET.get("road__id__exact")
+            if road_id and road_id.isdigit():
+                road = models.Road.objects.filter(pk=int(road_id)).first()
 
-        road = section.road
-        start_point = self._section_point(section)
-        end_point = self._section_point(section, end=True)
+        if not road:
+            map_context_url = reverse("road_map_context_default")
+        else:
+            map_context_url = _road_map_context_url(road.id)
+
+        start_point = self._section_point(section) if section else None
+        end_point = self._section_point(section, end=True) if section else None
+        road_start = point_to_lat_lng(getattr(road, "road_start_coordinates", None)) if road else None
+        road_end = point_to_lat_lng(getattr(road, "road_end_coordinates", None)) if road else None
+
         return {
             "scope": "section",
-            "api": {"map_context": _road_map_context_url(road.id)},
+            "api": {
+                "map_context": map_context_url,
+                "route": reverse("route_preview"),
+            },
+            "default_travel_mode": "DRIVING",
+            "travel_modes": sorted(map_services.TRAVEL_MODES),
             "road": {
-                "id": road.id,
-                "length_km": _to_float(road.total_length_km),
-                "start": point_to_lat_lng(getattr(road, "road_start_coordinates", None)),
-                "end": point_to_lat_lng(getattr(road, "road_end_coordinates", None)),
+                "id": getattr(road, "id", None),
+                "length_km": _to_float(getattr(road, "total_length_km", None)),
+                "start": road_start,
+                "end": road_end,
             },
             "section": {
-                "name": section.name,
-                "start_chainage_km": _to_float(section.start_chainage_km),
-                "end_chainage_km": _to_float(section.end_chainage_km),
-                "length_km": _to_float(section.length_km),
-                "zone_override_id": section.admin_zone_override_id,
-                "woreda_override_id": section.admin_woreda_override_id,
+                "name": getattr(section, "name", None),
+                "start_chainage_km": _to_float(getattr(section, "start_chainage_km", None)),
+                "end_chainage_km": _to_float(getattr(section, "end_chainage_km", None)),
+                "length_km": _to_float(getattr(section, "length_km", None)),
+                "zone_override_id": getattr(section, "admin_zone_override_id", None),
+                "woreda_override_id": getattr(section, "admin_woreda_override_id", None),
                 "points": {
                     "start": start_point,
                     "end": end_point,
@@ -625,8 +642,14 @@ class RoadSectionAdmin(admin.ModelAdmin):
                 "woreda_override": "id_admin_woreda_override",
             },
             "default_admin_selection": {
-                "zone_id": section.admin_zone_override_id or road.admin_zone_id,
-                "woreda_id": section.admin_woreda_override_id or road.admin_woreda_id,
+                "zone_id": (
+                    getattr(section, "admin_zone_override_id", None)
+                    or getattr(road, "admin_zone_id", None)
+                ),
+                "woreda_id": (
+                    getattr(section, "admin_woreda_override_id", None)
+                    or getattr(road, "admin_woreda_id", None)
+                ),
             },
         }
 

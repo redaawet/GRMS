@@ -31,7 +31,7 @@
             <label><input type="radio" name="road-marker" value="end"> Set end</label>
             <select id="road-travel-mode">
                 {% for mode in travel_modes %}
-                    <option value="{{ mode }}">{{ mode|title }}</option>
+                    <option value="{{ mode }}"{% if mode == "DRIVING" %} selected{% endif %}>{{ mode|title }}</option>
                 {% endfor %}
             </select>
             <button type="button" class="button" id="road-map-refresh">Refresh map</button>

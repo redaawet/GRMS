@@ -523,6 +523,38 @@ def update_road_route(request: Request, pk: int) -> Response:
     )
 
 
+@api_view(["POST"])
+@permission_classes([permissions.IsAuthenticated])
+def preview_route(request: Request) -> Response:
+    """Return a preview route for arbitrary coordinates without persisting data."""
+
+    serializer = serializers.RoadRouteRequestSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+
+    coords = serializer.validated_data
+    travel_mode = coords["travel_mode"]
+
+    try:
+        route = map_services.get_directions(
+            start_lat=coords["start"]["lat"],
+            start_lng=coords["start"]["lng"],
+            end_lat=coords["end"]["lat"],
+            end_lng=coords["end"]["lng"],
+            travel_mode=travel_mode,
+        )
+    except map_services.MapServiceError as exc:
+        return Response({"detail": str(exc)}, status=status.HTTP_502_BAD_GATEWAY)
+
+    return Response(
+        {
+            "start": coords["start"],
+            "end": coords["end"],
+            "travel_mode": travel_mode,
+            "route": route,
+        }
+    )
+
+
 @api_view(["GET"])
 def road_map_context(request: Request, pk: Optional[int] = None) -> Response:
     """Return context to display a Leaflet map for a road or default region."""
