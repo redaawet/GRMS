@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Road Alignment</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-WBkoXOwTeyKclOHuWtc+i2uENFpDZ9YPdf5Hf+D7ewM=" crossorigin="">
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-SmHgwlT0Q6p1t0Q6teM9YFJYHf3szgV+OGPQTqXQSEM=" crossorigin=""></script>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 2rem; }
+        .wizard { display: flex; gap: 1rem; margin-bottom: 1rem; }
+        .wizard-step { padding: 0.5rem 0.75rem; border-radius: 4px; border: 1px solid #ccc; background: #f5f5f5; }
+        .wizard-step.active { border-color: #0d6efd; background: #e7f1ff; }
+        .wizard-step.complete { border-color: #198754; background: #e8f5e9; }
+        form { max-width: 900px; display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; align-items: start; }
+        label { font-weight: bold; display: block; margin-top: 0.25rem; }
+        input, select { width: 100%; padding: 0.5rem; margin-top: 0.25rem; }
+        .map { height: 400px; border: 1px solid #ccc; border-radius: 4px; }
+        .full-width { grid-column: span 2; }
+        .actions { margin-top: 0.5rem; display: flex; justify-content: flex-end; gap: 0.5rem; }
+        .errorlist { color: #b94a48; margin: 0.25rem 0; grid-column: span 2; }
+    </style>
+</head>
+<body>
+    <h1>Road Inventory – Step 2: Alignment</h1>
+    <p><strong>Road:</strong> {{ road.road_name_from }} → {{ road.road_name_to }}</p>
+    <div class="wizard">
+        {% for step in progress_steps %}
+            <div class="wizard-step {% if step.active %}active{% endif %} {% if step.complete %}complete{% endif %}">
+                {{ step.label }}
+            </div>
+        {% endfor %}
+    </div>
+
+    <form method="post" novalidate>
+        {% csrf_token %}
+        {{ form.non_field_errors }}
+        <div class="full-width"><h3>Start Coordinates</h3></div>
+        <div>
+            <label for="id_start_easting">Start Easting</label>
+            {{ form.start_easting }}
+            {% for error in form.start_easting.errors %}<div class="errorlist">{{ error }}</div>{% endfor %}
+        </div>
+        <div>
+            <label for="id_start_northing">Start Northing</label>
+            {{ form.start_northing }}
+            {% for error in form.start_northing.errors %}<div class="errorlist">{{ error }}</div>{% endfor %}
+        </div>
+        <div>
+            <label for="id_start_latitude">Start Latitude</label>
+            {{ form.start_latitude }}
+            {% for error in form.start_latitude.errors %}<div class="errorlist">{{ error }}</div>{% endfor %}
+        </div>
+        <div>
+            <label for="id_start_longitude">Start Longitude</label>
+            {{ form.start_longitude }}
+            {% for error in form.start_longitude.errors %}<div class="errorlist">{{ error }}</div>{% endfor %}
+        </div>
+
+        <div class="full-width"><h3>End Coordinates</h3></div>
+        <div>
+            <label for="id_end_easting">End Easting</label>
+            {{ form.end_easting }}
+            {% for error in form.end_easting.errors %}<div class="errorlist">{{ error }}</div>{% endfor %}
+        </div>
+        <div>
+            <label for="id_end_northing">End Northing</label>
+            {{ form.end_northing }}
+            {% for error in form.end_northing.errors %}<div class="errorlist">{{ error }}</div>{% endfor %}
+        </div>
+        <div>
+            <label for="id_end_latitude">End Latitude</label>
+            {{ form.end_latitude }}
+            {% for error in form.end_latitude.errors %}<div class="errorlist">{{ error }}</div>{% endfor %}
+        </div>
+        <div>
+            <label for="id_end_longitude">End Longitude</label>
+            {{ form.end_longitude }}
+            {% for error in form.end_longitude.errors %}<div class="errorlist">{{ error }}</div>{% endfor %}
+        </div>
+
+        <div class="full-width">
+            <h3>Map Preview</h3>
+            <div id="map" class="map"></div>
+        </div>
+
+        <div class="actions full-width">
+            <button type="button" onclick="window.history.back();">Back</button>
+            <button type="submit">Save Road</button>
+        </div>
+    </form>
+
+    <script>
+        const mapConfig = JSON.parse('{{ map_config|escapejs }}');
+        const mapCenter = mapConfig.map_center || {lat: 12, lng: 38, zoom: 8};
+        const mapBounds = mapConfig.map_bounds;
+        let start = mapConfig.start;
+        let end = mapConfig.end;
+
+        const map = L.map('map');
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 18,
+        }).addTo(map);
+
+        if (mapBounds && mapBounds.southwest && mapBounds.northeast) {
+            const bounds = [
+                [mapBounds.southwest.lat, mapBounds.southwest.lng],
+                [mapBounds.northeast.lat, mapBounds.northeast.lng]
+            ];
+            map.fitBounds(bounds, { padding: [20, 20] });
+        } else {
+            map.setView([mapCenter.lat, mapCenter.lng], mapCenter.zoom || 8);
+        }
+
+        const overlay = L.layerGroup().addTo(map);
+
+        function renderPreview() {
+            overlay.clearLayers();
+            const bounds = [];
+
+            if (start) {
+                overlay.addLayer(L.marker([start.lat, start.lng]).bindPopup('Start'));
+                bounds.push([start.lat, start.lng]);
+            }
+            if (end) {
+                overlay.addLayer(L.marker([end.lat, end.lng]).bindPopup('End'));
+                bounds.push([end.lat, end.lng]);
+            }
+            if (bounds.length === 2) {
+                overlay.addLayer(L.polyline(bounds, {color: 'blue', dashArray: '5 5'}));
+                map.fitBounds(bounds, { padding: [20, 20] });
+            } else if (bounds.length === 1) {
+                map.setView(bounds[0], mapCenter.zoom || 12);
+            }
+        }
+
+        function latLngFromInputs(prefix) {
+            const lat = parseFloat(document.getElementById(`id_${prefix}_latitude`).value);
+            const lng = parseFloat(document.getElementById(`id_${prefix}_longitude`).value);
+            if (Number.isFinite(lat) && Number.isFinite(lng)) {
+                return {lat, lng};
+            }
+            return null;
+        }
+
+        function updateFromInputs() {
+            const startInput = latLngFromInputs('start');
+            const endInput = latLngFromInputs('end');
+            start = startInput || start;
+            end = endInput || end;
+            renderPreview();
+        }
+
+        ['start_latitude', 'start_longitude', 'end_latitude', 'end_longitude'].forEach(id => {
+            const field = document.getElementById(`id_${id}`);
+            if (field) {
+                field.addEventListener('change', updateFromInputs);
+                field.addEventListener('blur', updateFromInputs);
+            }
+        });
+
+        renderPreview();
+    </script>
+</body>
+</html>

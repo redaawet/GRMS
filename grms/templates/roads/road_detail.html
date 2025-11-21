@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Road Details</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-WBkoXOwTeyKclOHuWtc+i2uENFpDZ9YPdf5Hf+D7ewM=" crossorigin="">
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-SmHgwlT0Q6p1t0Q6teM9YFJYHf3szgV+OGPQTqXQSEM=" crossorigin=""></script>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 2rem; }
+        .wizard { display: flex; gap: 1rem; margin-bottom: 1rem; }
+        .wizard-step { padding: 0.5rem 0.75rem; border-radius: 4px; border: 1px solid #ccc; background: #e8f5e9; }
+        .wizard-step.active { border-color: #198754; }
+        dl { display: grid; grid-template-columns: max-content 1fr; gap: 0.5rem 1rem; }
+        dt { font-weight: bold; }
+        #map { height: 360px; border: 1px solid #ccc; border-radius: 4px; margin-top: 1rem; }
+    </style>
+</head>
+<body>
+    <h1>Road Inventory – Completed</h1>
+    <div class="wizard">
+        {% for step in progress_steps %}
+            <div class="wizard-step {% if step.active %}active{% endif %}">{{ step.label }}</div>
+        {% endfor %}
+    </div>
+
+    <h2>{{ road.road_name_from }} → {{ road.road_name_to }}</h2>
+    <dl>
+        <dt>Admin Zone</dt><dd>{{ road.admin_zone }}</dd>
+        <dt>Admin Woreda</dt><dd>{{ road.admin_woreda }}</dd>
+        <dt>Managing Authority</dt><dd>{{ road.managing_authority }}</dd>
+        <dt>Design Standard</dt><dd>{{ road.design_standard }}</dd>
+        <dt>Surface Type</dt><dd>{{ road.surface_type }}</dd>
+        <dt>Total Length (km)</dt><dd>{{ road.total_length_km }}</dd>
+        <dt>Population Served</dt><dd>{{ road.population_served }}</dd>
+        <dt>Year of Update</dt><dd>{{ road.year_of_update }}</dd>
+        <dt>Last MCI Update</dt><dd>{{ road.last_mci_update }}</dd>
+        <dt>Remarks</dt><dd>{{ road.remarks|default:"—" }}</dd>
+    </dl>
+
+    <div id="map"></div>
+    <script>
+        const mapConfig = JSON.parse('{{ map_config|escapejs }}');
+        const mapCenter = mapConfig.map_center || {lat: 12, lng: 38, zoom: 8};
+        const mapBounds = mapConfig.map_bounds;
+        const start = mapConfig.start;
+        const end = mapConfig.end;
+
+        const map = L.map('map');
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 18 }).addTo(map);
+
+        if (mapBounds && mapBounds.southwest && mapBounds.northeast) {
+            map.fitBounds(
+                [
+                    [mapBounds.southwest.lat, mapBounds.southwest.lng],
+                    [mapBounds.northeast.lat, mapBounds.northeast.lng],
+                ],
+                { padding: [20, 20] }
+            );
+        } else {
+            map.setView([mapCenter.lat, mapCenter.lng], mapCenter.zoom || 8);
+        }
+
+        const overlay = L.layerGroup().addTo(map);
+        const bounds = [];
+        if (start) {
+            overlay.addLayer(L.marker([start.lat, start.lng]).bindPopup('Start'));
+            bounds.push([start.lat, start.lng]);
+        }
+        if (end) {
+            overlay.addLayer(L.marker([end.lat, end.lng]).bindPopup('End'));
+            bounds.push([end.lat, end.lng]);
+        }
+        if (bounds.length === 2) {
+            overlay.addLayer(L.polyline(bounds, {color: 'blue'}));
+            map.fitBounds(bounds, {padding: [20, 20]});
+        } else if (bounds.length === 1) {
+            map.setView(bounds[0], mapCenter.zoom || 10);
+        }
+    </script>
+</body>
+</html>
