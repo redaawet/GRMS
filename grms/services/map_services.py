@@ -93,11 +93,49 @@ def _request_json(url: str) -> Any:
 
 
 def get_default_map_region() -> Dict[str, Any]:
-    """Return a copy of the default Tigray map region configuration."""
+    """Return a copy of the default UTM Zone 37N map region configuration."""
 
     # Copy via JSON round-trip to avoid accidental mutation of the module
     # constant in request handlers.
     return json.loads(json.dumps(DEFAULT_MAP_REGION))
+
+
+def _region_center(region: Dict[str, Any]) -> tuple[Optional[float], Optional[float]]:
+    center = region.get("center") or {}
+    return center.get("lat"), center.get("lng")
+
+
+def _is_within_zone_37n(lat: Optional[float], lng: Optional[float]) -> bool:
+    return lat is not None and lng is not None and 3.0 <= lat <= 15.0 and 36.0 <= lng <= 42.0
+
+
+def get_admin_area_viewport_or_default(
+    zone_name: Optional[str] = None, woreda_name: Optional[str] = None
+) -> Dict[str, Any]:
+    """Resolve an admin viewport but clamp it to the UTM Zone 37N extent.
+
+    When the lookup fails or resolves outside Zone 37N, the default map region
+    centred on Zone 37N is returned so that map widgets consistently initialise
+    within the desired coordinate system.
+    """
+
+    if not zone_name and not woreda_name:
+        return get_default_map_region()
+
+    try:
+        region = get_admin_area_viewport(zone_name=zone_name, woreda_name=woreda_name)
+    except MapServiceError:
+        return get_default_map_region()
+
+    lat, lng = _region_center(region)
+    if not _is_within_zone_37n(lat, lng):
+        return get_default_map_region()
+
+    # Normalise viewport so callers can rely on it.
+    if not region.get("viewport") and region.get("bounds"):
+        region["viewport"] = region["bounds"]
+
+    return region
 
 
 def get_directions(
