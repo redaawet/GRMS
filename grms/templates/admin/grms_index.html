@@ -85,10 +85,17 @@
 {% block extrastyle %}
     {{ block.super }}
     <style>
+      .dashboard {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+        gap: 1rem;
+      }
+
       .dashboard-filter {
         display: flex;
         justify-content: flex-end;
         margin-bottom: 1rem;
+        grid-column: 1 / -1;
       }
 
       #dashboard-filter-input {
