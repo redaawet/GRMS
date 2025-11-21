@@ -420,6 +420,7 @@ class RoadSectionAdmin(admin.ModelAdmin):
                 "fields": ("admin_zone_override", "admin_woreda_override"),
             },
         ),
+        ("Notes", {"fields": ("notes",)}),
         (
             "Map preview",
             {
@@ -427,7 +428,6 @@ class RoadSectionAdmin(admin.ModelAdmin):
                 "description": "Geometry is derived automatically; no manual line editing is needed.",
             },
         ),
-        ("Notes", {"fields": ("notes",)}),
     )
 
     def changeform_view(self, request, object_id=None, form_url="", extra_context=None):
