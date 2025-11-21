@@ -548,6 +548,18 @@ class RoadSectionAdmin(admin.ModelAdmin):
         ),
         ("Notes", {"fields": ("notes",)}),
         (
+            "Alignment coordinates",
+            {
+                "description": "Provide both start and end coordinates in UTM (Zone 37N) or decimal degrees so the map preview and validations can run.",
+                "fields": (
+                    ("start_easting", "start_northing"),
+                    ("end_easting", "end_northing"),
+                    ("start_lat", "start_lng"),
+                    ("end_lat", "end_lng"),
+                ),
+            },
+        ),
+        (
             "Map preview",
             {
                 "fields": ("map_preview",),
@@ -580,6 +592,18 @@ class RoadSectionAdmin(admin.ModelAdmin):
             options = dict(options)
             options["fields"] = tuple(normalised)
             cleaned_fieldsets.append((name, options))
+
+        # Keep the alignment block immediately before the map preview even if
+        # duplicates were stripped out above.
+        names = [name for name, _ in cleaned_fieldsets]
+        try:
+            align_idx = names.index("Alignment coordinates")
+            map_idx = names.index("Map preview")
+            if align_idx > map_idx:
+                entry = cleaned_fieldsets.pop(align_idx)
+                cleaned_fieldsets.insert(map_idx, entry)
+        except ValueError:
+            pass
 
         return tuple(cleaned_fieldsets)
 
