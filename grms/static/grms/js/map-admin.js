@@ -72,6 +72,7 @@
 
         let map;
         let overlay;
+        let markers;
 
         function showStatus(message, level) {
             if (!statusEl) {
@@ -131,8 +132,12 @@
                     attribution: "&copy; OpenStreetMap contributors",
                 }).addTo(map);
                 overlay = L.layerGroup().addTo(map);
+                markers = L.layerGroup().addTo(map);
             } else if (overlay) {
                 overlay.clearLayers();
+                if (markers) {
+                    markers.clearLayers();
+                }
             }
 
             const viewportBounds = addViewport(mapRegion);
@@ -163,6 +168,31 @@
                     interpolatePoint(roadStart, roadEnd, sectionEndFraction),
                     { color: "#0ea5e9", weight: 6 }
                 );
+            }
+
+            const points = (config.section && config.section.points) || {};
+            if (points.start && markers) {
+                L.circleMarker([points.start.lat, points.start.lng], {
+                    radius: 7,
+                    color: "#0ea5e9",
+                    weight: 3,
+                    fillColor: "#38bdf8",
+                    fillOpacity: 0.8,
+                })
+                    .bindTooltip("Section start", { permanent: false })
+                    .addTo(markers);
+            }
+
+            if (points.end && markers) {
+                L.circleMarker([points.end.lat, points.end.lng], {
+                    radius: 7,
+                    color: "#0ea5e9",
+                    weight: 3,
+                    fillColor: "#0ea5e9",
+                    fillOpacity: 0.85,
+                })
+                    .bindTooltip("Section end", { permanent: false })
+                    .addTo(markers);
             }
 
             if (config.scope === "segment" && config.segment) {

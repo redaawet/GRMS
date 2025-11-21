@@ -397,7 +397,11 @@ class RoadSectionAdmin(admin.ModelAdmin):
     )
     list_filter = ("surface_type", "road__admin_zone")
     search_fields = ("road__road_name_from", "road__road_name_to", "name")
-    readonly_fields = ("length_km", "map_preview")
+    readonly_fields = (
+        "length_km",
+        "section_alignment_coordinates",
+        "map_preview",
+    )
     change_form_template = "admin/grms/roadsection/change_form.html"
     fieldsets = (
         ("Parent road", {"fields": ("road",)}),
@@ -408,6 +412,13 @@ class RoadSectionAdmin(admin.ModelAdmin):
         (
             "Chainage and length",
             {"fields": (("start_chainage_km", "end_chainage_km"), "length_km")},
+        ),
+        (
+            "Alignment coordinates",
+            {
+                "description": "Auto-derived from the parent road alignment; no manual edits are required.",
+                "fields": ("section_alignment_coordinates",),
+            },
         ),
         (
             "Physical characteristics",
@@ -441,6 +452,8 @@ class RoadSectionAdmin(admin.ModelAdmin):
             return None
 
         road = section.road
+        start_point = self._section_point(section, section.start_chainage_km)
+        end_point = self._section_point(section, section.end_chainage_km)
         return {
             "scope": "section",
             "api": {"map_context": _road_map_context_url(road.id)},
@@ -457,6 +470,10 @@ class RoadSectionAdmin(admin.ModelAdmin):
                 "length_km": _to_float(section.length_km),
                 "zone_override_id": section.admin_zone_override_id,
                 "woreda_override_id": section.admin_woreda_override_id,
+                "points": {
+                    "start": start_point,
+                    "end": end_point,
+                },
             },
             "admin_fields": {
                 "zone_override": "id_admin_zone_override",
@@ -483,6 +500,56 @@ class RoadSectionAdmin(admin.ModelAdmin):
             start,
             end,
         )
+
+    @staticmethod
+    def _section_point(section, chainage):
+        if not section or chainage is None:
+            return None
+
+        road = section.road
+        road_length = road.total_length_km
+        start = point_to_lat_lng(getattr(road, "road_start_coordinates", None))
+        end = point_to_lat_lng(getattr(road, "road_end_coordinates", None))
+
+        if not road_length or road_length <= 0 or not start or not end:
+            return None
+
+        fraction = float(chainage) / float(road_length)
+        fraction = max(0.0, min(1.0, fraction))
+        lat = start["lat"] + (end["lat"] - start["lat"]) * fraction
+        lng = start["lng"] + (end["lng"] - start["lng"]) * fraction
+
+        try:
+            easting, northing = wgs84_to_utm(lat, lng, zone=37)
+        except ImportError:
+            easting = northing = None
+
+        return {
+            "lat": lat,
+            "lng": lng,
+            "easting": easting,
+            "northing": northing,
+        }
+
+    def section_alignment_coordinates(self, obj):
+        start = self._section_point(obj, getattr(obj, "start_chainage_km", None)) if obj else None
+        end = self._section_point(obj, getattr(obj, "end_chainage_km", None)) if obj else None
+
+        if not start or not end:
+            return "Alignment coordinates are available after saving a section with chainage and road start/end points."
+
+        def format_point(label, point):
+            parts = [
+                f"<strong>{label}</strong>",
+                f"Lat/Lng: {point['lat']:.6f}, {point['lng']:.6f}",
+            ]
+            if point.get("easting") is not None and point.get("northing") is not None:
+                parts.append(f"UTM: {point['easting']:.2f} E, {point['northing']:.2f} N")
+            return "<br>".join(parts)
+
+        return format_html("<p>{}</p><p>{}</p>", format_point("Start", start), format_point("End", end))
+
+    section_alignment_coordinates.short_description = "Alignment coordinates"
 
 
 @admin.register(models.RoadSegment, site=grms_admin_site)
