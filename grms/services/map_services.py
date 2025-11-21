@@ -14,23 +14,20 @@ USER_AGENT = "GRMS/1.0 (https://github.com/WorldBank-Transport/GRMS)"
 TRAVEL_MODES = {"DRIVING", "WALKING", "BICYCLING"}
 OSRM_PROFILES = {"DRIVING": "driving", "WALKING": "walking", "BICYCLING": "cycling"}
 
-# Default to the centre of UTM Zone 37N so every map widget opens on a
-# predictable, nationally relevant viewport even when we cannot look up a more
-# specific admin area. The bounds roughly span the Ethiopian extent of Zone
-# 37N; we use them both for fitting and to validate admin lookups so the map
-# never recentres far outside the intended coordinate system.
+# Default to the centre of Ethiopia's UTM Zone 37N footprint so map widgets are
+# immediately relevant for the national GRMS deployment rather than the Tigray
+# subset. The bounds cover Ethiopia within the 37N zone, keeping Leaflet
+# previews focused on the correct corridor even when no admin lookup succeeds.
 DEFAULT_MAP_REGION = {
-    "formatted_address": "UTM Zone 37N (Ethiopia)",
-    "center": {"lat": 9.0, "lng": 39.0},
-    # The bounds span the main north–south extent of Ethiopia that sits inside
-    # Zone 37N; they also provide a viewport for initial map fitting.
+    "formatted_address": "Ethiopia (UTM Zone 37N)",
+    "center": {"lat": 9.0, "lng": 38.7, "zoom": 7},
     "bounds": {
         "northeast": {"lat": 15.0, "lng": 42.0},
-        "southwest": {"lat": 3.0, "lng": 36.0},
+        "southwest": {"lat": 4.0, "lng": 35.0},
     },
     "viewport": {
         "northeast": {"lat": 15.0, "lng": 42.0},
-        "southwest": {"lat": 3.0, "lng": 36.0},
+        "southwest": {"lat": 4.0, "lng": 35.0},
     },
 }
 

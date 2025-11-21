@@ -90,7 +90,7 @@
 
     <script>
         const mapConfig = JSON.parse('{{ map_config|escapejs }}');
-        const mapCenter = mapConfig.map_center || {lat: 12, lng: 38, zoom: 8};
+        const mapCenter = mapConfig.map_center || {lat: 9.0, lng: 38.7, zoom: 7};
         const mapBounds = mapConfig.map_bounds;
         let start = mapConfig.start;
         let end = mapConfig.end;
@@ -107,7 +107,7 @@
             ];
             map.fitBounds(bounds, { padding: [20, 20] });
         } else {
-            map.setView([mapCenter.lat, mapCenter.lng], mapCenter.zoom || 8);
+            map.setView([mapCenter.lat, mapCenter.lng], mapCenter.zoom || 7);
         }
 
         const overlay = L.layerGroup().addTo(map);
