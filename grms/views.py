@@ -227,7 +227,7 @@ def _map_center_from_region(map_region: Dict[str, Any]) -> Dict[str, float]:
     return {
         "lat": float(center.get("lat", 13.5)),
         "lng": float(center.get("lng", 39.5)),
-        "zoom": float(center.get("zoom", 8)),
+        "zoom": float(center.get("zoom", 12)),
     }
 
 
