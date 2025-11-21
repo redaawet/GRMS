@@ -90,30 +90,74 @@
 
     <script>
         const mapConfig = JSON.parse('{{ map_config|escapejs }}');
-        const mapRegion = mapConfig.map_region || {lat: 12, lng: 38, zoom: 8};
-        const start = mapConfig.start;
-        const end = mapConfig.end;
+        const mapCenter = mapConfig.map_center || {lat: 12, lng: 38, zoom: 8};
+        const mapBounds = mapConfig.map_bounds;
+        let start = mapConfig.start;
+        let end = mapConfig.end;
 
-        const map = L.map('map').setView([mapRegion.lat, mapRegion.lng], mapRegion.zoom || 8);
+        const map = L.map('map');
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             maxZoom: 18,
         }).addTo(map);
 
-        const bounds = [];
-        if (start) {
-            L.marker([start.lat, start.lng]).addTo(map).bindPopup('Start');
-            bounds.push([start.lat, start.lng]);
-        }
-        if (end) {
-            L.marker([end.lat, end.lng]).addTo(map).bindPopup('End');
-            bounds.push([end.lat, end.lng]);
-        }
-        if (bounds.length === 2) {
-            L.polyline(bounds, {color: 'blue', dashArray: '5 5'}).addTo(map);
+        if (mapBounds && mapBounds.southwest && mapBounds.northeast) {
+            const bounds = [
+                [mapBounds.southwest.lat, mapBounds.southwest.lng],
+                [mapBounds.northeast.lat, mapBounds.northeast.lng]
+            ];
             map.fitBounds(bounds, { padding: [20, 20] });
-        } else if (bounds.length === 1) {
-            map.setView(bounds[0], mapRegion.zoom || 10);
+        } else {
+            map.setView([mapCenter.lat, mapCenter.lng], mapCenter.zoom || 8);
         }
+
+        const overlay = L.layerGroup().addTo(map);
+
+        function renderPreview() {
+            overlay.clearLayers();
+            const bounds = [];
+
+            if (start) {
+                overlay.addLayer(L.marker([start.lat, start.lng]).bindPopup('Start'));
+                bounds.push([start.lat, start.lng]);
+            }
+            if (end) {
+                overlay.addLayer(L.marker([end.lat, end.lng]).bindPopup('End'));
+                bounds.push([end.lat, end.lng]);
+            }
+            if (bounds.length === 2) {
+                overlay.addLayer(L.polyline(bounds, {color: 'blue', dashArray: '5 5'}));
+                map.fitBounds(bounds, { padding: [20, 20] });
+            } else if (bounds.length === 1) {
+                map.setView(bounds[0], mapCenter.zoom || 12);
+            }
+        }
+
+        function latLngFromInputs(prefix) {
+            const lat = parseFloat(document.getElementById(`id_${prefix}_latitude`).value);
+            const lng = parseFloat(document.getElementById(`id_${prefix}_longitude`).value);
+            if (Number.isFinite(lat) && Number.isFinite(lng)) {
+                return {lat, lng};
+            }
+            return null;
+        }
+
+        function updateFromInputs() {
+            const startInput = latLngFromInputs('start');
+            const endInput = latLngFromInputs('end');
+            start = startInput || start;
+            end = endInput || end;
+            renderPreview();
+        }
+
+        ['start_latitude', 'start_longitude', 'end_latitude', 'end_longitude'].forEach(id => {
+            const field = document.getElementById(`id_${id}`);
+            if (field) {
+                field.addEventListener('change', updateFromInputs);
+                field.addEventListener('blur', updateFromInputs);
+            }
+        });
+
+        renderPreview();
     </script>
 </body>
 </html>

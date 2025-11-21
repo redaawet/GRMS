@@ -38,24 +38,42 @@
 
     <div id="map"></div>
     <script>
-        const start = JSON.parse('{{ start_point_json|escapejs }}');
-        const end = JSON.parse('{{ end_point_json|escapejs }}');
-        const map = L.map('map').setView([12, 38], 6);
+        const mapConfig = JSON.parse('{{ map_config|escapejs }}');
+        const mapCenter = mapConfig.map_center || {lat: 12, lng: 38, zoom: 8};
+        const mapBounds = mapConfig.map_bounds;
+        const start = mapConfig.start;
+        const end = mapConfig.end;
+
+        const map = L.map('map');
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 18 }).addTo(map);
+
+        if (mapBounds && mapBounds.southwest && mapBounds.northeast) {
+            map.fitBounds(
+                [
+                    [mapBounds.southwest.lat, mapBounds.southwest.lng],
+                    [mapBounds.northeast.lat, mapBounds.northeast.lng],
+                ],
+                { padding: [20, 20] }
+            );
+        } else {
+            map.setView([mapCenter.lat, mapCenter.lng], mapCenter.zoom || 8);
+        }
+
+        const overlay = L.layerGroup().addTo(map);
         const bounds = [];
         if (start) {
-            L.marker([start.lat, start.lng]).addTo(map).bindPopup('Start');
+            overlay.addLayer(L.marker([start.lat, start.lng]).bindPopup('Start'));
             bounds.push([start.lat, start.lng]);
         }
         if (end) {
-            L.marker([end.lat, end.lng]).addTo(map).bindPopup('End');
+            overlay.addLayer(L.marker([end.lat, end.lng]).bindPopup('End'));
             bounds.push([end.lat, end.lng]);
         }
         if (bounds.length === 2) {
-            L.polyline(bounds, {color: 'blue'}).addTo(map);
+            overlay.addLayer(L.polyline(bounds, {color: 'blue'}));
             map.fitBounds(bounds, {padding: [20, 20]});
         } else if (bounds.length === 1) {
-            map.setView(bounds[0], 10);
+            map.setView(bounds[0], mapCenter.zoom || 10);
         }
     </script>
 </body>
