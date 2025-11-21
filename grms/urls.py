@@ -44,6 +44,16 @@ router.register(r"annual-work-plans", views.AnnualWorkPlanViewSet)
 
 
 urlpatterns = [
+    path(
+        "roads/<int:road_id>/sections/create/basic",
+        views.section_basic_info,
+        name="section_basic_info",
+    ),
+    path(
+        "roads/<int:road_id>/sections/<int:section_id>/map",
+        views.section_map_preview,
+        name="section_map_preview",
+    ),
     path("api/", include(router.urls)),
     path("api/auth/login/", TokenObtainPairView.as_view(), name="token_obtain_pair"),
     path("api/auth/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
