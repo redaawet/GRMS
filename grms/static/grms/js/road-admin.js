@@ -39,6 +39,10 @@
         return parts.join(" · ");
     }
 
+    const DEFAULT_MAP_CENTER = { lat: 9.0, lng: 38.0 };
+
+    const defaultMapPayload = { map_region: { center: DEFAULT_MAP_CENTER } };
+
     function initRoadAdmin() {
         const config = parseJSONScript("road-admin-config");
         const panel = document.getElementById("road-map-panel");
@@ -178,7 +182,7 @@
 
         function fetchMapContext(extraParams) {
             if (!config.api.map_context) {
-                return Promise.reject(new Error("Save the road before using the map."));
+                return Promise.resolve(defaultMapPayload);
             }
             const query = extraParams ? buildQueryString(extraParams) : "";
             return fetch(config.api.map_context + query, { credentials: "same-origin" }).then(function (response) {
@@ -219,7 +223,7 @@
 
         function initialiseMap(payload) {
             const mapNode = ensureMapContainer();
-            const center = (payload.map_region && payload.map_region.center) || { lat: 13.5, lng: 39.5 };
+            const center = (payload.map_region && payload.map_region.center) || DEFAULT_MAP_CENTER;
             if (!window.L) {
                 showStatus("Leaflet failed to load.", "error");
                 return;
@@ -302,10 +306,6 @@
         }
 
         function previewRoute() {
-            if (!config.api.route) {
-                showStatus("Save the road before requesting a preview.", "error");
-                return;
-            }
             let coords;
             try {
                 coords = ensureCoordinates();
@@ -411,12 +411,18 @@
         }
 
         if (routeButton) {
-            routeButton.addEventListener("click", previewRoute);
+            if (!config.api.route) {
+                routeButton.disabled = true;
+                routeButton.title = "Save the road to enable server-powered route previews.";
+            } else {
+                routeButton.addEventListener("click", previewRoute);
+            }
         }
 
         if (!config.road_id) {
-            showStatus("Save the road record before using the map integration.", "error");
-            return;
+            showStatus(
+                "Displaying default map view (Zone 37N). Set start/end coordinates now; saving will keep them and enable routing.",
+            );
         }
 
         refreshMap();
