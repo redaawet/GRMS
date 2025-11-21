@@ -419,7 +419,7 @@
         }
 
         if (!config.road_id) {
-            showStatus("Map ready. Save the road to enable routing and saved context.");
+            showStatus("Save the road record before using the map integration. Displaying default map.");
             initialiseMap(defaultMapPayload);
             return;
         }
