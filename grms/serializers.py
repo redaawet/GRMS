@@ -21,19 +21,19 @@ class RoadSectionSerializer(serializers.ModelSerializer):
             "id",
             "road",
             "section_number",
+            "sequence_on_road",
+            "name",
             "start_chainage_km",
             "end_chainage_km",
             "length_km",
-            "start_coordinates",
-            "end_coordinates",
             "surface_type",
-            "gravel_thickness_cm",
-            "inspector_name",
-            "inspection_date",
-            "geometry",
-            "attachments",
+            "surface_thickness_cm",
+            "admin_zone_override",
+            "admin_woreda_override",
+            "notes",
             "segments",
         ]
+        read_only_fields = ("length_km",)
 
 
 class RoadSerializer(serializers.ModelSerializer):
