@@ -112,6 +112,7 @@ class RoutePlanningTests(RoadNetworkMixin, APITestCase):
         self.assertEqual(payload["zone"], {"id": road.admin_zone_id, "name": road.admin_zone.name})
         self.assertEqual(payload["woreda"], {"id": road.admin_woreda_id, "name": road.admin_woreda.name})
         self.assertEqual(payload["start"], {"lat": 13.1, "lng": 39.1})
+        self.assertEqual(payload["road_length_km"], float(road.total_length_km))
         self.assertEqual(payload["travel_modes"], sorted(map_services.TRAVEL_MODES))
         self.assertEqual(payload["map_region"]["formatted_address"], "Mekelle, Tigray, Ethiopia")
         mock_geo.assert_called_once_with(zone_name=road.admin_zone.name, woreda_name=road.admin_woreda.name)
@@ -123,7 +124,7 @@ class RoutePlanningTests(RoadNetworkMixin, APITestCase):
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         payload = response.json()
-        self.assertEqual(payload["map_region"]["center"], {"lat": 9.0, "lng": 39.0})
+        self.assertEqual(payload["map_region"]["center"], map_services.DEFAULT_MAP_REGION["center"])
         mock_geo.assert_called_once()
 
     @mock.patch("grms.services.map_services.get_admin_area_viewport")
@@ -158,7 +159,7 @@ class RoutePlanningTests(RoadNetworkMixin, APITestCase):
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         payload = response.json()
-        self.assertEqual(payload["map_region"]["center"], {"lat": 9.0, "lng": 39.0})
+        self.assertEqual(payload["map_region"]["center"], map_services.DEFAULT_MAP_REGION["center"])
         self.assertIn("bounds", payload["map_region"])
 
     @mock.patch("grms.services.map_services.get_admin_area_viewport_or_default")
