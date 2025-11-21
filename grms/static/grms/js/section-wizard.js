@@ -82,7 +82,8 @@
                     [southwest.lat, southwest.lng],
                     [northeast.lat, northeast.lng]
                 );
-                L.rectangle(bounds, { color: '#9ca3af', weight: 1, dashArray: '4 4' }).addTo(map);
+                L.rectangle(bounds, { color: '#22c55e', weight: 2, dashArray: '6 4', fillOpacity: 0.05 })
+                    .addTo(map);
                 map.fitBounds(bounds, { padding: [20, 20] });
             }
         }

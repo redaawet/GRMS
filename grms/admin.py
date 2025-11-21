@@ -103,12 +103,15 @@ class GRMSAdminSite(AdminSite):
 
     def _build_model_lookup(
         self, app_list: List[Dict[str, object]]
-    ) -> Dict[str, Dict[str, object]]:
-        lookup: Dict[str, Dict[str, object]] = {}
+    ) -> Dict[str, List[Dict[str, object]]]:
+        lookup: Dict[str, List[Dict[str, object]]] = {}
         for app in app_list:
+            app_label = app.get("app_label")
             for model in app["models"]:
+                model.setdefault("app_label", app_label)
                 for key in (model["object_name"], model["name"]):
-                    lookup[self._normalise(key)] = model
+                    normalised = self._normalise(key)
+                    lookup.setdefault(normalised, []).append(model)
         return lookup
 
     def _all_models(self, app_list: List[Dict[str, object]]):
@@ -119,21 +122,22 @@ class GRMSAdminSite(AdminSite):
     def _build_sections(self, request) -> List[Dict[str, object]]:
         app_list = self.get_app_list(request)
         lookup = self._build_model_lookup(app_list)
-        assigned: set[str] = set()
+        assigned: set[tuple[str | None, str]] = set()
         sections: List[Dict[str, object]] = []
         for definition in self.SECTION_DEFINITIONS:
             models: List[Dict[str, object]] = []
             for target in definition.get("models", ()):  # type: ignore[arg-type]
-                model = lookup.get(self._normalise(target))
-                if model and model["object_name"] not in assigned:
-                    models.append(model)
-                    assigned.add(model["object_name"])
+                for model in lookup.get(self._normalise(target), []):
+                    identifier = (model.get("app_label"), model["object_name"])
+                    if identifier not in assigned:
+                        models.append(model)
+                        assigned.add(identifier)
             if models:
                 sections.append({"title": definition["title"], "models": models})
         leftovers = [
             model
             for model in sorted(self._all_models(app_list), key=lambda item: item["name"])
-            if model["object_name"] not in assigned
+            if (model.get("app_label"), model["object_name"]) not in assigned
         ]
         if leftovers:
             sections.append({"title": "Other models", "models": leftovers})
@@ -327,11 +331,17 @@ class RoadAdmin(admin.ModelAdmin):
     def changeform_view(self, request, object_id=None, form_url="", extra_context=None):
         extra_context = extra_context or {}
         road_id = int(object_id) if object_id and object_id.isdigit() else None
+        if road_id:
+            map_context_url = self._reverse_or_empty("road_map_context", road_id)
+        else:
+            from django.urls import reverse
+
+            map_context_url = reverse("road_map_context_default")
         extra_context["road_admin_config"] = {
             "road_id": road_id,
             "api": {
                 "route": self._reverse_or_empty("road_route", road_id),
-                "map_context": self._reverse_or_empty("road_map_context", road_id),
+                "map_context": map_context_url,
             },
         }
         extra_context["travel_modes"] = sorted(map_services.TRAVEL_MODES)

@@ -25,12 +25,15 @@
 
     <div class="wizard-card">
         <h2>Step 2 — Map Preview</h2>
-        <p class="wizard-description">The map is generated automatically from the parent road geometry. No drawing is required.</p>
+        <p class="wizard-description">The map is generated automatically from the parent road geometry. No drawing is required. Administrative boundaries are overlaid when available.</p>
         {{ map_config|json_script:"section-map-config" }}
         <div id="section-map" class="section-map" aria-label="Section map preview"></div>
         <div class="map-legend">
             <span class="legend road"></span> Parent road geometry
             <span class="legend section"></span> Section extent ({{ section.start_chainage_km }} – {{ section.end_chainage_km }} km)
+            {% if map_has_admin_boundary %}
+                <span class="legend admin"></span> Admin boundary extent
+            {% endif %}
         </div>
         <form method="post" class="wizard-actions">
             {% csrf_token %}
