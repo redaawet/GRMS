@@ -7,13 +7,15 @@ from typing import Dict, List, Optional
 
 from django.db import transaction
 from django.db.models import QuerySet
-from django.shortcuts import get_object_or_404
+from django.shortcuts import get_object_or_404, redirect, render
+from django.views.decorators.http import require_http_methods
 from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.request import Request
 from rest_framework.response import Response
 
 from . import models, serializers
+from .forms import RoadSectionBasicForm
 from .services import map_services
 from .utils import make_point, point_to_lat_lng
 
@@ -199,6 +201,79 @@ class PrioritizationResultViewSet(viewsets.ModelViewSet):
 class AnnualWorkPlanViewSet(viewsets.ModelViewSet):
     queryset = models.AnnualWorkPlan.objects.select_related("road").all()
     serializer_class = serializers.AnnualWorkPlanSerializer
+
+
+@require_http_methods(["GET", "POST"])
+def section_basic_info(request: Request, road_id: int):
+    """First step of the section wizard – capture basic information."""
+
+    road = get_object_or_404(models.Road, pk=road_id)
+    form = RoadSectionBasicForm(
+        request.POST or None,
+        road=road,
+    )
+
+    if request.method == "POST" and form.is_valid():
+        section = form.save()
+        return redirect("section_map_preview", road_id=road.id, section_id=section.id)
+
+    progress_steps = [
+        {"label": "Section Basic Info", "active": True, "complete": False},
+        {"label": "Map Preview", "active": False, "complete": False},
+        {"label": "Completed", "active": False, "complete": False},
+    ]
+
+    return render(
+        request,
+        "sections/section_basic_form.html",
+        {"form": form, "road": road, "progress_steps": progress_steps},
+    )
+
+
+@require_http_methods(["GET", "POST"])
+def section_map_preview(request: Request, road_id: int, section_id: int):
+    """Second step of the section wizard – map preview only."""
+
+    road = get_object_or_404(models.Road.objects.select_related("admin_zone", "admin_woreda"), pk=road_id)
+    section = get_object_or_404(models.RoadSection, pk=section_id, road=road)
+
+    if request.method == "POST":
+        return redirect(f"/roads/{road.id}/sections/{section.id}/details")
+
+    map_region = map_services.get_default_map_region()
+    start = point_to_lat_lng(getattr(road, "road_start_coordinates", None))
+    end = point_to_lat_lng(getattr(road, "road_end_coordinates", None))
+
+    progress_steps = [
+        {"label": "Section Basic Info", "active": False, "complete": True},
+        {"label": "Map Preview", "active": True, "complete": False},
+        {"label": "Completed", "active": False, "complete": False},
+    ]
+
+    return render(
+        request,
+        "sections/section_map_preview.html",
+        {
+            "road": road,
+            "section": section,
+            "progress_steps": progress_steps,
+            "map_config": {
+                "map_region": map_region,
+                "road": {
+                    "id": road.id,
+                    "length_km": float(road.total_length_km) if road.total_length_km is not None else None,
+                    "start": start,
+                    "end": end,
+                },
+                "section": {
+                    "start_chainage_km": float(section.start_chainage_km),
+                    "end_chainage_km": float(section.end_chainage_km),
+                    "surface_type": section.surface_type,
+                    "length_km": float(section.length_km),
+                },
+            },
+        },
+    )
 
 
 @api_view(["GET", "POST"])
