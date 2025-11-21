@@ -20,6 +20,7 @@ Read-only values pulled from the parent road record:
 - **Start Chainage (km)** – e.g., 12.000
 - **End Chainage (km)** – e.g., 17.800
 - **Length (km)** – Auto-computed by the system as *End − Start*.
+- Chainages must fall within the parent road length and cannot overlap existing sections on the same road.
 
 ## 4. Physical Characteristics (Inventory Only)
 - **Surface Type** – Gravel / Earth / DBST / Asphalt / Sealed.

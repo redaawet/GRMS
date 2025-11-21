@@ -460,9 +460,39 @@ class RoadSection(models.Model):
             if self.admin_woreda_override.zone_id != self.admin_zone_override_id:
                 errors["admin_woreda_override"] = "Selected woreda does not belong to the selected zone."
 
+        if self.start_chainage_km is not None:
+            if self.start_chainage_km < 0:
+                errors["start_chainage_km"] = "Start chainage cannot be negative."
+
         if self.start_chainage_km is not None and self.end_chainage_km is not None:
             if self.start_chainage_km >= self.end_chainage_km:
                 errors["end_chainage_km"] = "End chainage must be greater than start chainage."
+
+            if self.road_id:
+                road_length = self.road.total_length_km
+                if self.end_chainage_km > road_length:
+                    errors["end_chainage_km"] = "Section end exceeds the parent road length."
+                if self.start_chainage_km > road_length:
+                    errors["start_chainage_km"] = "Section start exceeds the parent road length."
+                if (self.end_chainage_km - self.start_chainage_km) > road_length:
+                    errors["length_km"] = "Section length cannot be greater than the parent road length."
+
+                overlaps = (
+                    RoadSection.objects.filter(road_id=self.road_id)
+                    .exclude(pk=self.pk)
+                    .filter(
+                        start_chainage_km__lt=self.end_chainage_km,
+                        end_chainage_km__gt=self.start_chainage_km,
+                    )
+                )
+                if overlaps.exists():
+                    overlap_list = ", ".join(
+                        f"section {section.section_number} ({section.start_chainage_km}–{section.end_chainage_km} km)"
+                        for section in overlaps
+                    )
+                    errors["start_chainage_km"] = (
+                        "Section overlaps with existing sections on this road: " + overlap_list
+                    )
 
         if self.surface_type in {"Gravel", "DBST", "Asphalt", "Sealed"}:
             if self.surface_thickness_cm is None:
