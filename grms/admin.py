@@ -442,114 +442,16 @@ class RoadAdmin(admin.ModelAdmin):
 
 
 class RoadSectionAdminForm(forms.ModelForm):
-    start_easting = forms.DecimalField(label="Start easting", required=False, max_digits=12, decimal_places=2)
-    start_northing = forms.DecimalField(label="Start northing", required=False, max_digits=12, decimal_places=2)
-    start_lat = forms.FloatField(label="Start latitude", required=False)
-    start_lng = forms.FloatField(label="Start longitude", required=False)
-    end_easting = forms.DecimalField(label="End easting", required=False, max_digits=12, decimal_places=2)
-    end_northing = forms.DecimalField(label="End northing", required=False, max_digits=12, decimal_places=2)
-    end_lat = forms.FloatField(label="End latitude", required=False)
-    end_lng = forms.FloatField(label="End longitude", required=False)
-
     class Meta:
         model = models.RoadSection
         exclude = (
             "section_start_coordinates",
             "section_end_coordinates",
-        )
-
-    @staticmethod
-    def _quantize_utm(value: float) -> Decimal:
-        return Decimal(str(value)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        start = point_to_lat_lng(getattr(self.instance, "section_start_coordinates", None))
-        end = point_to_lat_lng(getattr(self.instance, "section_end_coordinates", None))
-        if start:
-            self.fields["start_lat"].initial = start["lat"]
-            self.fields["start_lng"].initial = start["lng"]
-        if end:
-            self.fields["end_lat"].initial = end["lat"]
-            self.fields["end_lng"].initial = end["lng"]
-
-        for field_name in (
             "start_easting",
             "start_northing",
             "end_easting",
             "end_northing",
-        ):
-            if getattr(self.instance, field_name, None) is not None:
-                self.fields[field_name].initial = getattr(self.instance, field_name)
-
-    def _populate_coordinates(self, prefix: str):
-        lat = self.cleaned_data.get(f"{prefix}_lat")
-        lng = self.cleaned_data.get(f"{prefix}_lng")
-        easting = self.cleaned_data.get(f"{prefix}_easting")
-        northing = self.cleaned_data.get(f"{prefix}_northing")
-
-        has_lat = lat is not None
-        has_lng = lng is not None
-        has_easting = easting is not None
-        has_northing = northing is not None
-
-        latlng_complete = has_lat and has_lng
-        utm_complete = has_easting and has_northing
-
-        if latlng_complete and utm_complete:
-            return {"lat": float(lat), "lng": float(lng)}
-
-        if latlng_complete:
-            try:
-                easting_val, northing_val = wgs84_to_utm(float(lat), float(lng), zone=37)
-            except ImportError as exc:
-                raise forms.ValidationError(str(exc))
-            self.cleaned_data[f"{prefix}_easting"] = self._quantize_utm(easting_val)
-            self.cleaned_data[f"{prefix}_northing"] = self._quantize_utm(northing_val)
-            return {"lat": float(lat), "lng": float(lng)}
-
-        if utm_complete:
-            try:
-                lat_val, lon_val = utm_to_wgs84(float(easting), float(northing), zone=37)
-            except ImportError as exc:
-                raise forms.ValidationError(str(exc))
-            self.cleaned_data[f"{prefix}_lat"] = lat_val
-            self.cleaned_data[f"{prefix}_lng"] = lon_val
-            return {"lat": lat_val, "lng": lon_val}
-
-        if has_easting or has_northing:
-            missing = "northing" if has_easting else "easting"
-            raise forms.ValidationError({f"{prefix}_{missing}": "Provide both easting and northing or a latitude/longitude pair."})
-
-        if has_lat or has_lng:
-            missing = "lng" if has_lat else "lat"
-            raise forms.ValidationError({f"{prefix}_{missing}": "Provide both latitude and longitude or a UTM easting/northing pair."})
-
-        return None
-
-    def _clean_point(self, prefix: str):
-        lat = self.cleaned_data.get(f"{prefix}_lat")
-        lng = self.cleaned_data.get(f"{prefix}_lng")
-        if lat is None and lng is None:
-            return None
-        return make_point(lat, lng)
-
-    def clean(self):
-        cleaned = super().clean()
-        self._populate_coordinates("start")
-        self._populate_coordinates("end")
-        cleaned["section_start_coordinates"] = self._clean_point("start")
-        cleaned["section_end_coordinates"] = self._clean_point("end")
-        return cleaned
-
-    def save(self, commit=True):
-        instance = super().save(commit=False)
-        instance.section_start_coordinates = self.cleaned_data.get("section_start_coordinates")
-        instance.section_end_coordinates = self.cleaned_data.get("section_end_coordinates")
-        if commit:
-            instance.save()
-            self.save_m2m()
-        return instance
+        )
 
 grms_admin_site.register(models.Road, RoadAdmin)
 
@@ -607,18 +509,6 @@ class RoadSectionAdmin(admin.ModelAdmin):
             },
         ),
         ("Notes", {"fields": ("notes",)}),
-        (
-            "Alignment coordinates",
-            {
-                "description": "Provide both start and end coordinates in UTM (Zone 37N) or decimal degrees so the map preview and validations can run.",
-                "fields": (
-                    ("start_easting", "start_northing"),
-                    ("end_easting", "end_northing"),
-                    ("start_lat", "start_lng"),
-                    ("end_lat", "end_lng"),
-                ),
-            },
-        ),
     )
 
     def get_fieldsets(self, request, obj=None):
@@ -645,18 +535,6 @@ class RoadSectionAdmin(admin.ModelAdmin):
             options = dict(options)
             options["fields"] = tuple(normalised)
             cleaned_fieldsets.append((name, options))
-
-        # Keep the alignment block immediately before the map preview even if
-        # duplicates were stripped out above.
-        names = [name for name, _ in cleaned_fieldsets]
-        try:
-            align_idx = names.index("Alignment coordinates")
-            map_idx = names.index("Map preview")
-            if align_idx > map_idx:
-                entry = cleaned_fieldsets.pop(align_idx)
-                cleaned_fieldsets.insert(map_idx, entry)
-        except ValueError:
-            pass
 
         return tuple(cleaned_fieldsets)
 

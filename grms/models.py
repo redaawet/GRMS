@@ -543,7 +543,6 @@ class RoadSection(models.Model):
             if self.surface_thickness_cm is None:
                 errors["surface_thickness_cm"] = "Thickness is required for gravel or paved surfaces."
 
-        has_parent_geometry = bool(getattr(self.road, "geometry", None)) if self.road_id else False
         start_pair_complete = self.start_easting is not None and self.start_northing is not None
         end_pair_complete = self.end_easting is not None and self.end_northing is not None
         start_point_set = self.section_start_coordinates is not None
@@ -557,28 +556,6 @@ class RoadSection(models.Model):
             lat, lng = utm_to_wgs84(float(self.end_easting), float(self.end_northing), zone=37)
             self.section_end_coordinates = make_point(lat, lng)
             end_point_set = True
-
-        if not has_parent_geometry:
-            if not start_pair_complete:
-                errors["start_easting"] = "Provide start easting and northing to anchor the section alignment."
-            if not end_pair_complete:
-                errors["end_easting"] = "Provide end easting and northing to anchor the section alignment."
-
-        if start_pair_complete != start_point_set:
-            errors["section_start_coordinates"] = "Start point (lat/lng) must align with the supplied UTM coordinates."
-        if end_pair_complete != end_point_set:
-            errors["section_end_coordinates"] = "End point (lat/lng) must align with the supplied UTM coordinates."
-
-        if not has_parent_geometry and start_pair_complete and end_pair_complete and self.start_chainage_km is not None and self.end_chainage_km is not None:
-            dx = (self.end_easting - self.start_easting).copy_abs()
-            dy = (self.end_northing - self.start_northing).copy_abs()
-            coordinate_length_km = ((dx * dx + dy * dy).sqrt() / Decimal("1000")).quantize(Decimal("0.001"))
-            chainage_length_km = (self.end_chainage_km - self.start_chainage_km).quantize(Decimal("0.001"))
-            tolerance = max(Decimal("0.050"), chainage_length_km * Decimal("0.05"))
-            if (coordinate_length_km - chainage_length_km).copy_abs() > tolerance:
-                errors["end_easting"] = (
-                    f"Coordinate distance ({coordinate_length_km} km) should align with chainage length ({chainage_length_km} km)."
-                )
 
         if errors:
             raise ValidationError(errors)
