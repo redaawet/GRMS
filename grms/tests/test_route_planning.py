@@ -111,7 +111,7 @@ class RoutePlanningTests(RoadNetworkMixin, APITestCase):
         payload = response.json()
         self.assertEqual(payload["zone"], {"id": road.admin_zone_id, "name": road.admin_zone.name})
         self.assertEqual(payload["woreda"], {"id": road.admin_woreda_id, "name": road.admin_woreda.name})
-        self.assertEqual(payload["start"], {"lat": 13.1, "lng": 39.1})
+        self.assertEqual(payload["road"]["start"], {"lat": 13.1, "lng": 39.1})
         self.assertEqual(payload["road_length_km"], float(road.total_length_km))
         self.assertEqual(payload["travel_modes"], sorted(map_services.TRAVEL_MODES))
         self.assertEqual(payload["map_region"]["formatted_address"], "Mekelle, Tigray, Ethiopia")
