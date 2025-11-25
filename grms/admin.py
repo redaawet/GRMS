@@ -187,6 +187,36 @@ admin.site = grms_admin_site
 admin.sites.site = grms_admin_site
 
 
+class TrafficCountRecordInline(admin.TabularInline):
+    model = models.TrafficCountRecord
+    ordering = ("vehicle_class",)
+    fields = (
+        "vehicle_class",
+        "count_value",
+        "count_date",
+        "time_block_from",
+        "time_block_to",
+        "is_market_day",
+        "road_segment",
+    )
+
+    vehicle_class_choices = models.TrafficCountRecord._meta.get_field("vehicle_class").choices
+
+    def get_extra(self, request, obj=None, **kwargs):
+        if obj:
+            remaining_rows = len(self.vehicle_class_choices) - obj.count_records.count()
+            return max(remaining_rows, 0)
+        return len(self.vehicle_class_choices)
+
+    def get_formset(self, request, obj=None, **kwargs):
+        formset = super().get_formset(request, obj, **kwargs)
+        if obj:
+            road_segment_field = formset.form.base_fields.get("road_segment")
+            if road_segment_field:
+                road_segment_field.initial = obj.road_segment
+        return formset
+
+
 class RoadAdminForm(forms.ModelForm):
     start_easting = forms.DecimalField(label="Start easting", required=False, max_digits=12, decimal_places=2)
     start_northing = forms.DecimalField(label="Start northing", required=False, max_digits=12, decimal_places=2)
@@ -1133,6 +1163,31 @@ class FurnitureConditionDetailedSurveyAdmin(admin.ModelAdmin):
     )
 
 
+# Traffic survey and count entry
+@admin.register(models.TrafficSurvey, site=grms_admin_site)
+class TrafficSurveyAdmin(admin.ModelAdmin):
+    inlines = [TrafficCountRecordInline]
+    list_display = ("road_segment", "survey_year", "cycle_number", "method", "qa_status")
+    list_filter = ("survey_year", "cycle_number", "method", "qa_status")
+    search_fields = ("observer", "road_segment__id")
+
+
+@admin.register(models.TrafficCountRecord, site=grms_admin_site)
+class TrafficCountRecordAdmin(admin.ModelAdmin):
+    list_display = (
+        "traffic_survey",
+        "road_segment",
+        "vehicle_class",
+        "count_value",
+        "count_date",
+        "time_block_from",
+        "time_block_to",
+        "is_market_day",
+    )
+    list_filter = ("vehicle_class", "count_date", "is_market_day")
+    search_fields = ("traffic_survey__id", "road_segment__id")
+
+
 # Register supporting models without custom admins
 for model in [
     models.QAStatus,
@@ -1151,8 +1206,6 @@ for model in [
     models.FordDetail,
     models.RetainingWallDetail,
     models.GabionWallDetail,
-    models.TrafficSurvey,
-    models.TrafficCountRecord,
     models.TrafficCycleSummary,
     models.TrafficSurveySummary,
     models.TrafficQC,
