@@ -266,11 +266,7 @@
         if (!flattened.length) {
             throw new Error("Route preview did not return valid geometry.");
         }
-        const latLngPairs = toLatLngPairs(flattened);
-        if (!latLngPairs.length) {
-            throw new Error("Routed geometry could not be normalised.");
-        }
-        return latLngPairs;
+        return { type: "LineString", coordinates: flattened };
     }
 
     function drawRouteLine(mapOrLayer, geometry, style) {

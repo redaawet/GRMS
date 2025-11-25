@@ -188,14 +188,13 @@
             }
             if (window.RoadPreview && window.RoadPreview.loadRoadLine) {
                 roadLine = window.RoadPreview.loadRoadLine(map, coords.start, coords.end, { fit: shouldFit });
-            } else {
-                roadLine = L.polyline([
-                    [coords.start.lat, coords.start.lng],
-                    [coords.end.lat, coords.end.lng],
-                ]).addTo(map);
-                if (shouldFit) {
-                    map.fitBounds(roadLine.getBounds(), { padding: [40, 40] });
-                }
+            }
+            if (!roadLine) {
+                showStatus("No geometry available — save the record first.", "error");
+                return false;
+            }
+            if (shouldFit) {
+                map.fitBounds(roadLine.getBounds(), { padding: [40, 40] });
             }
             return Boolean(roadLine);
         }
@@ -389,13 +388,15 @@
                         if (routeLine) {
                             map.removeLayer(routeLine);
                         }
-                        const latLngs = payload.route.geometry.map(function (coord) {
-                            return [coord[1], coord[0]];
-                        });
+                        const geometry = Array.isArray(payload.route.geometry)
+                            ? { type: "LineString", coordinates: payload.route.geometry }
+                            : payload.route.geometry;
                         const style = ROUTE_STYLES[(payload.travel_mode || travelModeSelect.value || "DRIVING").toUpperCase()] ||
                             ROUTE_STYLES.DRIVING;
-                        routeLine = L.polyline(latLngs, style).addTo(map);
+                        routeLine = L.geoJSON(geometry, { style }).addTo(map);
                         map.fitBounds(routeLine.getBounds(), { padding: [20, 20] });
+                    } else {
+                        showStatus("No geometry available — save the record first.", "error");
                     }
                     syncMarkersFromInputs();
                 })

@@ -379,12 +379,14 @@
                     }
 
                     if (payload.route && Array.isArray(payload.route.geometry) && payload.route.geometry.length && routes) {
-                        const latLngs = payload.route.geometry.map(function (coord) {
-                            return [coord[1], coord[0]];
-                        });
+                        const geometry = Array.isArray(payload.route.geometry)
+                            ? { type: "LineString", coordinates: payload.route.geometry }
+                            : payload.route.geometry;
                         const style = ROUTE_STYLES[(travelMode || "DRIVING").toUpperCase()] || ROUTE_STYLES.DRIVING;
-                        const line = L.polyline(latLngs, style).addTo(routes);
+                        const line = L.geoJSON(geometry, { style }).addTo(routes);
                         map.fitBounds(line.getBounds(), { padding: [24, 24] });
+                    } else {
+                        showStatus("No geometry available — save the record first.", "error");
                     }
 
                     syncEditableMarkers(readPointFromInputs(startLatInput, startLngInput), readPointFromInputs(endLatInput, endLngInput));
