@@ -161,7 +161,6 @@
                 showNotice('No coordinate data available.');
                 return;
             }
-            hideNotice();
 
             try {
                 const result = await window.MapPreview.previewRoad(map, road, {
@@ -171,6 +170,11 @@
                     api: mapConfig.api,
                     default_travel_mode: mapConfig.default_travel_mode,
                 });
+                if (!result.routeLayer) {
+                    showNotice('No geometry available — save the record first.');
+                    return;
+                }
+                hideNotice();
                 activeLayers = [result.routeLayer, result.startMarker, result.endMarker].filter(Boolean);
             } catch (err) {
                 console.error('Unable to render map preview', err);
