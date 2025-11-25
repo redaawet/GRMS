@@ -1,67 +1,37 @@
 (function (root) {
     "use strict";
 
-    const STYLES = {
-        road: { color: "#475569", weight: 4, opacity: 0.7 },
-        section: { color: "#0ea5e9", weight: 6, opacity: 0.85 },
-        segment: { color: "#f97316", weight: 7, opacity: 0.95 },
-        roadBase: { color: "#94a3b8", weight: 3, opacity: 0.45 },
-        sectionBase: { color: "#0ea5e9", weight: 5, opacity: 0.6 },
+    const COLORS = {
+        road: { color: "#cbd5e1", weight: 4, opacity: 0.75 },
+        section: { color: "#1d4ed8", weight: 5, opacity: 0.85 },
+        segment: { color: "#06b6d4", weight: 7, opacity: 0.95 },
     };
 
-    function utmToLatLng(easting, northing, zone = 37) {
+    function initMap(divId) {
+        if (!root.L) {
+            throw new Error("Leaflet must be loaded before initializing the map.");
+        }
+        const map = root.L.map(divId);
+        root.L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+            maxZoom: 18,
+            attribution: "&copy; OpenStreetMap contributors",
+        }).addTo(map);
+        return map;
+    }
+
+    function utm37ToLatLng(easting, northing) {
+        if (!root.proj4) {
+            throw new Error("proj4 is required for UTM to WGS84 conversion.");
+        }
         if (!Number.isFinite(easting) || !Number.isFinite(northing)) {
             return null;
         }
-
-        const a = 6378137.0; // WGS84 major axis
-        const e = 0.081819191; // eccentricity
-        const e1sq = 0.006739497;
-        const k0 = 0.9996;
-
-        const x = easting - 500000.0;
-        const y = northing;
-        const m = y / k0;
-        const mu = m / (a * (1.0 - Math.pow(e, 2) / 4.0 - 3.0 * Math.pow(e, 4) / 64.0 - 5.0 * Math.pow(e, 6) / 256.0));
-
-        const e1 = (1 - Math.sqrt(1 - Math.pow(e, 2))) / (1 + Math.sqrt(1 - Math.pow(e, 2)));
-        const j1 = (3 * e1) / 2 - (27 * Math.pow(e1, 3)) / 32.0;
-        const j2 = (21 * Math.pow(e1, 2)) / 16 - (55 * Math.pow(e1, 4)) / 32.0;
-        const j3 = (151 * Math.pow(e1, 3)) / 96.0;
-        const j4 = (1097 * Math.pow(e1, 4)) / 512.0;
-
-        const fp = mu + j1 * Math.sin(2 * mu) + j2 * Math.sin(4 * mu) + j3 * Math.sin(6 * mu) + j4 * Math.sin(8 * mu);
-
-        const sinfp = Math.sin(fp);
-        const cosfp = Math.cos(fp);
-        const tanfp = Math.tan(fp);
-
-        const c1 = e1sq * Math.pow(cosfp, 2);
-        const t1 = Math.pow(tanfp, 2);
-        const r1 = (a * (1 - Math.pow(e, 2))) / Math.pow(1 - Math.pow(e * sinfp, 2), 1.5);
-        const n1 = a / Math.sqrt(1 - Math.pow(e * sinfp, 2));
-
-        const d = x / (n1 * k0);
-
-        const q1 = tanfp / (2 * r1 * n1 * Math.pow(k0, 2));
-        const q2 = (5 + 3 * t1 + 10 * c1 - 4 * Math.pow(c1, 2) - 9 * e1sq) / 24.0;
-        const q3 = (61 + 90 * t1 + 298 * c1 + 45 * Math.pow(t1, 2) - 3 * Math.pow(c1, 2) - 252 * e1sq) / 720.0;
-
-        const lat = fp - q1 * (Math.pow(d, 2) - q2 * Math.pow(d, 4) + q3 * Math.pow(d, 6));
-        const q4 = 1 / (cosfp * n1 * k0);
-        const q5 = (1 + 2 * t1 + c1) / 6.0;
-        const q6 = (5 - 2 * c1 + 28 * t1 - 3 * Math.pow(c1, 2) + 8 * e1sq + 24 * Math.pow(t1, 2)) / 120.0;
-
-        const lon = (d - q5 * Math.pow(d, 3) + q6 * Math.pow(d, 5)) * q4;
-        const lonOrigin = (zone - 1) * 6 - 180 + 3;
-
-        return {
-            lat: (lat * 180) / Math.PI,
-            lng: lonOrigin + (lon * 180) / Math.PI,
-        };
+        const utm = "+proj=utm +zone=37 +datum=WGS84 +units=m +no_defs";
+        const [lng, lat] = root.proj4(utm, "WGS84", [Number(easting), Number(northing)]);
+        return { lat, lng };
     }
 
-    function haversineDistance(start, end) {
+    function haversineDistanceMeters(start, end) {
         const toRadians = Math.PI / 180;
         const dLat = (end[1] - start[1]) * toRadians;
         const dLng = (end[0] - start[0]) * toRadians;
@@ -78,7 +48,7 @@
         }
         const cumulative = [0];
         for (let i = 1; i < coords.length; i += 1) {
-            const segment = haversineDistance(coords[i - 1], coords[i]);
+            const segment = haversineDistanceMeters(coords[i - 1], coords[i]);
             cumulative.push(cumulative[i - 1] + segment);
         }
         return cumulative;
@@ -114,26 +84,23 @@
         return coords[coords.length - 1];
     }
 
-    function slicePolylineByChainage(coords, startKm, endKm, roadTotalKm) {
+    function sliceRouteByChainage(coords, roadTotalKm, startKm, endKm) {
         if (!Array.isArray(coords) || coords.length < 2) {
             return [];
         }
-
         const cumulative = computeCumulativeDistances(coords);
         const routeLength = cumulative[cumulative.length - 1];
         if (!routeLength) {
             return [];
         }
-
         const totalKm = Number(roadTotalKm);
-        const effectiveRoadKm = totalKm > 0 ? totalKm : routeLength / 1000;
+        const effectiveKm = Number.isFinite(totalKm) && totalKm > 0 ? totalKm : routeLength / 1000;
+        const scale = routeLength / (effectiveKm * 1000);
 
-        const startRatio = Math.max(0, Math.min(1, (Number(startKm) || 0) / effectiveRoadKm));
-        const endRatioRaw = Number.isFinite(endKm) ? (Number(endKm) || 0) / effectiveRoadKm : 1;
-        const endRatio = Math.max(startRatio, Math.max(0, Math.min(1, endRatioRaw)));
-
-        const startDistance = routeLength * startRatio;
-        const endDistance = routeLength * endRatio;
+        const startDistance = Math.max(0, Math.min(routeLength, (Number(startKm) || 0) * 1000 * scale));
+        const endKmValue = Number.isFinite(Number(endKm)) ? Number(endKm) : effectiveKm;
+        const rawEndDistance = Math.max(startDistance, endKmValue * 1000 * scale);
+        const endDistance = Math.min(routeLength, rawEndDistance);
 
         const sliced = [];
         const startPoint = pointAtDistance(coords, cumulative, startDistance);
@@ -152,11 +119,11 @@
         return sliced;
     }
 
-    async function fetchRoadRoute(startLat, startLng, endLat, endLng) {
-        const url = "https://router.project-osrm.org/route/v1/driving/" +
-            encodeURIComponent(startLng) + "," + encodeURIComponent(startLat) + ";" +
-            encodeURIComponent(endLng) + "," + encodeURIComponent(endLat) +
-            "?overview=full&geometries=geojson";
+    async function fetchOSRMRoute(lat1, lng1, lat2, lng2) {
+        const url = "https://router.project-osrm.org/route/v1/driving/"
+            + encodeURIComponent(lng1) + "," + encodeURIComponent(lat1) + ";"
+            + encodeURIComponent(lng2) + "," + encodeURIComponent(lat2)
+            + "?overview=full&geometries=geojson";
 
         const response = await fetch(url);
         if (!response.ok) {
@@ -170,7 +137,14 @@
         return { type: "LineString", coordinates: geometry.coordinates };
     }
 
-    function toLatLng(point) {
+    function drawRouteLine(mapOrLayer, geometry, style) {
+        if (!mapOrLayer || !root.L || !geometry) {
+            return null;
+        }
+        return root.L.geoJSON(geometry, { style }).addTo(mapOrLayer);
+    }
+
+    function latLngFromPoint(point) {
         if (!point) {
             return null;
         }
@@ -181,125 +155,137 @@
             return { lat: Number(point.latitude), lng: Number(point.longitude) };
         }
         if (Number.isFinite(point.easting) && Number.isFinite(point.northing)) {
-            return utmToLatLng(Number(point.easting), Number(point.northing), point.zone || 37);
+            return utm37ToLatLng(Number(point.easting), Number(point.northing));
         }
         return null;
     }
 
-    async function ensureRoadGeometry(road) {
-        if (road && road._routeGeometry) {
-            return road._routeGeometry;
+    function latLngFromRoadFields(road, prefix) {
+        if (!road) { return null; }
+        const latField = Number(road[`${prefix}_latitude`] ?? road[`${prefix}_lat`]);
+        const lngField = Number(road[`${prefix}_longitude`] ?? road[`${prefix}_lng`]);
+        if (Number.isFinite(latField) && Number.isFinite(lngField)) {
+            return { lat: latField, lng: lngField };
         }
-        const startPoint = toLatLng(road?.start || road?.start_point || road);
-        const endPoint = toLatLng(road?.end || road?.end_point || road);
-        if (!startPoint || !endPoint) {
+        const eastingField = Number(road[`${prefix}_easting`]);
+        const northingField = Number(road[`${prefix}_northing`]);
+        if (Number.isFinite(eastingField) && Number.isFinite(northingField)) {
+            return utm37ToLatLng(eastingField, northingField);
+        }
+        return null;
+    }
+
+    function extractEndpoints(road) {
+        if (!road) { return {}; }
+        const start = latLngFromPoint(road.start || road.start_point)
+            || latLngFromRoadFields(road, "start")
+            || latLngFromPoint(road);
+        const end = latLngFromPoint(road.end || road.end_point)
+            || latLngFromRoadFields(road, "end")
+            || latLngFromPoint(road);
+        return { start, end };
+    }
+
+    async function ensureRoadGeometry(road) {
+        const cached = root.__roadRouteGeometry;
+        const { start, end } = extractEndpoints(road);
+        if (!start || !end) {
             throw new Error("Road requires start and end coordinates.");
         }
-        const geometry = await fetchRoadRoute(startPoint.lat, startPoint.lng, endPoint.lat, endPoint.lng);
-        if (road) {
-            road._routeGeometry = geometry;
-            road._startPoint = startPoint;
-            road._endPoint = endPoint;
+        if (cached && cached.start && cached.end &&
+            cached.start.lat === start.lat && cached.start.lng === start.lng &&
+            cached.end.lat === end.lat && cached.end.lng === end.lng) {
+            return cached.geometry;
         }
+        const geometry = await fetchOSRMRoute(start.lat, start.lng, end.lat, end.lng);
+        root.__roadRouteGeometry = { geometry, start, end };
         return geometry;
     }
 
-    function asLatLngs(coords) {
-        return coords.map(function (coord) { return [coord[1], coord[0]]; });
-    }
-
-    function targetLayer(options, map) {
-        return (options && options.layerGroup) || map;
+    function fitMapToGeometry(map, layer) {
+        if (!map || !layer) { return; }
+        const bounds = layer.getBounds();
+        if (bounds && bounds.isValid()) {
+            map.fitBounds(bounds, { padding: [16, 16] });
+        }
     }
 
     async function previewRoad(map, road, options) {
         const geometry = await ensureRoadGeometry(road);
-        const layerTarget = targetLayer(options, map);
-        const routeLayer = root.L.geoJSON(geometry, { style: STYLES.road }).addTo(layerTarget);
-        const startPoint = road?._startPoint || toLatLng(road.start || road);
-        const endPoint = road?._endPoint || toLatLng(road.end || road);
-        let startMarker = null;
-        let endMarker = null;
-        if (startPoint) {
-            startMarker = root.L.marker([startPoint.lat, startPoint.lng]).addTo(layerTarget);
-        }
-        if (endPoint) {
-            endMarker = root.L.marker([endPoint.lat, endPoint.lng]).addTo(layerTarget);
-        }
-        const bounds = routeLayer.getBounds();
-        if (bounds.isValid()) {
-            map.fitBounds(bounds, { padding: [16, 16] });
-        }
-        return { geometry, routeLayer, startMarker, endMarker };
+        const target = options?.layerGroup || map;
+        const routeLayer = drawRouteLine(target, geometry, COLORS.road);
+
+        const { start, end } = extractEndpoints(road);
+        const markers = [];
+        if (start) { markers.push(root.L.marker([start.lat, start.lng]).addTo(target)); }
+        if (end) { markers.push(root.L.marker([end.lat, end.lng]).addTo(target)); }
+
+        fitMapToGeometry(map, routeLayer);
+        return { geometry, routeLayer, startMarker: markers[0] || null, endMarker: markers[1] || null };
     }
 
     async function previewSection(map, road, section, options) {
         const geometry = await ensureRoadGeometry(road);
-        const layerTarget = targetLayer(options, map);
-        const roadLayer = root.L.geoJSON(geometry, { style: STYLES.roadBase }).addTo(layerTarget);
+        const target = options?.layerGroup || map;
+        const roadLayer = drawRouteLine(target, geometry, COLORS.road);
 
-        const coords = geometry.coordinates;
-        const slice = slicePolylineByChainage(
-            coords,
+        const slice = sliceRouteByChainage(
+            geometry.coordinates,
+            road?.total_length_km || road?.length_km || road?.road_length_km,
             section?.start_chainage_km,
             section?.end_chainage_km,
-            road?.length_km || road?.total_length_km || road?.road_length_km
         );
-        const sectionLayer = slice.length
-            ? root.L.geoJSON({ type: "LineString", coordinates: slice }, { style: STYLES.section })
-                .addTo(layerTarget)
-            : null;
+        const sectionGeometry = { type: "LineString", coordinates: slice };
+        const sectionLayer = slice.length ? drawRouteLine(target, sectionGeometry, COLORS.section) : null;
 
-        const bounds = (sectionLayer || roadLayer).getBounds();
-        if (bounds.isValid()) {
-            map.fitBounds(bounds, { padding: [16, 16] });
-        }
+        fitMapToGeometry(map, sectionLayer || roadLayer);
         return { geometry, roadLayer, sectionLayer };
     }
 
     async function previewSegment(map, road, section, segment, options) {
         const geometry = await ensureRoadGeometry(road);
-        const layerTarget = targetLayer(options, map);
-        const roadLayer = root.L.geoJSON(geometry, { style: STYLES.roadBase }).addTo(layerTarget);
+        const target = options?.layerGroup || map;
+        const roadLayer = drawRouteLine(target, geometry, COLORS.road);
 
-        const coords = geometry.coordinates;
-        const sectionSlice = slicePolylineByChainage(
-            coords,
+        const sectionSlice = sliceRouteByChainage(
+            geometry.coordinates,
+            road?.total_length_km || road?.length_km || road?.road_length_km,
             section?.start_chainage_km,
             section?.end_chainage_km,
-            road?.length_km || road?.total_length_km || road?.road_length_km
         );
-        const sectionLayer = sectionSlice.length
-            ? root.L.geoJSON({ type: "LineString", coordinates: sectionSlice }, { style: STYLES.sectionBase })
-                .addTo(layerTarget)
-            : null;
+        const sectionLayer = sectionSlice.length ? drawRouteLine(
+            target,
+            { type: "LineString", coordinates: sectionSlice },
+            COLORS.section,
+        ) : null;
 
-        const segmentSlice = slicePolylineByChainage(
-            coords,
+        const segmentSlice = sliceRouteByChainage(
+            geometry.coordinates,
+            road?.total_length_km || road?.length_km || road?.road_length_km,
             segment?.station_from_km,
             segment?.station_to_km,
-            road?.length_km || road?.total_length_km || road?.road_length_km
         );
-        const segmentLayer = segmentSlice.length
-            ? root.L.geoJSON({ type: "LineString", coordinates: segmentSlice }, { style: STYLES.segment })
-                .addTo(layerTarget)
-            : null;
+        const segmentLayer = segmentSlice.length ? drawRouteLine(
+            target,
+            { type: "LineString", coordinates: segmentSlice },
+            COLORS.segment,
+        ) : null;
 
-        const boundsLayer = segmentLayer || sectionLayer || roadLayer;
-        const bounds = boundsLayer.getBounds();
-        if (bounds.isValid()) {
-            map.fitBounds(bounds, { padding: [16, 16] });
-        }
+        fitMapToGeometry(map, segmentLayer || sectionLayer || roadLayer);
         return { geometry, roadLayer, sectionLayer, segmentLayer };
     }
 
     root.MapPreview = {
-        utmToLatLng,
+        initMap,
+        utm37ToLatLng,
+        fetchOSRMRoute,
         computeCumulativeDistances,
-        slicePolylineByChainage,
-        fetchRoadRoute,
+        sliceRouteByChainage,
+        drawRouteLine,
         previewRoad,
         previewSection,
         previewSegment,
+        // Legacy compatibility
+        utmToLatLng: utm37ToLatLng,
     };
 })(window);
