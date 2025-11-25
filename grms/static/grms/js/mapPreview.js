@@ -350,10 +350,9 @@
             ? renderGeometry(overlay, { type: "LineString", coordinates: sectionSlice }, COLORS.section)
             : null;
 
+        // Sections are defined purely by chainage, so we avoid placing
+        // coordinate markers here to prevent any fallback to manual points.
         const markers = [];
-        const { start, end } = extractSectionEndpoints(section);
-        if (start) { markers.push(root.L.marker([start.lat, start.lng]).addTo(overlay)); }
-        if (end) { markers.push(root.L.marker([end.lat, end.lng]).addTo(overlay)); }
 
         fitMapToLayer(map, sectionLayer || roadLayer);
         return { roadLayer, sectionLayer, markers };
