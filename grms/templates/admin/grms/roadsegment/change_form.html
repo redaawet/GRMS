@@ -20,22 +20,6 @@
         data-map-context-url="{{ map_admin_config.api.map_context|default_if_none:'' }}">
         <div class="road-map-panel__info">
             <h3>Map preview</h3>
-            {% if map_admin_config and map_admin_config.segment %}
-                {% if map_admin_config.segment.station_from_km and map_admin_config.segment.station_to_km %}
-                    <p class="help">
-                        Map preview is auto-generated from the parent road between
-                        <strong>{{ map_admin_config.segment.station_from_km|floatformat:"3" }}</strong> km and
-                        <strong>{{ map_admin_config.segment.station_to_km|floatformat:"3" }}</strong> km.
-                    </p>
-                {% else %}
-                    <p class="help">Geometry is derived automatically; no manual line editing is needed.</p>
-                {% endif %}
-            {% else %}
-                <p class="help">Save the segment first to enable the map preview.</p>
-            {% endif %}
-            <p class="help">Highlights the segment relative to its parent section.</p>
-            <p class="help">Shows admin boundaries, towns, and optional base layers.</p>
-            <p class="help">No manual geometry entry is required.</p>
         </div>
         <div class="road-map-panel__viewport" id="map-panel-viewport">
             <div class="road-map-panel__placeholder">
@@ -55,7 +39,6 @@
                 <div class="road-map-panel__selectors">
                     <button type="button" class="button" id="map-panel-refresh">Refresh map</button>
                 </div>
-                <p class="help">Orange highlight shows the segment; blue shows its parent section.</p>
             </div>
         {% endif %}
     </div>
