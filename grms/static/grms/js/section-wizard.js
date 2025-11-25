@@ -109,7 +109,7 @@
                 return;
             }
             try {
-                const result = await window.MapPreview.previewSection(
+                const result = await window.MapPreview.previewRoadSection(
                     map,
                     config.road,
                     config.section,
