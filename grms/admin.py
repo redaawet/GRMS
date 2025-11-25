@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from typing import Dict, List, Sequence
 
 from decimal import Decimal, ROUND_HALF_UP
@@ -16,6 +17,24 @@ from django.utils.timezone import localdate
 from . import models
 from .services import map_services
 from .utils import make_point, point_to_lat_lng, utm_to_wgs84, wgs84_to_utm
+
+
+def _serialize_geometry(geom):
+    if not geom:
+        return None
+    if hasattr(geom, "geojson"):
+        try:
+            return json.loads(geom.geojson)
+        except Exception:
+            pass
+    if isinstance(geom, (dict, list)):
+        return geom
+    if isinstance(geom, str):
+        try:
+            return json.loads(geom)
+        except Exception:
+            return None
+    return None
 
 
 def _to_float(value):
@@ -664,6 +683,8 @@ class RoadSectionAdmin(admin.ModelAdmin):
         end_point = self._section_point(section, end=True) if section else None
         road_start = point_to_lat_lng(getattr(road, "road_start_coordinates", None)) if road else None
         road_end = point_to_lat_lng(getattr(road, "road_end_coordinates", None)) if road else None
+        road_geometry = _serialize_geometry(getattr(road, "geometry", None)) if road else None
+        section_geometry = _serialize_geometry(getattr(section, "geometry", None)) if section else None
 
         return {
             "scope": "section",
@@ -678,6 +699,7 @@ class RoadSectionAdmin(admin.ModelAdmin):
                 "length_km": _to_float(getattr(road, "total_length_km", None)),
                 "start": road_start,
                 "end": road_end,
+                "geometry": road_geometry,
             },
             "section": {
                 "name": getattr(section, "name", None),
@@ -686,6 +708,8 @@ class RoadSectionAdmin(admin.ModelAdmin):
                 "length_km": _to_float(getattr(section, "length_km", None)),
                 "zone_override_id": getattr(section, "admin_zone_override_id", None),
                 "woreda_override_id": getattr(section, "admin_woreda_override_id", None),
+                "geometry": section_geometry,
+                "has_parent_geometry": bool(road_geometry),
                 "points": {
                     "start": start_point,
                     "end": end_point,
@@ -814,6 +838,7 @@ class RoadSegmentAdmin(admin.ModelAdmin):
                 "length_km": _to_float(road.total_length_km),
                 "start": point_to_lat_lng(getattr(road, "road_start_coordinates", None)),
                 "end": point_to_lat_lng(getattr(road, "road_end_coordinates", None)),
+                "geometry": _serialize_geometry(getattr(road, "geometry", None)),
             },
             "section": {
                 "name": section.name,
@@ -822,6 +847,8 @@ class RoadSegmentAdmin(admin.ModelAdmin):
                 "length_km": _to_float(section.length_km),
                 "zone_override_id": section.admin_zone_override_id,
                 "woreda_override_id": section.admin_woreda_override_id,
+                "geometry": _serialize_geometry(getattr(section, "geometry", None)),
+                "has_parent_geometry": bool(getattr(section, "geometry", None)),
             },
             "segment": {
                 "station_from_km": _to_float(segment.station_from_km),

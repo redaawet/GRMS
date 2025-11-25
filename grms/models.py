@@ -14,7 +14,7 @@ from typing import Iterable, Optional
 from django.core.exceptions import ValidationError
 from django.db import models
 
-from .gis_fields import PointField
+from .gis_fields import LineStringField, PointField
 from .utils import make_point, utm_to_wgs84
 
 # ---------------------------------------------------------------------------
@@ -326,6 +326,7 @@ class Road(models.Model):
         help_text="UTM northing for the end point (Zone 37N)",
     )
     road_end_coordinates = PointField(srid=4326, null=True, blank=True)
+    geometry = LineStringField(null=True, blank=True, help_text="Road geometry (LineString)")
     surface_type = models.CharField(
         max_length=10,
         choices=[("Earth", "Earth"), ("Gravel", "Gravel"), ("Paved", "Paved")],
@@ -408,6 +409,7 @@ class RoadSection(models.Model):
         help_text="Section length (km) computed from chainage",
         editable=False,
     )
+    geometry = LineStringField(null=True, blank=True, help_text="Section geometry (LineString)")
     surface_type = models.CharField(max_length=10, choices=SURFACE_TYPES)
     surface_thickness_cm = models.DecimalField(
         max_digits=5,
@@ -541,6 +543,7 @@ class RoadSection(models.Model):
             if self.surface_thickness_cm is None:
                 errors["surface_thickness_cm"] = "Thickness is required for gravel or paved surfaces."
 
+        has_parent_geometry = bool(getattr(self.road, "geometry", None)) if self.road_id else False
         start_pair_complete = self.start_easting is not None and self.start_northing is not None
         end_pair_complete = self.end_easting is not None and self.end_northing is not None
         start_point_set = self.section_start_coordinates is not None
@@ -555,17 +558,18 @@ class RoadSection(models.Model):
             self.section_end_coordinates = make_point(lat, lng)
             end_point_set = True
 
-        if not start_pair_complete:
-            errors["start_easting"] = "Provide start easting and northing to anchor the section alignment."
-        if not end_pair_complete:
-            errors["end_easting"] = "Provide end easting and northing to anchor the section alignment."
+        if not has_parent_geometry:
+            if not start_pair_complete:
+                errors["start_easting"] = "Provide start easting and northing to anchor the section alignment."
+            if not end_pair_complete:
+                errors["end_easting"] = "Provide end easting and northing to anchor the section alignment."
 
         if start_pair_complete != start_point_set:
             errors["section_start_coordinates"] = "Start point (lat/lng) must align with the supplied UTM coordinates."
         if end_pair_complete != end_point_set:
             errors["section_end_coordinates"] = "End point (lat/lng) must align with the supplied UTM coordinates."
 
-        if start_pair_complete and end_pair_complete and self.start_chainage_km is not None and self.end_chainage_km is not None:
+        if not has_parent_geometry and start_pair_complete and end_pair_complete and self.start_chainage_km is not None and self.end_chainage_km is not None:
             dx = (self.end_easting - self.start_easting).copy_abs()
             dy = (self.end_northing - self.start_northing).copy_abs()
             coordinate_length_km = ((dx * dx + dy * dy).sqrt() / Decimal("1000")).quantize(Decimal("0.001"))
@@ -630,6 +634,27 @@ class RoadSegment(models.Model):
     class Meta:
         verbose_name = "Road segment"
         verbose_name_plural = "Road segments"
+
+    def clean(self):
+        errors = {}
+
+        if self.station_from_km is not None:
+            if self.station_from_km < 0:
+                errors["station_from_km"] = "Start chainage cannot be negative."
+
+        if self.station_from_km is not None and self.station_to_km is not None:
+            if self.station_to_km <= self.station_from_km:
+                errors["station_to_km"] = "End chainage must be greater than start chainage."
+
+        if self.section_id and self.section.length_km is not None and self.station_to_km is not None:
+            section_length = self.section.length_km
+            if self.station_to_km > section_length:
+                errors["station_to_km"] = "Segment end exceeds the parent section length."
+            if self.station_from_km is not None and self.station_from_km > section_length:
+                errors["station_from_km"] = "Segment start exceeds the parent section length."
+
+        if errors:
+            raise ValidationError(errors)
 
     @property
     def length_km(self) -> float:

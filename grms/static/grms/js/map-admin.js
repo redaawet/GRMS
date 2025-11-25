@@ -101,6 +101,7 @@
 
     function initMapAdmin() {
         const config = parseJSONScript("map-admin-config");
+        const hasParentGeometry = Boolean(config && config.section && config.section.has_parent_geometry);
         const panel = document.getElementById("map-panel");
         const refreshButton = document.getElementById("map-panel-refresh");
         const statusEl = document.getElementById("map-panel-status");
@@ -162,6 +163,9 @@
         }
 
         function ensureCoordinates() {
+            if (hasParentGeometry) {
+                return null;
+            }
             const values = {
                 start_lat: parseFloat(startLatInput?.value),
                 start_lng: parseFloat(startLngInput?.value),
@@ -193,6 +197,25 @@
                     ? { lat: values.end_lat, lng: values.end_lng }
                     : { easting: values.end_easting, northing: values.end_northing },
             };
+        }
+
+        if (hasParentGeometry) {
+            [
+                "id_start_lat",
+                "id_start_lng",
+                "id_end_lat",
+                "id_end_lng",
+                "id_start_easting",
+                "id_start_northing",
+                "id_end_easting",
+                "id_end_northing",
+            ].forEach(function (id) {
+                const input = document.getElementById(id);
+                const row = input && input.closest(".form-row");
+                if (row) {
+                    row.style.display = "none";
+                }
+            });
         }
 
         function setActiveMarker(value) {
@@ -305,6 +328,12 @@
                 coords = ensureCoordinates();
             } catch (err) {
                 showStatus(err.message, "error");
+                return;
+            }
+
+            if (!coords) {
+                showStatus("Parent geometry is already available for preview.", "success");
+                refreshFromInputs();
                 return;
             }
 

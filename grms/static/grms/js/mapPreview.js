@@ -392,75 +392,35 @@
     }
 
     async function previewRoadSection(map, road, section, options) {
-        const apiRoute = options?.apiRoute || options?.api?.route;
-        const travelMode = (options?.travelMode || options?.default_travel_mode || "DRIVING").toUpperCase();
         const target = options?.layerGroup || map;
+        const geometry = await ensureRoadGeometry(road, options);
+        const flattened = getFlattenedGeometry(geometry);
+        const roadLayer = geometry ? drawRouteLine(target, geometry, COLORS.road) : null;
 
-        const { start: roadStart, end: roadEnd } = extractEndpoints(road);
-        let roadPolyline = [];
-        let roadLayer = null;
-        if (!apiRoute) {
-            console.warn("Route preview endpoint is not configured.");
-        }
+        const sectionSlice = sliceRouteByChainage(
+            flattened,
+            Number(road?.length_km ?? road?.total_length_km),
+            section?.start_chainage_km,
+            section?.end_chainage_km,
+        );
+        const sectionLayer = sectionSlice.length
+            ? drawRouteLine(target, { type: "LineString", coordinates: sectionSlice }, COLORS.section)
+            : null;
 
-        try {
-            if (!roadStart || !roadEnd) {
-                throw new Error("No road start/end coordinates available.");
-            }
-            roadPolyline = apiRoute ? await fetchRoutedPolyline(apiRoute, roadStart, roadEnd, travelMode) : [];
-            if (roadPolyline.length) {
-                root._roadPolyline = roadPolyline;
-                roadLayer = root.L.polyline(roadPolyline, { color: "#666", weight: 4 }).addTo(target);
-            }
-        } catch (err) {
-            console.warn("Unable to render road geometry", err);
-        }
-
-        const { start: sectionStart, end: sectionEnd } = extractSectionEndpoints(section);
-        let sectionLayer = null;
-        const sectionMarkers = [];
-
-        try {
-            if (sectionStart && sectionEnd && apiRoute) {
-                const sectionPolyline = await fetchRoutedPolyline(apiRoute, sectionStart, sectionEnd, travelMode);
-                if (sectionPolyline.length) {
-                    sectionLayer = root.L.polyline(sectionPolyline, { color: "#00aaff", weight: 7 }).addTo(target);
-                    sectionMarkers.push(root.L.marker([sectionStart.lat, sectionStart.lng]).addTo(target));
-                    sectionMarkers.push(root.L.marker([sectionEnd.lat, sectionEnd.lng]).addTo(target));
-                }
-            } else if (roadPolyline.length) {
-                const sectionSlice = sliceByChainage(
-                    roadPolyline,
-                    section?.start_chainage_km,
-                    section?.end_chainage_km,
-                    Number(road?.length_km ?? road?.total_length_km),
-                );
-                if (sectionSlice.length) {
-                    sectionLayer = root.L.polyline(sectionSlice, { color: "#00aaff", weight: 7 }).addTo(target);
-                }
-            }
-        } catch (err) {
-            console.warn("Unable to render section geometry", err);
-        }
-
-        const fitLayer = sectionLayer || roadLayer;
-        if (fitLayer && map) {
-            map.fitBounds(fitLayer.getBounds());
-        }
-        return { geometry: roadPolyline, roadLayer, sectionLayer, sectionMarkers };
+        fitMapToGeometry(map, sectionLayer || roadLayer);
+        return { geometry, roadLayer, sectionLayer };
     }
 
     async function previewRoadSegment(map, road, segment, options) {
-        const geometry = await ensureRoadGeometry(road, options);
+        const parentGeometry = options?.section?.geometry || road?.geometry || options?.section?.route_geometry;
+        const geometry = parentGeometry || await ensureRoadGeometry(road, options);
         const target = options?.layerGroup || map;
-        const roadLayer = geometry ? drawRouteLine(target, geometry, COLORS.road) : null;
-
         const coords = getFlattenedGeometry(geometry);
 
-        const sectionSlice = options?.section ? sliceRouteByChainage(
+        const sectionSlice = coords.length && options?.section ? sliceRouteByChainage(
             coords,
-            Number(road?.length_km ?? road?.total_length_km),
-            options.section.start_chainage_km,
+            Number(options.section.length_km || options.section.end_chainage_km || 0),
+            0,
             options.section.end_chainage_km,
         ) : [];
         const sectionLayer = sectionSlice.length
@@ -468,8 +428,8 @@
             : null;
 
         const segmentSlice = sliceRouteByChainage(
-            coords,
-            Number(road?.length_km ?? road?.total_length_km),
+            sectionSlice.length ? sectionSlice : coords,
+            Number(options?.section?.length_km || options?.section?.end_chainage_km || road?.length_km || road?.total_length_km),
             segment?.station_from_km,
             segment?.station_to_km,
         );
@@ -479,6 +439,7 @@
             COLORS.segment,
         ) : null;
 
+        const roadLayer = (!parentGeometry && geometry) ? drawRouteLine(target, geometry, COLORS.road) : null;
         fitMapToGeometry(map, segmentLayer || sectionLayer || roadLayer);
         return { geometry, roadLayer, sectionLayer, segmentLayer };
     }
