@@ -74,6 +74,11 @@
   </nav>
 {% endblock %}
 
+{% block breadcrumbs %}
+  {{ block.super }}
+  <div class="grms-back-link"><a href="{% url 'admin:index' %}">← {% trans 'Back to Dashboard' %}</a></div>
+{% endblock %}
+
 {% block extrastyle %}
   {{ block.super }}
   <style>
@@ -212,6 +217,24 @@
     /* Hide the default toggle button because the sidebar is always visible */
     .toggle-nav-sidebar {
       display: none !important;
+    }
+
+    .grms-back-link {
+      margin: 0.5rem 1rem;
+    }
+
+    .grms-back-link a {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      color: var(--link-fg);
+      font-weight: 600;
+      text-decoration: none;
+    }
+
+    .grms-back-link a:hover,
+    .grms-back-link a:focus-visible {
+      text-decoration: underline;
     }
   </style>
 {% endblock %}

@@ -388,7 +388,7 @@
                 map = L.map(mapNode).setView([center.lat, center.lng], mapRegion.zoom || 7);
                 L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
                     maxZoom: 18,
-                    attribution: "&copy; OpenStreetMap contributors",
+                    attribution: "© OpenStreetMap contributors",
                 }).addTo(map);
                 overlay = L.layerGroup().addTo(map);
                 markers = L.layerGroup().addTo(map);
@@ -406,6 +406,7 @@
             bindMapClick();
 
             const viewportBounds = addViewport(mapRegion);
+            const roadData = Object.assign({}, config.road || {}, { start: roadStart, end: roadEnd });
 
             if (viewportBounds) {
                 map.fitBounds(viewportBounds, { padding: [24, 24] });
@@ -437,21 +438,33 @@
                 }
             }
 
-            if (endPoint && markers) {
-                if (allowEditing) {
-                    syncEditableMarkers(null, endPoint);
-                } else {
-                    L.circleMarker([endPoint.lat, endPoint.lng], {
-                        radius: 7,
-                        color: "#0ea5e9",
-                        weight: 3,
-                        fillColor: "#0ea5e9",
-                        fillOpacity: 0.85,
-                    })
-                        .bindTooltip("Section end", { permanent: false })
-                        .addTo(markers);
-                }
-            }
+            Promise.resolve(preview)
+                .catch(function (err) {
+                    showStatus(err.message, "error");
+                    if (viewportBounds) {
+                        map.fitBounds(viewportBounds, { padding: [24, 24] });
+                    }
+                })
+                .then(function () {
+                    const configPoints = (config.section && config.section.points) || {};
+                    const startPoint = readPointFromInputs(startLatInput, startLngInput) || configPoints.start;
+                    const endPoint = readPointFromInputs(endLatInput, endLngInput) || configPoints.end;
+
+                    if (startPoint && markers) {
+                        if (allowEditing) {
+                            syncEditableMarkers(startPoint, null);
+                        } else {
+                            L.circleMarker([startPoint.lat, startPoint.lng], {
+                                radius: 7,
+                                color: "#0ea5e9",
+                                weight: 3,
+                                fillColor: "#38bdf8",
+                                fillOpacity: 0.8,
+                            })
+                                .bindTooltip("Section start", { permanent: false })
+                                .addTo(markers);
+                        }
+                    }
 
             if (Array.isArray(lastPayload && lastPayload.travel_modes) && travelModeSelect) {
                 setTravelModeOptions(lastPayload.travel_modes);
