@@ -78,6 +78,10 @@
         const startLng = document.getElementById("id_start_lng");
         const endLat = document.getElementById("id_end_lat");
         const endLng = document.getElementById("id_end_lng");
+        const startEasting = document.getElementById("id_start_easting");
+        const startNorthing = document.getElementById("id_start_northing");
+        const endEasting = document.getElementById("id_end_easting");
+        const endNorthing = document.getElementById("id_end_northing");
 
         if (!startLat || !startLng || !endLat || !endLng) {
             return;
@@ -129,15 +133,42 @@
             updateMarkerPosition(endMarker, endLat, endLng);
         }
 
+        function readPoint(prefix) {
+            const latInput = prefix === "start" ? startLat : endLat;
+            const lngInput = prefix === "start" ? startLng : endLng;
+            const eastingInput = prefix === "start" ? startEasting : endEasting;
+            const northingInput = prefix === "start" ? startNorthing : endNorthing;
+
+            const lat = parseFloat(latInput?.value);
+            const lng = parseFloat(lngInput?.value);
+            if (Number.isFinite(lat) && Number.isFinite(lng)) {
+                return { lat: lat, lng: lng };
+            }
+
+            const easting = parseFloat(eastingInput?.value);
+            const northing = parseFloat(northingInput?.value);
+            if (Number.isFinite(easting) && Number.isFinite(northing) && window.MapPreview && window.MapPreview.utm37ToLatLng) {
+                const converted = window.MapPreview.utm37ToLatLng(easting, northing);
+                if (converted) {
+                    if (!Number.isFinite(lat) && latInput) {
+                        latInput.value = converted.lat.toFixed(6);
+                    }
+                    if (!Number.isFinite(lng) && lngInput) {
+                        lngInput.value = converted.lng.toFixed(6);
+                    }
+                    return converted;
+                }
+            }
+            return null;
+        }
+
         function getRoadCoordinates() {
-            const coords = {
-                start: [parseFloat(startLat.value), parseFloat(startLng.value)],
-                end: [parseFloat(endLat.value), parseFloat(endLng.value)],
-            };
-            if (!coords.start.every(Number.isFinite) || !coords.end.every(Number.isFinite)) {
+            const startPoint = readPoint("start");
+            const endPoint = readPoint("end");
+            if (!startPoint || !endPoint) {
                 return null;
             }
-            return coords;
+            return { start: startPoint, end: endPoint };
         }
 
         function drawRoadLine(shouldFit) {
@@ -155,11 +186,18 @@
             if (roadLine && map.hasLayer(roadLine)) {
                 map.removeLayer(roadLine);
             }
-            roadLine = L.polyline([coords.start, coords.end]).addTo(map);
-            if (shouldFit) {
-                map.fitBounds(roadLine.getBounds(), { padding: [40, 40] });
+            if (window.RoadPreview && window.RoadPreview.loadRoadLine) {
+                roadLine = window.RoadPreview.loadRoadLine(map, coords.start, coords.end, { fit: shouldFit });
+            } else {
+                roadLine = L.polyline([
+                    [coords.start.lat, coords.start.lng],
+                    [coords.end.lat, coords.end.lng],
+                ]).addTo(map);
+                if (shouldFit) {
+                    map.fitBounds(roadLine.getBounds(), { padding: [40, 40] });
+                }
             }
-            return true;
+            return Boolean(roadLine);
         }
 
         function ensureMapContainer() {
@@ -291,37 +329,17 @@
         }
 
         function ensureCoordinates() {
-            const values = {
-                start_lat: parseFloat(startLat.value),
-                start_lng: parseFloat(startLng.value),
-                end_lat: parseFloat(endLat.value),
-                end_lng: parseFloat(endLng.value),
-                start_easting: parseFloat(document.getElementById("id_start_easting")?.value),
-                start_northing: parseFloat(document.getElementById("id_start_northing")?.value),
-                end_easting: parseFloat(document.getElementById("id_end_easting")?.value),
-                end_northing: parseFloat(document.getElementById("id_end_northing")?.value),
-            };
+            const startPoint = readPoint("start");
+            const endPoint = readPoint("end");
 
-            const startHasLatLng = Number.isFinite(values.start_lat) && Number.isFinite(values.start_lng);
-            const endHasLatLng = Number.isFinite(values.end_lat) && Number.isFinite(values.end_lng);
-            const startHasUtm = Number.isFinite(values.start_easting) && Number.isFinite(values.start_northing);
-            const endHasUtm = Number.isFinite(values.end_easting) && Number.isFinite(values.end_northing);
-
-            if (!startHasLatLng && !startHasUtm) {
+            if (!startPoint) {
                 throw new Error("Enter a valid start latitude/longitude or UTM easting/northing.");
             }
-            if (!endHasLatLng && !endHasUtm) {
+            if (!endPoint) {
                 throw new Error("Enter a valid end latitude/longitude or UTM easting/northing.");
             }
 
-            return {
-                start: startHasLatLng
-                    ? { lat: values.start_lat, lng: values.start_lng }
-                    : { easting: values.start_easting, northing: values.start_northing },
-                end: endHasLatLng
-                    ? { lat: values.end_lat, lng: values.end_lng }
-                    : { easting: values.end_easting, northing: values.end_northing },
-            };
+            return { start: startPoint, end: endPoint };
         }
 
         function previewRoute() {
@@ -408,6 +426,16 @@
                     syncMarkersFromInputs();
                     drawRoadLine(true);
                 }, 400);
+            });
+        });
+
+        [startEasting, startNorthing, endEasting, endNorthing].forEach(function (input) {
+            if (!input) {
+                return;
+            }
+            input.addEventListener("change", function () {
+                syncMarkersFromInputs();
+                drawRoadLine(true);
             });
         });
 

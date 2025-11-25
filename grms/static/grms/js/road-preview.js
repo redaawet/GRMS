@@ -171,11 +171,51 @@
         return { roadLine: roadLine, sectionLine: sectionLine, segmentLine: segmentLine };
     }
 
+    function normalisePoint(point) {
+        if (!point) {
+            return null;
+        }
+        if (Number.isFinite(point.lat) && Number.isFinite(point.lng)) {
+            return { lat: Number(point.lat), lng: Number(point.lng) };
+        }
+        if (Number.isFinite(point.latitude) && Number.isFinite(point.longitude)) {
+            return { lat: Number(point.latitude), lng: Number(point.longitude) };
+        }
+        if (Number.isFinite(point.easting) && Number.isFinite(point.northing) && root.MapPreview && root.MapPreview.utm37ToLatLng) {
+            return root.MapPreview.utm37ToLatLng(Number(point.easting), Number(point.northing));
+        }
+        return null;
+    }
+
+    function loadRoadLine(map, start, end, options) {
+        if (!map || !root.L) {
+            return null;
+        }
+
+        const startPoint = normalisePoint(start);
+        const endPoint = normalisePoint(end);
+        if (!startPoint || !endPoint) {
+            return null;
+        }
+
+        const latLngs = [
+            [startPoint.lat, startPoint.lng],
+            [endPoint.lat, endPoint.lng],
+        ];
+        const target = options && options.layerGroup ? options.layerGroup : map;
+        const polyline = root.L.polyline(latLngs, Object.assign({ weight: 5, color: "#475569" }, options && options.style)).addTo(target);
+        if (!options || options.fit !== false) {
+            ensureMapBounds(map, polyline);
+        }
+        return polyline;
+    }
+
     root.RoadPreview = {
         fetchRoadRoute: fetchRoadRoute,
         previewRoad: previewRoad,
         previewRoadSection: previewRoadSection,
         previewRoadSegment: previewRoadSegment,
         sliceLineStringByChainage: sliceLineStringByChainage,
+        loadRoadLine: loadRoadLine,
     };
 })(window);
