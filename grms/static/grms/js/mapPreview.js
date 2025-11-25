@@ -324,9 +324,17 @@
 
     function extractSectionEndpoints(section) {
         if (!section) { return {}; }
-        const start = latLngFromPoint(section.start || section.section_start_coordinates)
+        const start = latLngFromPoint(
+            section.start
+            || section.section_start_coordinates
+            || (section.points && (section.points.start || section.points.section_start_coordinates))
+        )
             || latLngFromRoadFields(section, "start");
-        const end = latLngFromPoint(section.end || section.section_end_coordinates)
+        const end = latLngFromPoint(
+            section.end
+            || section.section_end_coordinates
+            || (section.points && (section.points.end || section.points.section_end_coordinates))
+        )
             || latLngFromRoadFields(section, "end");
         return { start, end };
     }
