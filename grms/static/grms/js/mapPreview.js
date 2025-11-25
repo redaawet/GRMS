@@ -288,10 +288,11 @@
         const roadLayer = geometry ? drawRouteLine(target, geometry, COLORS.road) : null;
 
         const coords = getFlattenedGeometry(geometry);
-        const slice = sliceRouteByDistanceMeters(
+        const slice = sliceRouteByChainage(
             coords,
-            toMeters(section?.start_chainage_km),
-            toMeters(section?.end_chainage_km),
+            Number(road?.length_km ?? road?.total_length_km),
+            section?.start_chainage_km,
+            section?.end_chainage_km,
         );
         const sectionLayer = slice.length ? drawRouteLine(target, { type: "LineString", coordinates: slice }, COLORS.section) : null;
 
@@ -305,10 +306,22 @@
         const roadLayer = geometry ? drawRouteLine(target, geometry, COLORS.road) : null;
 
         const coords = getFlattenedGeometry(geometry);
-        const segmentSlice = sliceRouteByDistanceMeters(
+
+        const sectionSlice = options?.section ? sliceRouteByChainage(
             coords,
-            toMeters(segment?.station_from_km),
-            toMeters(segment?.station_to_km),
+            Number(road?.length_km ?? road?.total_length_km),
+            options.section.start_chainage_km,
+            options.section.end_chainage_km,
+        ) : [];
+        const sectionLayer = sectionSlice.length
+            ? drawRouteLine(target, { type: "LineString", coordinates: sectionSlice }, COLORS.section)
+            : null;
+
+        const segmentSlice = sliceRouteByChainage(
+            coords,
+            Number(road?.length_km ?? road?.total_length_km),
+            segment?.station_from_km,
+            segment?.station_to_km,
         );
         const segmentLayer = segmentSlice.length ? drawRouteLine(
             target,
@@ -316,8 +329,8 @@
             COLORS.segment,
         ) : null;
 
-        fitMapToGeometry(map, segmentLayer || roadLayer);
-        return { geometry, roadLayer, segmentLayer };
+        fitMapToGeometry(map, segmentLayer || sectionLayer || roadLayer);
+        return { geometry, roadLayer, sectionLayer, segmentLayer };
     }
 
     root.MapPreview = {
