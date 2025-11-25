@@ -5,6 +5,9 @@
     {{ block.super }}
     {% if road_admin_config %}
         {{ road_admin_config|json_script:"road-admin-config" }}
+        <script>
+            window.road_admin_config = JSON.parse(document.getElementById('road-admin-config').textContent);
+        </script>
     {% endif %}
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -12,7 +15,7 @@
     <script src="{% static 'grms/js/mapPreview.js' %}"></script>
     <script src="{% static 'grms/js/road-preview.js' %}"></script>
     <link rel="stylesheet" href="{% static 'grms/css/road-admin.css' %}">
-    <script src="{% static 'grms/js/road-admin.js' %}" defer></script>
+    <script src="{% static 'grms/js/road-preview.js' %}" defer></script>
 {% endblock %}
 
 {% block after_field_sets %}
@@ -22,10 +25,7 @@
          data-road-id="{{ road_admin_config.road_id|default_if_none:'' }}"
          data-route-url="{{ road_admin_config.api.route }}"
          data-map-context-url="{{ road_admin_config.api.map_context }}">
-        <div class="road-map-panel__placeholder">
-            <h3>Road alignment preview</h3>
-            <p>Use the controls below to visualize the selected road on the interactive map.</p>
-        </div>
+        <div id="road-map" style="height: 400px;"></div>
     </div>
     <div class="road-map-panel__status" id="road-map-status"></div>
     <div class="road-map-panel__actions">
