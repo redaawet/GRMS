@@ -555,10 +555,7 @@ def preview_route(request: Request) -> Response:
     )
 
 
-@api_view(["GET"])
-def road_map_context(request: Request, pk: Optional[int] = None) -> Response:
-    """Return context to display a Leaflet map for a road or default region."""
-
+def _road_map_context_data(request: Request, pk: Optional[int] = None) -> dict:
     road: Optional[models.Road] = None
     start = None
     end = None
@@ -580,10 +577,12 @@ def road_map_context(request: Request, pk: Optional[int] = None) -> Response:
     if woreda_override:
         woreda = get_object_or_404(models.AdminWoreda.objects.select_related("zone"), pk=woreda_override)
         if zone_override and woreda.zone_id != zone.id:
-            return Response(
-                {"detail": "Selected woreda does not belong to the selected zone."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            return {
+                "error": Response(
+                    {"detail": "Selected woreda does not belong to the selected zone."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            }
         zone = woreda.zone
     elif woreda and zone and woreda.zone_id != zone.id:
         woreda = None
@@ -594,18 +593,50 @@ def road_map_context(request: Request, pk: Optional[int] = None) -> Response:
         zone.name if zone else None, woreda_for_lookup.name if woreda_for_lookup else None
     )
 
-    return Response(
-        {
-            "road": road.id if road else None,
-            "zone": {"id": zone.id, "name": zone.name} if zone else None,
-            "woreda": {"id": woreda.id, "name": woreda.name} if woreda else None,
-            "start": start,
-            "end": end,
-            "road_length_km": float(road.total_length_km) if road and road.total_length_km else None,
-            "map_region": map_region,
-            "travel_modes": sorted(map_services.TRAVEL_MODES),
+    road_payload: Optional[dict] = None
+    if road:
+        road_payload = {
+            "id": road.id,
+            "name_from": road.road_name_from,
+            "name_to": road.road_name_to,
+            "length_km": float(road.total_length_km) if road.total_length_km else None,
+            "start": start,  # {"lat": ..., "lng": ...} or None
+            "end": end,      # {"lat": ..., "lng": ...} or None
         }
-    )
+
+    return {
+        "road": road_payload,
+        "zone": {"id": zone.id, "name": zone.name} if zone else None,
+        "woreda": {"id": woreda.id, "name": woreda.name} if woreda else None,
+        "road_length_km": float(road.total_length_km) if road and road.total_length_km else None,
+        "map_region": map_region,
+        "travel_modes": sorted(map_services.TRAVEL_MODES),
+    }
+
+
+@api_view(["GET"])
+def road_map_context(request: Request, pk: Optional[int] = None) -> Response:
+    """Return context to display a Leaflet map for a road or default region."""
+
+    payload = _road_map_context_data(request, pk=pk)
+    if "error" in payload:
+        return payload["error"]
+
+    return Response(payload)
+
+
+@api_view(["GET"])
+def road_map_context_default(request: Request) -> Response:
+    """
+    Wrapper to return a default map context when creating a new road
+    (no road ID yet). Keeps the contract identical to `road_map_context`.
+    """
+
+    payload = _road_map_context_data(request, pk=None)
+    if "error" in payload:
+        return payload["error"]
+
+    return Response(payload)
 
 
 @api_view(["POST"])

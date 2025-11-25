@@ -33,13 +33,23 @@
     }
 
     function formatBounds(bounds) {
-        if (!bounds || !bounds.northeast || !bounds.southwest) {
+        if (!bounds) {
             return null;
         }
-        return [
-            [bounds.southwest.lat, bounds.southwest.lng],
-            [bounds.northeast.lat, bounds.northeast.lng],
-        ];
+        if (bounds.northeast && bounds.southwest) {
+            return [
+                [bounds.southwest.lat, bounds.southwest.lng],
+                [bounds.northeast.lat, bounds.northeast.lng],
+            ];
+        }
+        if (typeof bounds.south === "number" && typeof bounds.west === "number"
+            && typeof bounds.north === "number" && typeof bounds.east === "number") {
+            return [
+                [bounds.south, bounds.west],
+                [bounds.north, bounds.east],
+            ];
+        }
+        return null;
     }
 
     function readPointFromInputs(latInput, lngInput) {
@@ -379,9 +389,11 @@
             const mapRegion = (lastPayload && lastPayload.map_region) || DEFAULT_MAP_REGION;
             const center = (mapRegion && mapRegion.center) || DEFAULT_MAP_REGION.center;
 
-            const roadStart = (lastPayload && lastPayload.start) || (config.road && config.road.start);
-            const roadEnd = (lastPayload && lastPayload.end) || (config.road && config.road.end);
-            const roadLength = (config.road && config.road.length_km) || (lastPayload && lastPayload.road_length_km) || null;
+            const roadStart = (lastPayload && lastPayload.road && lastPayload.road.start) || (config.road && config.road.start);
+            const roadEnd = (lastPayload && lastPayload.road && lastPayload.road.end) || (config.road && config.road.end);
+            const roadLength = (config.road && config.road.length_km)
+                || (lastPayload && lastPayload.road && lastPayload.road.length_km)
+                || null;
 
             if (!map) {
                 map = L.map(mapNode).setView([center.lat, center.lng], mapRegion.zoom || 7);
