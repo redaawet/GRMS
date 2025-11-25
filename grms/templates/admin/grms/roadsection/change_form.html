@@ -8,6 +8,8 @@
     {% endif %}
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/proj4@2.11.0/dist/proj4.js"></script>
+    <script src="{% static 'grms/js/mapPreview.js' %}"></script>
     <link rel="stylesheet" href="{% static 'grms/css/road-admin.css' %}">
     <script src="{% static 'grms/js/map-admin.js' %}" defer></script>
 {% endblock %}
@@ -62,13 +64,7 @@
                 <div class="road-map-panel__selectors">
                     <label><input type="radio" name="section-marker" value="start" checked> Set start</label>
                     <label><input type="radio" name="section-marker" value="end"> Set end</label>
-                    <select id="map-travel-mode">
-                        {% for mode in travel_modes %}
-                            <option value="{{ mode }}"{% if mode == "DRIVING" %} selected{% endif %}>{{ mode|title }}</option>
-                        {% endfor %}
-                    </select>
                     <button type="button" class="button" id="map-panel-refresh">Refresh map</button>
-                    <button type="button" class="button" id="map-route-preview">Preview route</button>
                 </div>
                 <p class="help">Click the map to set the active marker; latitude/longitude are copied into the form.</p>
                 <p class="help">Use the route preview to draw a suggested path; colors follow the chosen travel mode.</p>

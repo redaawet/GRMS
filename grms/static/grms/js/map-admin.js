@@ -390,7 +390,7 @@
                 map = L.map(mapNode).setView([center.lat, center.lng], mapRegion.zoom || 7);
                 L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
                     maxZoom: 18,
-                    attribution: "&copy; OpenStreetMap contributors",
+                    attribution: "© OpenStreetMap contributors",
                 }).addTo(map);
                 overlay = L.layerGroup().addTo(map);
                 markers = L.layerGroup().addTo(map);
@@ -408,6 +408,7 @@
             bindMapClick();
 
             const viewportBounds = addViewport(mapRegion);
+            const roadData = Object.assign({}, config.road || {}, { start: roadStart, end: roadEnd });
 
             if (viewportBounds) {
                 map.fitBounds(viewportBounds, { padding: [24, 24] });
