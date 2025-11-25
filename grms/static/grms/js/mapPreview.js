@@ -353,6 +353,8 @@
         const roadCoords = getFlattenedGeometry(roadGeometry);
         const safeRoadGeometry = isDirectFlightLine(roadCoords, start, end) ? null : roadGeometry;
 
+        // Sections are defined purely by chainage, so we avoid placing
+        // coordinate markers here to prevent any fallback to manual points.
         const markers = [];
         if (start) { markers.push(root.L.marker([start.lat, start.lng]).addTo(overlay)); }
         if (end) { markers.push(root.L.marker([end.lat, end.lng]).addTo(overlay)); }
