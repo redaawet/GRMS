@@ -169,6 +169,8 @@
             panel.innerHTML = "";
             const mapNode = document.createElement("div");
             mapNode.id = "road-map";
+            mapNode.className = "road-map";
+            mapNode.style.minHeight = "360px";
             panel.appendChild(mapNode);
             return mapNode;
         }
