@@ -33,13 +33,23 @@
     }
 
     function formatBounds(bounds) {
-        if (!bounds || !bounds.northeast || !bounds.southwest) {
+        if (!bounds) {
             return null;
         }
-        return [
-            [bounds.southwest.lat, bounds.southwest.lng],
-            [bounds.northeast.lat, bounds.northeast.lng],
-        ];
+        if (bounds.northeast && bounds.southwest) {
+            return [
+                [bounds.southwest.lat, bounds.southwest.lng],
+                [bounds.northeast.lat, bounds.northeast.lng],
+            ];
+        }
+        if (typeof bounds.south === "number" && typeof bounds.west === "number"
+            && typeof bounds.north === "number" && typeof bounds.east === "number") {
+            return [
+                [bounds.south, bounds.west],
+                [bounds.north, bounds.east],
+            ];
+        }
+        return null;
     }
 
     function readPointFromInputs(latInput, lngInput) {
@@ -335,16 +345,8 @@
                         setInputsFromLatLng("end", payload.end.lat, payload.end.lng);
                     }
 
-                    if (payload.route && payload.route.geometry && payload.route.geometry.length && map) {
-                        if (routes) {
-                            routes.clearLayers();
-                        }
-                        const latLngs = payload.route.geometry.map(function (coord) {
-                            return [coord[1], coord[0]];
-                        });
-                        const style = ROUTE_STYLES[(payload.travel_mode || travelMode || "DRIVING").toUpperCase()] || ROUTE_STYLES.DRIVING;
-                        routeLine = L.polyline(latLngs, style).addTo(routes || map);
-                        map.fitBounds(routeLine.getBounds(), { padding: [20, 20] });
+                    if (routes) {
+                        routes.clearLayers();
                     }
                     syncEditableMarkers(readPointFromInputs(startLatInput, startLngInput), readPointFromInputs(endLatInput, endLngInput));
                 })
@@ -366,23 +368,14 @@
             return bounds;
         }
 
-        function drawRange(startPoint, endPoint, options) {
-            if (!startPoint || !endPoint || !overlay) {
-                return;
-            }
-            L.polyline([startPoint, endPoint], options).addTo(overlay);
-        }
-
         function renderMap(payload) {
             lastPayload = payload || lastPayload || {};
             const mapNode = ensureMapContainer();
             const mapRegion = (lastPayload && lastPayload.map_region) || DEFAULT_MAP_REGION;
             const center = (mapRegion && mapRegion.center) || DEFAULT_MAP_REGION.center;
 
-            const roadStart = (lastPayload && lastPayload.start) || (config.road && config.road.start);
-            const roadEnd = (lastPayload && lastPayload.end) || (config.road && config.road.end);
-            const roadLength = (config.road && config.road.length_km) || (lastPayload && lastPayload.road_length_km) || null;
-
+            const roadStart = (lastPayload && lastPayload.road && lastPayload.road.start) || (config.road && config.road.start);
+            const roadEnd = (lastPayload && lastPayload.road && lastPayload.road.end) || (config.road && config.road.end);
             if (!map) {
                 map = L.map(mapNode).setView([center.lat, center.lng], mapRegion.zoom || 7);
                 L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
@@ -406,32 +399,14 @@
 
             const viewportBounds = addViewport(mapRegion);
 
-            let roadLine;
-            if (roadStart && roadEnd && overlay) {
-                roadLine = L.polyline(
-                    [
-                        [roadStart.lat, roadStart.lng],
-                        [roadEnd.lat, roadEnd.lng],
-                    ],
-                    { color: "#6b7280", weight: 4 }
-                ).addTo(overlay);
-                map.fitBounds(roadLine.getBounds(), { padding: [30, 30] });
-            } else if (viewportBounds) {
+            if (viewportBounds) {
                 map.fitBounds(viewportBounds, { padding: [24, 24] });
-            }
-
-            if (!roadLine || !roadLength || roadLength <= 0) {
-                return;
-            }
-
-            const sectionStartFraction = config.section && clampFraction(config.section.start_chainage_km / roadLength);
-            const sectionEndFraction = config.section && clampFraction(config.section.end_chainage_km / roadLength);
-            if (sectionStartFraction !== null && sectionEndFraction !== null) {
-                drawRange(
-                    interpolatePoint(roadStart, roadEnd, sectionStartFraction),
-                    interpolatePoint(roadStart, roadEnd, sectionEndFraction),
-                    { color: "#0ea5e9", weight: 6 }
+            } else if (roadStart && roadEnd) {
+                const roadBounds = L.latLngBounds(
+                    [roadStart.lat, roadStart.lng],
+                    [roadEnd.lat, roadEnd.lng]
                 );
+                map.fitBounds(roadBounds, { padding: [30, 30] });
             }
 
             const configPoints = (config.section && config.section.points) || {};
@@ -467,18 +442,6 @@
                     })
                         .bindTooltip("Section end", { permanent: false })
                         .addTo(markers);
-                }
-            }
-
-            if (config.scope === "segment" && config.segment) {
-                const segmentStart = clampFraction(config.segment.station_from_km / roadLength);
-                const segmentEnd = clampFraction(config.segment.station_to_km / roadLength);
-                if (segmentStart !== null && segmentEnd !== null) {
-                    drawRange(
-                        interpolatePoint(roadStart, roadEnd, segmentStart),
-                        interpolatePoint(roadStart, roadEnd, segmentEnd),
-                        { color: "#f97316", weight: 7 }
-                    );
                 }
             }
 

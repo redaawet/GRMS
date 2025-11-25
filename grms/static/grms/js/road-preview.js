@@ -1,181 +1,473 @@
-(function (root) {
+(function () {
     "use strict";
 
-    const STYLES = {
-        road: { color: "#475569", weight: 4, opacity: 0.7 },
-        section: { color: "#0ea5e9", weight: 6, opacity: 0.85 },
-        segment: { color: "#f97316", weight: 7, opacity: 0.95 },
+    function parseJSONScript(id) {
+        const el = document.getElementById(id);
+        if (!el) {
+            return null;
+        }
+        try {
+            return JSON.parse(el.textContent);
+        } catch (err) {
+            console.error("Invalid configuration", err);
+            return null;
+        }
+    }
+
+    function getCsrfToken() {
+        const match = document.cookie.match(/csrftoken=([^;]+)/);
+        return match ? match[1] : "";
+    }
+
+    function formatRouteSummary(summary) {
+        if (!summary) {
+            return "";
+        }
+        const parts = [];
+        if (summary.distance_text) {
+            parts.push("Distance: " + summary.distance_text);
+        }
+        if (summary.duration_text) {
+            parts.push("Duration: " + summary.duration_text);
+        }
+        if (summary.start_address) {
+            parts.push("From: " + summary.start_address);
+        }
+        if (summary.end_address) {
+            parts.push("To: " + summary.end_address);
+        }
+        return parts.join(" · ");
+    }
+
+    const DEFAULT_MAP_REGION = {
+        formatted_address: "UTM Zone 37N (Ethiopia)",
+        center: { lat: 9.0, lng: 39.0 },
+        bounds: {
+            northeast: { lat: 15.0, lng: 42.0 },
+            southwest: { lat: 3.0, lng: 36.0 },
+        },
+        viewport: {
+            northeast: { lat: 15.0, lng: 42.0 },
+            southwest: { lat: 3.0, lng: 36.0 },
+        },
     };
 
-    function toLeafletLatLngs(coordinates) {
-        if (!Array.isArray(coordinates)) {
-            return [];
-        }
-        return coordinates.map(function (point) {
-            return [point[1], point[0]];
-        });
-    }
+    const defaultMapPayload = { map_region: DEFAULT_MAP_REGION };
 
-    function haversineDistanceMeters(start, end) {
-        const toRadians = Math.PI / 180;
-        const dLat = (end[1] - start[1]) * toRadians;
-        const dLng = (end[0] - start[0]) * toRadians;
-        const lat1 = start[1] * toRadians;
-        const lat2 = end[1] * toRadians;
-        const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
-        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-        return 6371000 * c; // Earth radius in meters
-    }
+    const ROUTE_STYLES = {
+        DRIVING: { color: "#2563eb", weight: 4, opacity: 0.85 },
+        WALKING: { color: "#16a34a", weight: 4, opacity: 0.9 },
+        BICYCLING: { color: "#f97316", weight: 4, opacity: 0.9 },
+    };
 
-    function interpolateLonLat(start, end, fraction) {
-        return [
-            start[0] + (end[0] - start[0]) * fraction,
-            start[1] + (end[1] - start[1]) * fraction,
-        ];
-    }
-
-    function sliceLineStringByChainage(geometry, startChainage, endChainage) {
-        const coordinates = geometry?.coordinates || geometry;
-        if (!Array.isArray(coordinates) || coordinates.length < 2) {
-            return { type: "LineString", coordinates: [] };
-        }
-
-        let clampedStart = Math.max(0, Number(startChainage) || 0);
-        const totalLength = coordinates.slice(1).reduce(function (distance, point, index) {
-            return distance + haversineDistanceMeters(coordinates[index], point);
-        }, 0);
-        let clampedEnd = Number.isFinite(endChainage) ? Math.min(Number(endChainage), totalLength) : totalLength;
-        clampedEnd = Math.max(clampedStart, clampedEnd);
-
-        const sliced = [];
-        let traversed = 0;
-
-        for (let i = 0; i < coordinates.length - 1; i += 1) {
-            const segmentStart = coordinates[i];
-            const segmentEnd = coordinates[i + 1];
-            const segmentLength = haversineDistanceMeters(segmentStart, segmentEnd);
-            const nextDistance = traversed + segmentLength;
-
-            if (nextDistance < clampedStart) {
-                traversed = nextDistance;
-                continue;
-            }
-
-            if (!sliced.length) {
-                const startFraction = segmentLength === 0 ? 0 : (clampedStart - traversed) / segmentLength;
-                sliced.push(interpolateLonLat(segmentStart, segmentEnd, startFraction));
-            }
-
-            if (nextDistance <= clampedEnd) {
-                sliced.push(segmentEnd);
-                traversed = nextDistance;
-                continue;
-            }
-
-            const endFraction = segmentLength === 0 ? 0 : (clampedEnd - traversed) / segmentLength;
-            sliced.push(interpolateLonLat(segmentStart, segmentEnd, endFraction));
-            break;
-        }
-
-        return { type: "LineString", coordinates: sliced };
-    }
-
-    async function fetchRoadRoute(startLat, startLng, endLat, endLng) {
-        const url = "https://router.project-osrm.org/route/v1/driving/" +
-            encodeURIComponent(startLng) + "," + encodeURIComponent(startLat) + ";" +
-            encodeURIComponent(endLng) + "," + encodeURIComponent(endLat) +
-            "?overview=full&geometries=geojson";
-
-        const response = await fetch(url);
-        if (!response.ok) {
-            throw new Error("OSRM request failed with status " + response.status);
-        }
-        const payload = await response.json();
-        const geometry = payload?.routes?.[0]?.geometry;
-        if (!geometry || geometry.type !== "LineString") {
-            throw new Error(payload?.message || "OSRM returned an invalid route.");
-        }
-        return { type: "LineString", coordinates: geometry.coordinates };
-    }
-
-    function ensureMapBounds(map, polyline) {
-        if (!map || !polyline) {
+    function initRoadAdmin() {
+        const config = window.road_admin_config || parseJSONScript("road-admin-config");
+        const panel = document.getElementById("road-map-panel");
+        if (!config || !panel) {
             return;
         }
-        const bounds = polyline.getBounds();
-        if (bounds.isValid()) {
-            map.fitBounds(bounds, { padding: [16, 16] });
+
+        const routeButton = document.getElementById("road-route-preview");
+        const refreshButton = document.getElementById("road-map-refresh");
+        const statusEl = document.getElementById("road-map-status");
+        const travelModeSelect = document.getElementById("road-travel-mode");
+        const zoneSelect = document.getElementById("id_admin_zone");
+        const woredaSelect = document.getElementById("id_admin_woreda");
+        const markerRadios = document.querySelectorAll('input[name="road-marker"]');
+        const startLat = document.getElementById("id_start_lat");
+        const startLng = document.getElementById("id_start_lng");
+        const endLat = document.getElementById("id_end_lat");
+        const endLng = document.getElementById("id_end_lng");
+
+        if (!startLat || !startLng || !endLat || !endLng) {
+            return;
         }
-    }
 
-    function drawPolyline(map, geometry, style) {
-        if (!map || !geometry || !Array.isArray(geometry.coordinates)) {
-            return null;
+        let activeMarker = "start";
+        let map;
+        let startMarker;
+        let endMarker;
+        let mapLoaded = false;
+        let routeLine;
+        let roadLine;
+
+        function showStatus(message, level) {
+            if (!statusEl) {
+                return;
+            }
+            statusEl.textContent = message || "";
+            statusEl.className = "road-map-panel__status" + (level ? " " + level : "");
         }
-        const latlngs = toLeafletLatLngs(geometry.coordinates);
-        if (!latlngs.length || !root.L) {
-            return null;
+
+        function setActiveMarker(value) {
+            activeMarker = value;
         }
-        return root.L.polyline(latlngs, style).addTo(map);
-    }
 
-    async function ensureRoadGeometry(road) {
-        if (road?.route_geometry?.type === "LineString") {
-            return road.route_geometry;
+        markerRadios.forEach(function (radio) {
+            radio.addEventListener("change", function (event) {
+                if (event.target.checked) {
+                    setActiveMarker(event.target.value);
+                }
+            });
+        });
+
+        function updateMarkerPosition(marker, latInput, lngInput) {
+            const lat = parseFloat(latInput.value);
+            const lng = parseFloat(lngInput.value);
+            if (!isFinite(lat) || !isFinite(lng) || !marker) {
+                return;
+            }
+            const position = [lat, lng];
+            marker.setLatLng(position);
+            if (map && !map.hasLayer(marker)) {
+                marker.addTo(map);
+            }
         }
-        if (!road || !Number.isFinite(road.start_lat) || !Number.isFinite(road.start_lng) ||
-            !Number.isFinite(road.end_lat) || !Number.isFinite(road.end_lng)) {
-            throw new Error("Road requires numeric start/end coordinates.");
+
+        function syncMarkersFromInputs() {
+            updateMarkerPosition(startMarker, startLat, startLng);
+            updateMarkerPosition(endMarker, endLat, endLng);
         }
-        const geometry = await fetchRoadRoute(road.start_lat, road.start_lng, road.end_lat, road.end_lng);
-        road.route_geometry = geometry;
-        return geometry;
+
+        function getRoadCoordinates() {
+            const coords = {
+                start: [parseFloat(startLat.value), parseFloat(startLng.value)],
+                end: [parseFloat(endLat.value), parseFloat(endLng.value)],
+            };
+            if (!coords.start.every(Number.isFinite) || !coords.end.every(Number.isFinite)) {
+                return null;
+            }
+            return coords;
+        }
+
+        function drawRoadLine(shouldFit) {
+            if (!map || !window.L) {
+                return false;
+            }
+            const coords = getRoadCoordinates();
+            if (!coords) {
+                if (roadLine && map.hasLayer(roadLine)) {
+                    map.removeLayer(roadLine);
+                }
+                roadLine = null;
+                return false;
+            }
+            if (roadLine && map.hasLayer(roadLine)) {
+                map.removeLayer(roadLine);
+            }
+            roadLine = null;
+            if (shouldFit) {
+                const bounds = L.latLngBounds([coords.start, coords.end]);
+                map.fitBounds(bounds, { padding: [40, 40] });
+            }
+            return true;
+        }
+
+        function ensureMapContainer() {
+            if (panel.querySelector("#road-map")) {
+                return panel.querySelector("#road-map");
+            }
+            panel.innerHTML = "";
+            const mapNode = document.createElement("div");
+            mapNode.id = "road-map";
+            mapNode.className = "road-map";
+            mapNode.style.minHeight = "360px";
+            panel.appendChild(mapNode);
+            return mapNode;
+        }
+
+        function setInputsFromPoint(point, prefix) {
+            if (!point) {
+                return;
+            }
+            const latInput = prefix === "start" ? startLat : endLat;
+            const lngInput = prefix === "start" ? startLng : endLng;
+            latInput.value = point.lat;
+            lngInput.value = point.lng;
+        }
+
+        function buildQueryString(params) {
+            const searchParams = new URLSearchParams();
+            Object.keys(params).forEach(function (key) {
+                if (params[key]) {
+                    searchParams.append(key, params[key]);
+                }
+            });
+            const query = searchParams.toString();
+            if (!query) {
+                return "";
+            }
+            return (config.api.map_context.indexOf("?") === -1 ? "?" : "&") + query;
+        }
+
+        function fetchMapContext(extraParams) {
+            if (!config.api.map_context) {
+                return Promise.resolve(defaultMapPayload);
+            }
+            const query = extraParams ? buildQueryString(extraParams) : "";
+            return fetch(config.api.map_context + query, { credentials: "same-origin" }).then(function (response) {
+                if (!response.ok) {
+                    return response.json().catch(function () { return {}; }).then(function (payload) {
+                        const detail = payload.detail || "Unable to fetch map context.";
+                        throw new Error(detail);
+                    });
+                }
+                return response.json();
+            });
+        }
+
+        function refreshMap(extraParams) {
+            showStatus("Requesting map viewport…");
+            fetchMapContext(extraParams)
+                .then(function (payload) {
+                    showStatus("Map context loaded.", "success");
+                    if (!mapLoaded) {
+                        initialiseMap(payload);
+                    }
+                    if (payload.road && payload.road.start && !startLat.value) {
+                        setInputsFromPoint(payload.road.start, "start");
+                    }
+                    if (payload.road && payload.road.end && !endLat.value) {
+                        setInputsFromPoint(payload.road.end, "end");
+                    }
+                    syncMarkersFromInputs();
+                    const hasRoadLine = drawRoadLine(true);
+                    if (!hasRoadLine && mapLoaded) {
+                        updateMapViewport(payload);
+                    }
+                })
+                .catch(function (err) {
+                    showStatus(err.message, "error");
+                });
+        }
+
+        function initialiseMap(payload) {
+            const mapNode = ensureMapContainer();
+            const center = (payload.map_region && payload.map_region.center) || DEFAULT_MAP_CENTER;
+            if (!window.L) {
+                showStatus("Leaflet failed to load.", "error");
+                return;
+            }
+            mapLoaded = true;
+            map = L.map(mapNode).setView([center.lat, center.lng], 8);
+            L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+                attribution: "© OpenStreetMap contributors",
+                maxZoom: 19,
+            }).addTo(map);
+            startMarker = L.marker([center.lat, center.lng], { title: "Start" }).addTo(map);
+            endMarker = L.marker([center.lat, center.lng], { title: "End" }).addTo(map);
+            syncMarkersFromInputs();
+            updateMapViewport(payload);
+            map.on("click", function (event) {
+                const lat = event.latlng.lat;
+                const lng = event.latlng.lng;
+                if (activeMarker === "end") {
+                    endLat.value = lat.toFixed(6);
+                    endLng.value = lng.toFixed(6);
+                } else {
+                    startLat.value = lat.toFixed(6);
+                    startLng.value = lng.toFixed(6);
+                }
+                syncMarkersFromInputs();
+                drawRoadLine(true);
+            });
+        }
+
+        function updateMapViewport(payload) {
+            if (!map) {
+                return;
+            }
+            const bounds = payload.map_region && (payload.map_region.bounds || payload.map_region.viewport);
+            if (bounds && bounds.northeast && bounds.southwest) {
+                const sw = bounds.southwest;
+                const ne = bounds.northeast;
+                const mapBounds = L.latLngBounds(
+                    [sw.lat, sw.lng],
+                    [ne.lat, ne.lng]
+                );
+                map.fitBounds(mapBounds);
+            } else if (bounds && typeof bounds.south === "number" && typeof bounds.west === "number"
+                && typeof bounds.north === "number" && typeof bounds.east === "number") {
+                const mapBounds = L.latLngBounds(
+                    [bounds.south, bounds.west],
+                    [bounds.north, bounds.east]
+                );
+                map.fitBounds(mapBounds);
+            } else if (payload.map_region && payload.map_region.center) {
+                map.setView([payload.map_region.center.lat, payload.map_region.center.lng]);
+            }
+        }
+
+        function ensureCoordinates() {
+            const values = {
+                start_lat: parseFloat(startLat.value),
+                start_lng: parseFloat(startLng.value),
+                end_lat: parseFloat(endLat.value),
+                end_lng: parseFloat(endLng.value),
+                start_easting: parseFloat(document.getElementById("id_start_easting")?.value),
+                start_northing: parseFloat(document.getElementById("id_start_northing")?.value),
+                end_easting: parseFloat(document.getElementById("id_end_easting")?.value),
+                end_northing: parseFloat(document.getElementById("id_end_northing")?.value),
+            };
+
+            const startHasLatLng = Number.isFinite(values.start_lat) && Number.isFinite(values.start_lng);
+            const endHasLatLng = Number.isFinite(values.end_lat) && Number.isFinite(values.end_lng);
+            const startHasUtm = Number.isFinite(values.start_easting) && Number.isFinite(values.start_northing);
+            const endHasUtm = Number.isFinite(values.end_easting) && Number.isFinite(values.end_northing);
+
+            if (!startHasLatLng && !startHasUtm) {
+                throw new Error("Enter a valid start latitude/longitude or UTM easting/northing.");
+            }
+            if (!endHasLatLng && !endHasUtm) {
+                throw new Error("Enter a valid end latitude/longitude or UTM easting/northing.");
+            }
+
+            return {
+                start: startHasLatLng
+                    ? { lat: values.start_lat, lng: values.start_lng }
+                    : { easting: values.start_easting, northing: values.start_northing },
+                end: endHasLatLng
+                    ? { lat: values.end_lat, lng: values.end_lng }
+                    : { easting: values.end_easting, northing: values.end_northing },
+            };
+        }
+
+        function previewRoute() {
+            let coords;
+            try {
+                coords = ensureCoordinates();
+            } catch (err) {
+                showStatus(err.message, "error");
+                return;
+            }
+            showStatus("Requesting route preview…");
+            fetch(config.api.route, {
+                method: "POST",
+                credentials: "same-origin",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRFToken": getCsrfToken(),
+                },
+                body: JSON.stringify({
+                    start: coords.start,
+                    end: coords.end,
+                    travel_mode: travelModeSelect ? travelModeSelect.value : "DRIVING",
+                }),
+            })
+                .then(function (response) {
+                    if (!response.ok) {
+                        return response.json().catch(function () { return {}; }).then(function (payload) {
+                            throw new Error(payload.detail || "Unable to fetch a route preview.");
+                        });
+                    }
+                    return response.json();
+                })
+                .then(function (payload) {
+                    const summary = formatRouteSummary(payload.route);
+                    if (summary) {
+                        showStatus(summary, "success");
+                    } else {
+                        showStatus("Route retrieved successfully.", "success");
+                    }
+                    if (payload.start && payload.end) {
+                        startLat.value = payload.start.lat;
+                        startLng.value = payload.start.lng;
+                        endLat.value = payload.end.lat;
+                        endLng.value = payload.end.lng;
+                    }
+                    if (payload.route && payload.route.geometry && payload.route.geometry.length && map) {
+                        if (routeLine) {
+                            map.removeLayer(routeLine);
+                        }
+                        const latLngs = payload.route.geometry.map(function (coord) {
+                            return [coord[1], coord[0]];
+                        });
+                        const style = ROUTE_STYLES[(payload.travel_mode || travelModeSelect.value || "DRIVING").toUpperCase()] ||
+                            ROUTE_STYLES.DRIVING;
+                        routeLine = L.polyline(latLngs, style).addTo(map);
+                        map.fitBounds(routeLine.getBounds(), { padding: [20, 20] });
+                    }
+                    syncMarkersFromInputs();
+                })
+                .catch(function (err) {
+                    showStatus(err.message, "error");
+                });
+        }
+
+        function setDefaultTravelMode() {
+            if (!travelModeSelect) {
+                return;
+            }
+            const desired = "DRIVING";
+            if (travelModeSelect.querySelector(`option[value="${desired}"]`)) {
+                travelModeSelect.value = desired;
+            }
+        }
+
+        [startLat, startLng, endLat, endLng].forEach(function (input) {
+            input.addEventListener("change", function () {
+                syncMarkersFromInputs();
+                drawRoadLine(true);
+            });
+            input.addEventListener("input", function () {
+                // Delay updates to avoid noisy marker moves during typing.
+                clearTimeout(input._roadAdminTimer);
+                input._roadAdminTimer = setTimeout(function () {
+                    syncMarkersFromInputs();
+                    drawRoadLine(true);
+                }, 400);
+            });
+        });
+
+        if (zoneSelect) {
+            zoneSelect.addEventListener("change", function () {
+                const params = {
+                    zone_id: zoneSelect.value || "",
+                    woreda_id: woredaSelect ? woredaSelect.value : "",
+                };
+                refreshMap(params);
+            });
+        }
+
+        if (woredaSelect) {
+            woredaSelect.addEventListener("change", function () {
+                const params = {
+                    zone_id: zoneSelect ? zoneSelect.value : "",
+                    woreda_id: woredaSelect.value || "",
+                };
+                refreshMap(params);
+            });
+        }
+
+        if (refreshButton) {
+            refreshButton.addEventListener("click", function () {
+                const params = {
+                    zone_id: zoneSelect ? zoneSelect.value : "",
+                    woreda_id: woredaSelect ? woredaSelect.value : "",
+                };
+                refreshMap(params);
+            });
+        }
+
+        if (routeButton) {
+            if (!config.api.route) {
+                routeButton.disabled = true;
+                routeButton.title = "Save the road to enable server-powered route previews.";
+            } else {
+                routeButton.addEventListener("click", previewRoute);
+            }
+        }
+
+        setDefaultTravelMode();
+
+        if (!config.road_id) {
+            showStatus(
+                "Displaying default map view (Zone 37N). Set start/end coordinates now; saving will keep them and enable routing.",
+            );
+        }
+
+        refreshMap();
     }
 
-    async function previewRoad(map, road) {
-        const geometry = await ensureRoadGeometry(road);
-        const roadLine = drawPolyline(map, geometry, STYLES.road);
-        ensureMapBounds(map, roadLine);
-        return { roadLine: roadLine };
-    }
-
-    async function previewRoadSection(map, road, section) {
-        const geometry = await ensureRoadGeometry(road);
-        const roadLine = drawPolyline(map, geometry, STYLES.road);
-        const sectionGeometry = sliceLineStringByChainage(
-            geometry,
-            section?.start_chainage,
-            section?.end_chainage
-        );
-        const sectionLine = drawPolyline(map, sectionGeometry, STYLES.section);
-        ensureMapBounds(map, sectionLine || roadLine);
-        return { roadLine: roadLine, sectionLine: sectionLine };
-    }
-
-    async function previewRoadSegment(map, road, section, segment) {
-        const geometry = await ensureRoadGeometry(road);
-        const roadLine = drawPolyline(map, geometry, STYLES.road);
-        const sectionGeometry = sliceLineStringByChainage(
-            geometry,
-            section?.start_chainage,
-            section?.end_chainage
-        );
-        const sectionLine = drawPolyline(map, sectionGeometry, Object.assign({}, STYLES.section, { weight: 5, opacity: 0.7 }));
-        const segmentGeometry = sliceLineStringByChainage(
-            geometry,
-            segment?.start_chainage,
-            segment?.end_chainage
-        );
-        const segmentLine = drawPolyline(map, segmentGeometry, STYLES.segment);
-        ensureMapBounds(map, segmentLine || sectionLine || roadLine);
-        return { roadLine: roadLine, sectionLine: sectionLine, segmentLine: segmentLine };
-    }
-
-    root.RoadPreview = {
-        fetchRoadRoute: fetchRoadRoute,
-        previewRoad: previewRoad,
-        previewRoadSection: previewRoadSection,
-        previewRoadSegment: previewRoadSegment,
-        sliceLineStringByChainage: sliceLineStringByChainage,
-    };
-})(window);
+    document.addEventListener("DOMContentLoaded", initRoadAdmin);
+})();

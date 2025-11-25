@@ -223,11 +223,11 @@
                     if (!mapLoaded) {
                         initialiseMap(payload);
                     }
-                    if (payload.start && !startLat.value) {
-                        setInputsFromPoint(payload.start, "start");
+                    if (payload.road && payload.road.start && !startLat.value) {
+                        setInputsFromPoint(payload.road.start, "start");
                     }
-                    if (payload.end && !endLat.value) {
-                        setInputsFromPoint(payload.end, "end");
+                    if (payload.road && payload.road.end && !endLat.value) {
+                        setInputsFromPoint(payload.road.end, "end");
                     }
                     syncMarkersFromInputs();
                     const hasRoadLine = drawRoadLine(true);
