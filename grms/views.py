@@ -575,6 +575,18 @@ def preview_route(request: Request) -> Response:
 
 
 def _road_map_context_data(request: Request, pk: Optional[int] = None) -> dict:
+    def _geometry_to_json(geom):
+        if not geom:
+            return None
+        if hasattr(geom, "geojson"):
+            try:
+                import json
+
+                return json.loads(geom.geojson)
+            except Exception:
+                return None
+        return geom
+
     road: Optional[models.Road] = None
     start = None
     end = None
@@ -621,6 +633,7 @@ def _road_map_context_data(request: Request, pk: Optional[int] = None) -> dict:
             "length_km": float(road.total_length_km) if road.total_length_km else None,
             "start": start,  # {"lat": ..., "lng": ...} or None
             "end": end,      # {"lat": ..., "lng": ...} or None
+            "geometry": _geometry_to_json(getattr(road, "geometry", None)),
         }
 
     return {
