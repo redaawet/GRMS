@@ -348,6 +348,16 @@
                     if (routes) {
                         routes.clearLayers();
                     }
+
+                    if (payload.route && Array.isArray(payload.route.geometry) && payload.route.geometry.length && routes) {
+                        const latLngs = payload.route.geometry.map(function (coord) {
+                            return [coord[1], coord[0]];
+                        });
+                        const style = ROUTE_STYLES[(travelMode || "DRIVING").toUpperCase()] || ROUTE_STYLES.DRIVING;
+                        const line = L.polyline(latLngs, style).addTo(routes);
+                        map.fitBounds(line.getBounds(), { padding: [24, 24] });
+                    }
+
                     syncEditableMarkers(readPointFromInputs(startLatInput, startLngInput), readPointFromInputs(endLatInput, endLngInput));
                 })
                 .catch(function (err) {
