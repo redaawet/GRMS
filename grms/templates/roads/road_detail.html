@@ -81,7 +81,12 @@
                 return;
             }
             try {
-                const result = await window.MapPreview.previewRoad(map, road, { layerGroup: overlay });
+                const result = await window.MapPreview.previewRoad(map, road, {
+                    layerGroup: overlay,
+                    apiRoute: mapConfig.api?.route,
+                    api: mapConfig.api,
+                    default_travel_mode: mapConfig.default_travel_mode,
+                });
                 activeLayers = [result.routeLayer, result.startMarker, result.endMarker].filter(Boolean);
             } catch (err) {
                 console.error('Unable to render road preview', err);

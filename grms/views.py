@@ -6,6 +6,8 @@ import json
 from decimal import Decimal, InvalidOperation
 from typing import Dict, List, Optional
 
+from django.urls import reverse
+
 from django.db import transaction
 from django.db.models import QuerySet
 from django.shortcuts import get_object_or_404, redirect, render
@@ -331,6 +333,8 @@ def road_alignment(request: Request, road_id: int):
             "map_bounds": map_region.get("bounds") or map_region.get("viewport"),
             "start": start_point,
             "end": end_point,
+            "api": {"route": reverse("route_preview")},
+            "default_travel_mode": "DRIVING",
         }
     )
 
@@ -377,6 +381,8 @@ def road_detail(request: Request, road_id: int):
                     "map_bounds": map_region.get("bounds") or map_region.get("viewport"),
                     "start": start_point,
                     "end": end_point,
+                    "api": {"route": reverse("route_preview")},
+                    "default_travel_mode": "DRIVING",
                 }
             ),
         },
@@ -465,6 +471,8 @@ def section_map_preview(request: Request, road_id: int, section_id: int):
                     "surface_type": section.surface_type,
                     "length_km": float(section.length_km),
                 },
+                "api": {"route": reverse("route_preview")},
+                "default_travel_mode": "DRIVING",
             },
         },
     )

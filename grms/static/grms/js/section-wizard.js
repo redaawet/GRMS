@@ -113,7 +113,13 @@
                     map,
                     config.road,
                     config.section,
-                    { layerGroup: overlay }
+                    {
+                        layerGroup: overlay,
+                        apiRoute: config.api?.route,
+                        api: config.api,
+                        travelMode: config.default_travel_mode,
+                        default_travel_mode: config.default_travel_mode,
+                    }
                 );
                 activeLayers = [result.roadLayer, result.sectionLayer].filter(Boolean);
             } catch (err) {

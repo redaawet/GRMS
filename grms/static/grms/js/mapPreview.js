@@ -166,22 +166,41 @@
         return sliced;
     }
 
-    async function fetchOSRMRoute(lat1, lng1, lat2, lng2) {
-        const url = "https://router.project-osrm.org/route/v1/driving/"
-            + encodeURIComponent(lng1) + "," + encodeURIComponent(lat1) + ";"
-            + encodeURIComponent(lng2) + "," + encodeURIComponent(lat2)
-            + "?overview=full&geometries=geojson";
+    async function fetchRoutePreview(apiRoute, start, end, mode) {
+        if (!apiRoute) {
+            throw new Error("Route preview endpoint is not configured.");
+        }
+        const response = await fetch(apiRoute, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "same-origin",
+            body: JSON.stringify({
+                start: { lat: start.lat, lng: start.lng },
+                end: { lat: end.lat, lng: end.lng },
+                travel_mode: mode || "DRIVING",
+            }),
+        });
 
-        const response = await fetch(url);
         if (!response.ok) {
-            throw new Error("OSRM request failed with status " + response.status);
+            let detail = "Unable to fetch routed geometry.";
+            try {
+                const payload = await response.json();
+                if (payload?.detail) {
+                    detail = payload.detail;
+                }
+            } catch (err) {
+                // Ignore parsing error; fallback to default detail.
+            }
+            throw new Error(detail);
         }
+
         const payload = await response.json();
-        const geometry = payload?.routes?.[0]?.geometry;
-        if (!geometry || geometry.type !== "LineString" || !Array.isArray(geometry.coordinates)) {
-            throw new Error(payload?.message || "OSRM returned an invalid route.");
+        const geometry = payload?.route?.geometry;
+        if (!Array.isArray(geometry) || geometry.length === 0) {
+            throw new Error("Route preview did not return valid geometry.");
         }
-        return { type: "LineString", coordinates: geometry.coordinates };
+
+        return { type: "LineString", coordinates: geometry };
     }
 
     function drawRouteLine(mapOrLayer, geometry, style) {
@@ -233,7 +252,9 @@
         return { start, end };
     }
 
-    async function ensureRoadGeometry(road) {
+    async function ensureRoadGeometry(road, options) {
+        const apiRoute = options?.apiRoute || options?.api?.route || "/api/routes/preview/";
+        const travelMode = (options?.travelMode || options?.default_travel_mode || "DRIVING").toUpperCase();
         const flattened = getFlattenedGeometry(road?.route_geometry || road?.geometry || road?.alignment_geojson);
         if (flattened.length) {
             return { type: "LineString", coordinates: flattened };
@@ -242,17 +263,18 @@
         const cached = root.__roadRouteGeometry;
         const { start, end } = extractEndpoints(road);
         if (!start || !end) {
+            console.warn("No road start/end coordinates available.");
             throw new Error("Road requires start and end coordinates.");
         }
-        if (cached && cached.start && cached.end &&
+        if (cached && cached.start && cached.end && cached.apiRoute === apiRoute && cached.travelMode === travelMode &&
             cached.start.lat === start.lat && cached.start.lng === start.lng &&
             cached.end.lat === end.lat && cached.end.lng === end.lng) {
             return cached.geometry;
         }
-        const geometry = await fetchOSRMRoute(start.lat, start.lng, end.lat, end.lng);
+        const geometry = await fetchRoutePreview(apiRoute, start, end, travelMode);
         const flattenedRoute = getFlattenedGeometry(geometry);
         const normalized = flattenedRoute.length ? { type: "LineString", coordinates: flattenedRoute } : geometry;
-        root.__roadRouteGeometry = { geometry: normalized, start, end };
+        root.__roadRouteGeometry = { geometry: normalized, start, end, apiRoute, travelMode };
         return normalized;
     }
 
@@ -265,7 +287,7 @@
     }
 
     async function previewRoad(map, road, options) {
-        const geometry = await ensureRoadGeometry(road);
+        const geometry = await ensureRoadGeometry(road, options);
         const target = options?.layerGroup || map;
         const routeLayer = geometry ? drawRouteLine(target, geometry, COLORS.road) : null;
 
@@ -283,7 +305,7 @@
     }
 
     async function previewRoadSection(map, road, section, options) {
-        const geometry = await ensureRoadGeometry(road);
+        const geometry = await ensureRoadGeometry(road, options);
         const target = options?.layerGroup || map;
         const roadLayer = geometry ? drawRouteLine(target, geometry, COLORS.road) : null;
 
@@ -301,7 +323,7 @@
     }
 
     async function previewRoadSegment(map, road, segment, options) {
-        const geometry = await ensureRoadGeometry(road);
+        const geometry = await ensureRoadGeometry(road, options);
         const target = options?.layerGroup || map;
         const roadLayer = geometry ? drawRouteLine(target, geometry, COLORS.road) : null;
 
@@ -336,7 +358,7 @@
     root.MapPreview = {
         initMap,
         utm37ToLatLng,
-        fetchOSRMRoute,
+        fetchRoutePreview,
         computeCumulativeDistances,
         sliceRouteByChainage,
         sliceRouteByDistanceMeters,
