@@ -97,19 +97,67 @@
             if (!window.MapPreview) {
                 return;
             }
+            function sliceByChainage(polyline, chStart, chEnd, totalLen) {
+                const s = Math.floor((chStart / totalLen) * (polyline.length - 1));
+                const e = Math.floor((chEnd / totalLen) * (polyline.length - 1));
+                return polyline.slice(s, e + 1);
+            }
+
+            const result = { roadLayer: null, sectionLayer: null };
             try {
-                const result = await window.MapPreview.previewRoadSection(
-                    map,
-                    config.road,
-                    config.section,
-                    {
-                        layerGroup: overlay,
-                        apiRoute: config.api?.route,
-                        api: config.api,
-                        travelMode: config.default_travel_mode,
-                        default_travel_mode: config.default_travel_mode,
-                    }
-                );
+                const layerGroup = overlay;
+                const roadResponse = await fetch(config.api.route, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        start: config.road.start,
+                        end: config.road.end,
+                        mode: config.default_travel_mode
+                    })
+                });
+
+                const roadData = await roadResponse.json();
+                const roadCoords = roadData.geometry.coordinates.map(c => [c[1], c[0]]);
+                result.roadLayer = L.polyline(roadCoords, { color: "#666", weight: 4 }).addTo(layerGroup);
+                window._roadPolyline = roadCoords;
+
+                let sectionCoords = null;
+
+                if (config.section?.points?.start && config.section?.points?.end) {
+                    const sectionResponse = await fetch(config.api.route, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            start: config.section.points.start,
+                            end: config.section.points.end,
+                            mode: config.default_travel_mode
+                        })
+                    });
+
+                    const sectionData = await sectionResponse.json();
+                    sectionCoords = sectionData.geometry.coordinates.map(c => [c[1], c[0]]);
+                    result.sectionLayer = L.polyline(sectionCoords, { color: "#00aaff", weight: 7 }).addTo(layerGroup);
+                } else if (Array.isArray(window._roadPolyline) && window._roadPolyline.length
+                    && Number.isFinite(config.section?.start_chainage_km) && Number.isFinite(config.section?.end_chainage_km)
+                ) {
+                    const sectionCoordsByChainage = sliceByChainage(
+                        window._roadPolyline,
+                        config.section.start_chainage_km,
+                        config.section.end_chainage_km,
+                        config.road.length_km
+                    );
+
+                    sectionCoords = sectionCoordsByChainage;
+                    result.sectionLayer = L.polyline(sectionCoordsByChainage, {
+                        color: "#00aaff",
+                        weight: 7
+                    }).addTo(layerGroup);
+                }
+
+                if (sectionCoords && sectionCoords.length) {
+                    map.fitBounds(L.polyline(sectionCoords).getBounds());
+                }
+
                 activeLayers = [result.roadLayer, result.sectionLayer].filter(Boolean);
             } catch (err) {
                 console.error('Unable to render section preview', err);
