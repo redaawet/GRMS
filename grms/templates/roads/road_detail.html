@@ -1,9 +1,11 @@
 <!DOCTYPE html>
+{% load static %}
 <html>
 <head>
     <title>Road Details</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-WBkoXOwTeyKclOHuWtc+i2uENFpDZ9YPdf5Hf+D7ewM=" crossorigin="">
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-SmHgwlT0Q6p1t0Q6teM9YFJYHf3szgV+OGPQTqXQSEM=" crossorigin=""></script>
+    <script src="{% static 'grms/js/mapPreview.js' %}"></script>
     <style>
         body { font-family: Arial, sans-serif; margin: 2rem; }
         .wizard { display: flex; gap: 1rem; margin-bottom: 1rem; }
@@ -41,8 +43,6 @@
         const mapConfig = JSON.parse('{{ map_config|escapejs }}');
         const mapCenter = mapConfig.map_center || {lat: 13.5, lng: 39.5, zoom: 12};
         const mapBounds = mapConfig.map_bounds;
-        const start = mapConfig.start;
-        const end = mapConfig.end;
 
         const map = L.map('map');
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 18 }).addTo(map);
@@ -60,21 +60,34 @@
         }
 
         const overlay = L.layerGroup().addTo(map);
-        const bounds = [];
-        if (start) {
-            overlay.addLayer(L.marker([start.lat, start.lng]).bindPopup('Start'));
-            bounds.push([start.lat, start.lng]);
+        let activeLayers = [];
+
+        function clearLayers() {
+            activeLayers.forEach(layer => overlay.removeLayer(layer));
+            activeLayers = [];
         }
-        if (end) {
-            overlay.addLayer(L.marker([end.lat, end.lng]).bindPopup('End'));
-            bounds.push([end.lat, end.lng]);
+
+        async function renderPreview() {
+            clearLayers();
+            if (!window.MapPreview) {
+                return;
+            }
+            const road = {
+                start: mapConfig.start,
+                end: mapConfig.end,
+            };
+            if (!road.start || !road.end) {
+                return;
+            }
+            try {
+                const result = await window.MapPreview.previewRoad(map, road, { layerGroup: overlay });
+                activeLayers = [result.routeLayer, result.startMarker, result.endMarker].filter(Boolean);
+            } catch (err) {
+                console.error('Unable to render road preview', err);
+            }
         }
-        if (bounds.length === 2) {
-            overlay.addLayer(L.polyline(bounds, {color: 'blue'}));
-            map.fitBounds(bounds, {padding: [20, 20]});
-        } else if (bounds.length === 1) {
-            map.setView(bounds[0], mapCenter.zoom || 10);
-        }
+
+        renderPreview();
     </script>
 </body>
 </html>
