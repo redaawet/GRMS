@@ -438,6 +438,15 @@ def section_map_preview(request: Request, road_id: int, section_id: int):
     start = point_to_lat_lng(getattr(road, "road_start_coordinates", None))
     end = point_to_lat_lng(getattr(road, "road_end_coordinates", None))
 
+    section_start = point_to_lat_lng(getattr(section, "section_start_coordinates", None))
+    section_end = point_to_lat_lng(getattr(section, "section_end_coordinates", None))
+
+    if not section_start and section.start_easting is not None and section.start_northing is not None:
+        section_start = utm_to_wgs84(float(section.start_easting), float(section.start_northing))
+
+    if not section_end and section.end_easting is not None and section.end_northing is not None:
+        section_end = utm_to_wgs84(float(section.end_easting), float(section.end_northing))
+
     progress_steps = [
         {"label": "Section Basic Info", "active": False, "complete": True},
         {"label": "Map Preview", "active": True, "complete": False},
@@ -470,6 +479,8 @@ def section_map_preview(request: Request, road_id: int, section_id: int):
                     "end_chainage_km": float(section.end_chainage_km),
                     "surface_type": section.surface_type,
                     "length_km": float(section.length_km),
+                    "start": section_start,
+                    "end": section_end,
                 },
                 "api": {"route": reverse("route_preview")},
                 "default_travel_mode": "DRIVING",

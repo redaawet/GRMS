@@ -133,6 +133,28 @@
         return sliced;
     }
 
+    function sliceRoute(polyline, startChain, endChain, totalLength) {
+        if (!Array.isArray(polyline) || polyline.length < 2) {
+            return [];
+        }
+        const roadLength = Number(totalLength);
+        if (!Number.isFinite(roadLength) || roadLength <= 0) {
+            return [];
+        }
+        const startKm = Number(startChain);
+        const endKm = Number(endChain);
+        if (!Number.isFinite(startKm) || !Number.isFinite(endKm) || endKm < startKm) {
+            return [];
+        }
+
+        const startFrac = startKm / roadLength;
+        const endFrac = endKm / roadLength;
+        const startIdx = Math.floor(Math.max(0, Math.min(1, startFrac)) * (polyline.length - 1));
+        const endIdx = Math.floor(Math.max(startFrac, Math.min(1, endFrac)) * (polyline.length - 1));
+
+        return polyline.slice(startIdx, endIdx + 1);
+    }
+
     function sliceRouteByDistanceMeters(coords, startMeters, endMeters) {
         if (!Array.isArray(coords) || coords.length < 2) {
             return [];
@@ -252,6 +274,15 @@
         return { start, end };
     }
 
+    function extractSectionEndpoints(section) {
+        if (!section) { return {}; }
+        const start = latLngFromPoint(section.start || section.section_start_coordinates)
+            || latLngFromRoadFields(section, "start");
+        const end = latLngFromPoint(section.end || section.section_end_coordinates)
+            || latLngFromRoadFields(section, "end");
+        return { start, end };
+    }
+
     async function ensureRoadGeometry(road, options) {
         const apiRoute = options?.apiRoute || options?.api?.route || "/api/routes/preview/";
         const travelMode = (options?.travelMode || options?.default_travel_mode || "DRIVING").toUpperCase();
@@ -309,14 +340,30 @@
         const target = options?.layerGroup || map;
         const roadLayer = geometry ? drawRouteLine(target, geometry, COLORS.road) : null;
 
-        const coords = getFlattenedGeometry(geometry);
-        const slice = sliceRouteByChainage(
-            coords,
-            Number(road?.length_km ?? road?.total_length_km),
-            section?.start_chainage_km,
-            section?.end_chainage_km,
-        );
-        const sectionLayer = slice.length ? drawRouteLine(target, { type: "LineString", coordinates: slice }, COLORS.section) : null;
+        const apiRoute = options?.apiRoute || options?.api?.route;
+        const travelMode = options?.travelMode || options?.default_travel_mode;
+        const { start: sectionStart, end: sectionEnd } = extractSectionEndpoints(section);
+
+        let sectionLayer = null;
+
+        if (sectionStart && sectionEnd && apiRoute) {
+            const sectionRoute = await fetchRoutePreview(apiRoute, sectionStart, sectionEnd, travelMode);
+            sectionLayer = sectionRoute
+                ? drawRouteLine(target, sectionRoute, COLORS.section)
+                : null;
+        } else {
+            const coords = getFlattenedGeometry(geometry);
+            root._roadPolyline = coords;
+            const slice = sliceRoute(
+                coords,
+                section?.start_chainage_km,
+                section?.end_chainage_km,
+                Number(road?.length_km ?? road?.total_length_km),
+            );
+            sectionLayer = slice.length
+                ? drawRouteLine(target, { type: "LineString", coordinates: slice }, COLORS.section)
+                : null;
+        }
 
         fitMapToGeometry(map, sectionLayer || roadLayer);
         return { geometry, roadLayer, sectionLayer };
@@ -372,5 +419,7 @@
         // Legacy compatibility
         utmToLatLng: utm37ToLatLng,
         getFlattenedGeometry,
+        sliceRoute,
+        extractSectionEndpoints,
     };
 })(window);
