@@ -52,6 +52,7 @@
         },
     };
 
+    const DEFAULT_MAP_CENTER = DEFAULT_MAP_REGION.center;
     const defaultMapPayload = { map_region: DEFAULT_MAP_REGION };
 
     const ROUTE_STYLES = {
