@@ -7,9 +7,11 @@ from decimal import Decimal, ROUND_HALF_UP
 from django import forms
 from django.contrib import admin
 from django.contrib.admin import AdminSite
+from django.forms.models import BaseInlineFormSet
 from django.shortcuts import redirect
 from django.urls import reverse
 from django.utils.html import format_html
+from django.utils.timezone import localdate
 
 from . import models
 from .services import map_services
@@ -185,6 +187,58 @@ class GRMSAdminSite(AdminSite):
 grms_admin_site = GRMSAdminSite(name="admin")
 admin.site = grms_admin_site
 admin.sites.site = grms_admin_site
+
+
+class TrafficCountRecordInlineFormSet(BaseInlineFormSet):
+    vehicle_class_choices = models.TrafficCountRecord._meta.get_field("vehicle_class").choices
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        existing_classes = {
+            form.instance.vehicle_class
+            for form in self.initial_forms
+            if getattr(form.instance, "vehicle_class", None)
+        }
+        remaining_classes = [
+            vehicle_class
+            for vehicle_class, _ in self.vehicle_class_choices
+            if vehicle_class not in existing_classes
+        ]
+        for form, vehicle_class in zip(self.extra_forms, remaining_classes):
+            form.initial.setdefault("vehicle_class", vehicle_class)
+        if getattr(self.instance, "road_segment", None):
+            for form in self.forms:
+                form.initial.setdefault("road_segment", self.instance.road_segment)
+
+    def save_new(self, form, commit=True):
+        obj = super().save_new(form, commit=False)
+        obj.road_segment = getattr(self.instance, "road_segment", None)
+        obj.count_date = getattr(self.instance, "count_start_date", None) or localdate()
+        if commit:
+            obj.save()
+            form.save_m2m()
+        return obj
+
+
+class TrafficCountRecordInline(admin.TabularInline):
+    model = models.TrafficCountRecord
+    ordering = ("vehicle_class",)
+    formset = TrafficCountRecordInlineFormSet
+    max_num = len(models.TrafficCountRecord._meta.get_field("vehicle_class").choices)
+    fields = (
+        "vehicle_class",
+        "count_value",
+    )
+    readonly_fields = ("vehicle_class",)
+    can_delete = False
+
+    vehicle_class_choices = models.TrafficCountRecord._meta.get_field("vehicle_class").choices
+
+    def get_extra(self, request, obj=None, **kwargs):
+        if obj:
+            remaining_rows = len(self.vehicle_class_choices) - obj.count_records.count()
+            return max(remaining_rows, 0)
+        return len(self.vehicle_class_choices)
 
 
 class RoadAdminForm(forms.ModelForm):
@@ -1133,6 +1187,31 @@ class FurnitureConditionDetailedSurveyAdmin(admin.ModelAdmin):
     )
 
 
+# Traffic survey and count entry
+@admin.register(models.TrafficSurvey, site=grms_admin_site)
+class TrafficSurveyAdmin(admin.ModelAdmin):
+    inlines = [TrafficCountRecordInline]
+    list_display = ("road_segment", "survey_year", "cycle_number", "method", "qa_status")
+    list_filter = ("survey_year", "cycle_number", "method", "qa_status")
+    search_fields = ("observer", "road_segment__id")
+
+
+@admin.register(models.TrafficCountRecord, site=grms_admin_site)
+class TrafficCountRecordAdmin(admin.ModelAdmin):
+    list_display = (
+        "traffic_survey",
+        "road_segment",
+        "vehicle_class",
+        "count_value",
+        "count_date",
+        "time_block_from",
+        "time_block_to",
+        "is_market_day",
+    )
+    list_filter = ("vehicle_class", "count_date", "is_market_day")
+    search_fields = ("traffic_survey__id", "road_segment__id")
+
+
 # Register supporting models without custom admins
 for model in [
     models.QAStatus,
@@ -1151,8 +1230,6 @@ for model in [
     models.FordDetail,
     models.RetainingWallDetail,
     models.GabionWallDetail,
-    models.TrafficSurvey,
-    models.TrafficCountRecord,
     models.TrafficCycleSummary,
     models.TrafficSurveySummary,
     models.TrafficQC,
