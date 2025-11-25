@@ -21,7 +21,7 @@
         return [];
     }
 
-    function initMap(divId) {
+    function initMap(divId, mapRegion) {
         if (!root.L) {
             throw new Error("Leaflet must be loaded before initializing the map.");
         }
@@ -30,7 +30,27 @@
             maxZoom: 18,
             attribution: "&copy; OpenStreetMap contributors",
         }).addTo(map);
+        if (mapRegion?.viewport?.northeast && mapRegion?.viewport?.southwest) {
+            const { northeast, southwest } = mapRegion.viewport;
+            const bounds = root.L.latLngBounds(
+                [southwest.lat, southwest.lng],
+                [northeast.lat, northeast.lng],
+            );
+            map.fitBounds(bounds, { padding: [20, 20] });
+        } else if (mapRegion?.center?.lat && mapRegion?.center?.lng) {
+            map.setView([mapRegion.center.lat, mapRegion.center.lng], mapRegion.center.zoom || 7);
+        }
         return map;
+    }
+
+    function createOverlay(map) {
+        return map ? root.L.layerGroup().addTo(map) : null;
+    }
+
+    function clearOverlay(overlay) {
+        if (overlay && typeof overlay.clearLayers === "function") {
+            overlay.clearLayers();
+        }
     }
 
     function utm37ToLatLng(easting, northing) {
@@ -276,6 +296,11 @@
         return root.L.geoJSON(geometry, { style }).addTo(mapOrLayer);
     }
 
+    function renderGeometry(mapOrLayer, geometry, style) {
+        const rendered = drawRouteLine(mapOrLayer, geometry, style);
+        return rendered;
+    }
+
     function latLngFromPoint(point) {
         if (!point) {
             return null;
@@ -367,6 +392,128 @@
         if (bounds && bounds.isValid()) {
             map.fitBounds(bounds, { padding: [16, 16] });
         }
+    }
+
+    function renderNoGeometry(container) {
+        if (!container) { return; }
+        container.innerHTML = "";
+        const notice = document.createElement("div");
+        notice.className = "map-notice";
+        notice.textContent = "No geometry available — save the record first.";
+        container.appendChild(notice);
+    }
+
+    async function loadRoad(roadId, apiBase) {
+        const url = `${apiBase || "/api/roads/"}${roadId}/`;
+        const response = await fetch(url, { credentials: "same-origin" });
+        if (!response.ok) {
+            throw new Error("Unable to load road data.");
+        }
+        return response.json();
+    }
+
+    async function loadSection(sectionId, apiBase) {
+        const url = `${apiBase || "/api/sections/"}${sectionId}/`;
+        const response = await fetch(url, { credentials: "same-origin" });
+        if (!response.ok) {
+            throw new Error("Unable to load section data.");
+        }
+        return response.json();
+    }
+
+    async function loadSegment(segmentId, apiBase) {
+        const url = `${apiBase || "/api/segments/"}${segmentId}/`;
+        const response = await fetch(url, { credentials: "same-origin" });
+        if (!response.ok) {
+            throw new Error("Unable to load segment data.");
+        }
+        return response.json();
+    }
+
+    function createPreviewMap(container, mapRegion) {
+        const map = initMap(container, mapRegion);
+        const overlay = createOverlay(map);
+        return { map, overlay };
+    }
+
+    async function loadAndRenderRoad(roadId, options = {}) {
+        const containerId = options.containerId || options.container;
+        const mapRegion = options.mapRegion;
+        const target = typeof containerId === "string" ? document.getElementById(containerId) : containerId;
+        const { map, overlay } = createPreviewMap(target, mapRegion);
+        clearOverlay(overlay);
+
+        const road = options.road || await loadRoad(roadId, options.apiBase);
+        const result = await previewRoad(map, road, { ...options, layerGroup: overlay });
+        return { ...result, map, overlay };
+    }
+
+    async function loadAndRenderSection(sectionId, startChainage, endChainage, options = {}) {
+        const containerId = options.containerId || options.container;
+        const target = typeof containerId === "string" ? document.getElementById(containerId) : containerId;
+        const mapRegion = options.mapRegion;
+        const { map, overlay } = createPreviewMap(target, mapRegion);
+        clearOverlay(overlay);
+
+        const road = options.road || (options.roadId ? await loadRoad(options.roadId, options.apiBase) : null);
+        const section = options.section || await loadSection(sectionId, options.apiBase);
+
+        const geometry = await ensureRoadGeometry(road, options);
+        const coords = getFlattenedGeometry(geometry);
+        const roadLayer = geometry ? renderGeometry(overlay, geometry, COLORS.road) : null;
+
+        const sectionSlice = sliceRouteByChainage(
+            coords,
+            Number(road?.length_km ?? road?.total_length_km),
+            startChainage,
+            endChainage,
+        );
+
+        const sectionLayer = sectionSlice.length
+            ? renderGeometry(overlay, { type: "LineString", coordinates: sectionSlice }, COLORS.section)
+            : null;
+
+        const markers = [];
+        const { start, end } = extractSectionEndpoints(section);
+        if (start) { markers.push(root.L.marker([start.lat, start.lng]).addTo(overlay)); }
+        if (end) { markers.push(root.L.marker([end.lat, end.lng]).addTo(overlay)); }
+
+        fitMapToGeometry(map, sectionLayer || roadLayer);
+        return { map, overlay, roadLayer, sectionLayer, markers };
+    }
+
+    async function loadAndRenderSegment(segmentId, startChainage, endChainage, options = {}) {
+        const containerId = options.containerId || options.container;
+        const target = typeof containerId === "string" ? document.getElementById(containerId) : containerId;
+        const mapRegion = options.mapRegion;
+        const { map, overlay } = createPreviewMap(target, mapRegion);
+        clearOverlay(overlay);
+
+        const road = options.road || (options.roadId ? await loadRoad(options.roadId, options.apiBase) : null);
+        const segment = options.segment || await loadSegment(segmentId, options.apiBase);
+
+        const geometry = await ensureRoadGeometry(road, options);
+        const coords = getFlattenedGeometry(geometry);
+        const roadLayer = geometry ? renderGeometry(overlay, geometry, COLORS.road) : null;
+
+        const segmentSlice = sliceRouteByChainage(
+            coords,
+            Number(road?.length_km ?? road?.total_length_km),
+            startChainage,
+            endChainage,
+        );
+
+        const segmentLayer = segmentSlice.length
+            ? renderGeometry(overlay, { type: "LineString", coordinates: segmentSlice }, COLORS.segment)
+            : null;
+
+        const markers = [];
+        const { start, end } = extractSectionEndpoints(segment);
+        if (start) { markers.push(root.L.marker([start.lat, start.lng]).addTo(overlay)); }
+        if (end) { markers.push(root.L.marker([end.lat, end.lng]).addTo(overlay)); }
+
+        fitMapToGeometry(map, segmentLayer || roadLayer);
+        return { map, overlay, roadLayer, segmentLayer, markers };
     }
 
     async function previewRoad(map, road, options) {
@@ -485,12 +632,20 @@
 
     root.MapPreview = {
         initMap,
+        createPreviewMap,
+        clearOverlay,
+        createOverlay,
         utm37ToLatLng,
         fetchRoutePreview,
         computeCumulativeDistances,
         sliceRouteByChainage,
         sliceRouteByDistanceMeters,
         drawRouteLine,
+        renderGeometry,
+        renderNoGeometry,
+        loadAndRenderRoad,
+        loadAndRenderSection,
+        loadAndRenderSegment,
         previewRoad,
         previewRoadSection,
         previewRoadSegment,

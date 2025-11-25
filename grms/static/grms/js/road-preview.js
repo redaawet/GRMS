@@ -250,11 +250,7 @@
                 return;
             }
             mapLoaded = true;
-            map = L.map(mapNode).setView([center.lat, center.lng], 8);
-            L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-                attribution: "© OpenStreetMap contributors",
-                maxZoom: 19,
-            }).addTo(map);
+            map = window.MapPreview.initMap(mapNode, payload.map_region || DEFAULT_MAP_REGION);
             startMarker = L.marker([center.lat, center.lng], { title: "Start" }).addTo(map);
             endMarker = L.marker([center.lat, center.lng], { title: "End" }).addTo(map);
             syncMarkersFromInputs();
@@ -385,8 +381,10 @@
                             : payload.route.geometry;
                         const style = ROUTE_STYLES[(payload.travel_mode || travelModeSelect.value || "DRIVING").toUpperCase()] ||
                             ROUTE_STYLES.DRIVING;
-                        routeLine = L.geoJSON(geometry, { style }).addTo(map);
-                        map.fitBounds(routeLine.getBounds(), { padding: [20, 20] });
+                        routeLine = window.MapPreview.renderGeometry(map, geometry, style);
+                        if (routeLine) {
+                            map.fitBounds(routeLine.getBounds(), { padding: [20, 20] });
+                        }
                     } else {
                         showStatus("No geometry available — save the record first.", "error");
                     }
