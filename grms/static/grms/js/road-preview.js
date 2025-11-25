@@ -155,9 +155,10 @@
             if (roadLine && map.hasLayer(roadLine)) {
                 map.removeLayer(roadLine);
             }
-            roadLine = L.polyline([coords.start, coords.end]).addTo(map);
+            roadLine = null;
             if (shouldFit) {
-                map.fitBounds(roadLine.getBounds(), { padding: [40, 40] });
+                const bounds = L.latLngBounds([coords.start, coords.end]);
+                map.fitBounds(bounds, { padding: [40, 40] });
             }
             return true;
         }
