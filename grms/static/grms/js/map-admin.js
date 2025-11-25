@@ -384,10 +384,6 @@
 
             const roadStart = (lastPayload && lastPayload.road && lastPayload.road.start) || (config.road && config.road.start);
             const roadEnd = (lastPayload && lastPayload.road && lastPayload.road.end) || (config.road && config.road.end);
-            const roadLength = (config.road && config.road.length_km)
-                || (lastPayload && lastPayload.road && lastPayload.road.length_km)
-                || null;
-
             if (!map) {
                 map = L.map(mapNode).setView([center.lat, center.lng], mapRegion.zoom || 7);
                 L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
@@ -412,27 +408,34 @@
             const viewportBounds = addViewport(mapRegion);
             const roadData = Object.assign({}, config.road || {}, { start: roadStart, end: roadEnd });
 
-            let preview = Promise.resolve(null);
-
-            if (!window.MapPreview) {
-                showStatus("Map preview helper failed to load.", "error");
-                if (viewportBounds) {
-                    map.fitBounds(viewportBounds, { padding: [24, 24] });
-                }
-                return;
+            if (viewportBounds) {
+                map.fitBounds(viewportBounds, { padding: [24, 24] });
+            } else if (roadStart && roadEnd) {
+                const roadBounds = L.latLngBounds(
+                    [roadStart.lat, roadStart.lng],
+                    [roadEnd.lat, roadEnd.lng]
+                );
+                map.fitBounds(roadBounds, { padding: [30, 30] });
             }
 
-            if (config.scope === "segment" && config.segment) {
-                preview = window.MapPreview.previewRoadSegment(map, roadData, config.segment, {
-                    layerGroup: overlay,
-                    section: config.section,
-                });
-            } else if (config.scope === "section" && config.section) {
-                preview = window.MapPreview.previewRoadSection(map, roadData, config.section, { layerGroup: overlay });
-            } else if (roadStart && roadEnd) {
-                preview = window.MapPreview.previewRoad(map, roadData, { layerGroup: overlay });
-            } else if (viewportBounds) {
-                map.fitBounds(viewportBounds, { padding: [24, 24] });
+            const configPoints = (config.section && config.section.points) || {};
+            const startPoint = readPointFromInputs(startLatInput, startLngInput) || configPoints.start;
+            const endPoint = readPointFromInputs(endLatInput, endLngInput) || configPoints.end;
+
+            if (startPoint && markers) {
+                if (allowEditing) {
+                    syncEditableMarkers(startPoint, null);
+                } else {
+                    L.circleMarker([startPoint.lat, startPoint.lng], {
+                        radius: 7,
+                        color: "#0ea5e9",
+                        weight: 3,
+                        fillColor: "#38bdf8",
+                        fillOpacity: 0.8,
+                    })
+                        .bindTooltip("Section start", { permanent: false })
+                        .addTo(markers);
+                }
             }
 
             Promise.resolve(preview)
@@ -463,26 +466,9 @@
                         }
                     }
 
-                    if (endPoint && markers) {
-                        if (allowEditing) {
-                            syncEditableMarkers(null, endPoint);
-                        } else {
-                            L.circleMarker([endPoint.lat, endPoint.lng], {
-                                radius: 7,
-                                color: "#0ea5e9",
-                                weight: 3,
-                                fillColor: "#0ea5e9",
-                                fillOpacity: 0.85,
-                            })
-                                .bindTooltip("Section end", { permanent: false })
-                                .addTo(markers);
-                        }
-                    }
-
-                    if (Array.isArray(lastPayload && lastPayload.travel_modes) && travelModeSelect) {
-                        setTravelModeOptions(lastPayload.travel_modes);
-                    }
-                });
+            if (Array.isArray(lastPayload && lastPayload.travel_modes) && travelModeSelect) {
+                setTravelModeOptions(lastPayload.travel_modes);
+            }
         }
 
         function buildQueryString() {
