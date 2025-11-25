@@ -36,6 +36,19 @@
         return { type: "LineString", coordinates: flattened };
     }
 
+    function isDirectFlightLine(coords, start, end) {
+        if (!Array.isArray(coords) || coords.length !== 2 || !start || !end) {
+            return false;
+        }
+
+        const tolerance = 1e-6;
+        const matches = (point, reference) => (
+            Math.abs(point[0] - reference.lng) <= tolerance && Math.abs(point[1] - reference.lat) <= tolerance
+        );
+
+        return matches(coords[0], start) && matches(coords[1], end);
+    }
+
     function initMap(divId, mapRegion) {
         ensureLeaflet();
         const map = root.L.map(divId);
@@ -320,34 +333,40 @@
     function renderRoadPreview(map, overlay, road) {
         clearOverlay(overlay);
         const geometry = ensureRoadGeometry(road);
-        if (!geometry) {
+        const { start, end } = extractEndpoints(road);
+        const coords = getFlattenedGeometry(geometry);
+        const safeGeometry = isDirectFlightLine(coords, start, end) ? null : geometry;
+        if (!safeGeometry) {
             return { geometry: null, roadLayer: null, markers: [] };
         }
-        const roadLayer = renderGeometry(overlay, geometry, COLORS.road);
+        const roadLayer = renderGeometry(overlay, safeGeometry, COLORS.road);
         const markers = [];
-        const { start, end } = extractEndpoints(road);
         if (start) { markers.push(root.L.marker([start.lat, start.lng]).addTo(overlay)); }
         if (end) { markers.push(root.L.marker([end.lat, end.lng]).addTo(overlay)); }
         fitMapToLayer(map, roadLayer);
-        return { geometry, roadLayer, markers };
+        return { geometry: safeGeometry, roadLayer, markers };
     }
 
     function renderSectionPreview(map, overlay, road, section) {
         clearOverlay(overlay);
         const roadGeometry = ensureRoadGeometry(road);
-        if (!roadGeometry) {
+        const { start, end } = extractSectionEndpoints(section);
+        const roadCoords = getFlattenedGeometry(roadGeometry);
+        const safeRoadGeometry = isDirectFlightLine(roadCoords, start, end) ? null : roadGeometry;
+        if (!safeRoadGeometry) {
             return { roadLayer: null, sectionLayer: null, markers: [] };
         }
-        const roadLayer = renderGeometry(overlay, roadGeometry, COLORS.road);
+        const roadLayer = renderGeometry(overlay, safeRoadGeometry, COLORS.road);
         const roadLength = road?.length_km ?? road?.total_length_km;
         const sectionSlice = sliceGeometryByChainage(
-            roadGeometry,
+            safeRoadGeometry,
             Number(roadLength),
             section?.start_chainage_km,
             section?.end_chainage_km,
         );
-        const sectionLayer = sectionSlice.length
-            ? renderGeometry(overlay, { type: "LineString", coordinates: sectionSlice }, COLORS.section)
+        const safeSectionSlice = isDirectFlightLine(sectionSlice, start, end) ? [] : sectionSlice;
+        const sectionLayer = safeSectionSlice.length
+            ? renderGeometry(overlay, { type: "LineString", coordinates: safeSectionSlice }, COLORS.section)
             : null;
 
         // Sections are defined purely by chainage, so we avoid placing
