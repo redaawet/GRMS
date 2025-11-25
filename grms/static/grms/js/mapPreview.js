@@ -36,6 +36,19 @@
         return { type: "LineString", coordinates: flattened };
     }
 
+    function isDirectFlightLine(coords, start, end) {
+        if (!Array.isArray(coords) || coords.length !== 2 || !start || !end) {
+            return false;
+        }
+
+        const tolerance = 1e-6;
+        const matches = (point, reference) => (
+            Math.abs(point[0] - reference.lng) <= tolerance && Math.abs(point[1] - reference.lat) <= tolerance
+        );
+
+        return matches(coords[0], start) && matches(coords[1], end);
+    }
+
     function initMap(divId, mapRegion) {
         ensureLeaflet();
         const map = root.L.map(divId);
@@ -320,34 +333,40 @@
     function renderRoadPreview(map, overlay, road) {
         clearOverlay(overlay);
         const geometry = ensureRoadGeometry(road);
-        if (!geometry) {
+        const { start, end } = extractEndpoints(road);
+        const coords = getFlattenedGeometry(geometry);
+        const safeGeometry = isDirectFlightLine(coords, start, end) ? null : geometry;
+        if (!safeGeometry) {
             return { geometry: null, roadLayer: null, markers: [] };
         }
-        const roadLayer = renderGeometry(overlay, geometry, COLORS.road);
+        const roadLayer = renderGeometry(overlay, safeGeometry, COLORS.road);
         const markers = [];
-        const { start, end } = extractEndpoints(road);
         if (start) { markers.push(root.L.marker([start.lat, start.lng]).addTo(overlay)); }
         if (end) { markers.push(root.L.marker([end.lat, end.lng]).addTo(overlay)); }
         fitMapToLayer(map, roadLayer);
-        return { geometry, roadLayer, markers };
+        return { geometry: safeGeometry, roadLayer, markers };
     }
 
     function renderSectionPreview(map, overlay, road, section) {
         clearOverlay(overlay);
         const roadGeometry = ensureRoadGeometry(road);
-        if (!roadGeometry) {
+        const { start, end } = extractSectionEndpoints(section);
+        const roadCoords = getFlattenedGeometry(roadGeometry);
+        const safeRoadGeometry = isDirectFlightLine(roadCoords, start, end) ? null : roadGeometry;
+        if (!safeRoadGeometry) {
             return { roadLayer: null, sectionLayer: null, markers: [] };
         }
-        const roadLayer = renderGeometry(overlay, roadGeometry, COLORS.road);
+        const roadLayer = renderGeometry(overlay, safeRoadGeometry, COLORS.road);
         const roadLength = road?.length_km ?? road?.total_length_km;
         const sectionSlice = sliceGeometryByChainage(
-            roadGeometry,
+            safeRoadGeometry,
             Number(roadLength),
             section?.start_chainage_km,
             section?.end_chainage_km,
         );
-        const sectionLayer = sectionSlice.length
-            ? renderGeometry(overlay, { type: "LineString", coordinates: sectionSlice }, COLORS.section)
+        const safeSectionSlice = isDirectFlightLine(sectionSlice, start, end) ? [] : sectionSlice;
+        const sectionLayer = safeSectionSlice.length
+            ? renderGeometry(overlay, { type: "LineString", coordinates: safeSectionSlice }, COLORS.section)
             : null;
 
         const markers = [];
@@ -396,7 +415,18 @@
     async function loadAndRenderRoad(roadId, options = {}) {
         const containerId = options.containerId || options.container;
         const target = typeof containerId === "string" ? document.getElementById(containerId) : containerId;
-        const { map, overlay } = createPreviewMap(target, options.mapRegion);
+
+        let map = options.map;
+        let overlay = options.overlay || options.layerGroup;
+
+        if (!map) {
+            const created = createPreviewMap(target, options.mapRegion);
+            map = created.map;
+            overlay = created.overlay;
+        } else if (!overlay) {
+            overlay = createOverlay(map);
+        }
+
         const road = options.road || await loadRoad(roadId, options.apiBase);
         const result = renderRoadPreview(map, overlay, road);
         return { ...result, map, overlay };
@@ -405,7 +435,18 @@
     async function loadAndRenderSection(sectionId, startChainage, endChainage, options = {}) {
         const containerId = options.containerId || options.container;
         const target = typeof containerId === "string" ? document.getElementById(containerId) : containerId;
-        const { map, overlay } = createPreviewMap(target, options.mapRegion);
+
+        let map = options.map;
+        let overlay = options.overlay || options.layerGroup;
+
+        if (!map) {
+            const created = createPreviewMap(target, options.mapRegion);
+            map = created.map;
+            overlay = created.overlay;
+        } else if (!overlay) {
+            overlay = createOverlay(map);
+        }
+
         const road = options.road || (options.roadId ? await loadRoad(options.roadId, options.apiBase) : null);
         const section = options.section || await loadSection(sectionId, options.apiBase);
         section.start_chainage_km = startChainage ?? section.start_chainage_km;
@@ -418,7 +459,18 @@
     async function loadAndRenderSegment(segmentId, startChainage, endChainage, options = {}) {
         const containerId = options.containerId || options.container;
         const target = typeof containerId === "string" ? document.getElementById(containerId) : containerId;
-        const { map, overlay } = createPreviewMap(target, options.mapRegion);
+
+        let map = options.map;
+        let overlay = options.overlay || options.layerGroup;
+
+        if (!map) {
+            const created = createPreviewMap(target, options.mapRegion);
+            map = created.map;
+            overlay = created.overlay;
+        } else if (!overlay) {
+            overlay = createOverlay(map);
+        }
+
         const road = options.road || (options.roadId ? await loadRoad(options.roadId, options.apiBase) : null);
         const segment = options.segment || await loadSegment(segmentId, options.apiBase);
         segment.start_chainage_km = startChainage ?? segment.start_chainage_km ?? segment.station_from_km;
