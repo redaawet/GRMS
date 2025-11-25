@@ -395,7 +395,18 @@
     async function loadAndRenderRoad(roadId, options = {}) {
         const containerId = options.containerId || options.container;
         const target = typeof containerId === "string" ? document.getElementById(containerId) : containerId;
-        const { map, overlay } = createPreviewMap(target, options.mapRegion);
+
+        let map = options.map;
+        let overlay = options.overlay || options.layerGroup;
+
+        if (!map) {
+            const created = createPreviewMap(target, options.mapRegion);
+            map = created.map;
+            overlay = created.overlay;
+        } else if (!overlay) {
+            overlay = createOverlay(map);
+        }
+
         const road = options.road || await loadRoad(roadId, options.apiBase);
         const result = renderRoadPreview(map, overlay, road);
         return { ...result, map, overlay };
@@ -404,7 +415,18 @@
     async function loadAndRenderSection(sectionId, startChainage, endChainage, options = {}) {
         const containerId = options.containerId || options.container;
         const target = typeof containerId === "string" ? document.getElementById(containerId) : containerId;
-        const { map, overlay } = createPreviewMap(target, options.mapRegion);
+
+        let map = options.map;
+        let overlay = options.overlay || options.layerGroup;
+
+        if (!map) {
+            const created = createPreviewMap(target, options.mapRegion);
+            map = created.map;
+            overlay = created.overlay;
+        } else if (!overlay) {
+            overlay = createOverlay(map);
+        }
+
         const road = options.road || (options.roadId ? await loadRoad(options.roadId, options.apiBase) : null);
         const section = options.section || await loadSection(sectionId, options.apiBase);
         section.start_chainage_km = startChainage ?? section.start_chainage_km;
@@ -417,7 +439,18 @@
     async function loadAndRenderSegment(segmentId, startChainage, endChainage, options = {}) {
         const containerId = options.containerId || options.container;
         const target = typeof containerId === "string" ? document.getElementById(containerId) : containerId;
-        const { map, overlay } = createPreviewMap(target, options.mapRegion);
+
+        let map = options.map;
+        let overlay = options.overlay || options.layerGroup;
+
+        if (!map) {
+            const created = createPreviewMap(target, options.mapRegion);
+            map = created.map;
+            overlay = created.overlay;
+        } else if (!overlay) {
+            overlay = createOverlay(map);
+        }
+
         const road = options.road || (options.roadId ? await loadRoad(options.roadId, options.apiBase) : null);
         const segment = options.segment || await loadSegment(segmentId, options.apiBase);
         segment.start_chainage_km = startChainage ?? segment.start_chainage_km ?? segment.station_from_km;
