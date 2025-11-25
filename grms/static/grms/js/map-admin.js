@@ -366,13 +366,6 @@
             return bounds;
         }
 
-        function drawRange(startPoint, endPoint, options) {
-            if (!startPoint || !endPoint || !overlay) {
-                return;
-            }
-            L.polyline([startPoint, endPoint], options).addTo(overlay);
-        }
-
         function renderMap(payload) {
             lastPayload = payload || lastPayload || {};
             const mapNode = ensureMapContainer();
@@ -381,13 +374,12 @@
 
             const roadStart = (lastPayload && lastPayload.start) || (config.road && config.road.start);
             const roadEnd = (lastPayload && lastPayload.end) || (config.road && config.road.end);
-            const roadLength = (config.road && config.road.length_km) || (lastPayload && lastPayload.road_length_km) || null;
 
             if (!map) {
                 map = L.map(mapNode).setView([center.lat, center.lng], mapRegion.zoom || 7);
                 L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
                     maxZoom: 18,
-                    attribution: "&copy; OpenStreetMap contributors",
+                    attribution: "© OpenStreetMap contributors",
                 }).addTo(map);
                 overlay = L.layerGroup().addTo(map);
                 markers = L.layerGroup().addTo(map);
@@ -405,86 +397,79 @@
             bindMapClick();
 
             const viewportBounds = addViewport(mapRegion);
+            const roadData = Object.assign({}, config.road || {}, { start: roadStart, end: roadEnd });
 
-            let roadLine;
-            if (roadStart && roadEnd && overlay) {
-                roadLine = L.polyline(
-                    [
-                        [roadStart.lat, roadStart.lng],
-                        [roadEnd.lat, roadEnd.lng],
-                    ],
-                    { color: "#6b7280", weight: 4 }
-                ).addTo(overlay);
-                map.fitBounds(roadLine.getBounds(), { padding: [30, 30] });
+            let preview = Promise.resolve(null);
+
+            if (!window.MapPreview) {
+                showStatus("Map preview helper failed to load.", "error");
+                if (viewportBounds) {
+                    map.fitBounds(viewportBounds, { padding: [24, 24] });
+                }
+                return;
+            }
+
+            if (config.scope === "segment" && config.segment) {
+                preview = window.MapPreview.previewRoadSegment(map, roadData, config.segment, {
+                    layerGroup: overlay,
+                    section: config.section,
+                });
+            } else if (config.scope === "section" && config.section) {
+                preview = window.MapPreview.previewRoadSection(map, roadData, config.section, { layerGroup: overlay });
+            } else if (roadStart && roadEnd) {
+                preview = window.MapPreview.previewRoad(map, roadData, { layerGroup: overlay });
             } else if (viewportBounds) {
                 map.fitBounds(viewportBounds, { padding: [24, 24] });
             }
 
-            if (!roadLine || !roadLength || roadLength <= 0) {
-                return;
-            }
+            Promise.resolve(preview)
+                .catch(function (err) {
+                    showStatus(err.message, "error");
+                    if (viewportBounds) {
+                        map.fitBounds(viewportBounds, { padding: [24, 24] });
+                    }
+                })
+                .then(function () {
+                    const configPoints = (config.section && config.section.points) || {};
+                    const startPoint = readPointFromInputs(startLatInput, startLngInput) || configPoints.start;
+                    const endPoint = readPointFromInputs(endLatInput, endLngInput) || configPoints.end;
 
-            const sectionStartFraction = config.section && clampFraction(config.section.start_chainage_km / roadLength);
-            const sectionEndFraction = config.section && clampFraction(config.section.end_chainage_km / roadLength);
-            if (sectionStartFraction !== null && sectionEndFraction !== null) {
-                drawRange(
-                    interpolatePoint(roadStart, roadEnd, sectionStartFraction),
-                    interpolatePoint(roadStart, roadEnd, sectionEndFraction),
-                    { color: "#0ea5e9", weight: 6 }
-                );
-            }
+                    if (startPoint && markers) {
+                        if (allowEditing) {
+                            syncEditableMarkers(startPoint, null);
+                        } else {
+                            L.circleMarker([startPoint.lat, startPoint.lng], {
+                                radius: 7,
+                                color: "#0ea5e9",
+                                weight: 3,
+                                fillColor: "#38bdf8",
+                                fillOpacity: 0.8,
+                            })
+                                .bindTooltip("Section start", { permanent: false })
+                                .addTo(markers);
+                        }
+                    }
 
-            const configPoints = (config.section && config.section.points) || {};
-            const startPoint = readPointFromInputs(startLatInput, startLngInput) || configPoints.start;
-            const endPoint = readPointFromInputs(endLatInput, endLngInput) || configPoints.end;
+                    if (endPoint && markers) {
+                        if (allowEditing) {
+                            syncEditableMarkers(null, endPoint);
+                        } else {
+                            L.circleMarker([endPoint.lat, endPoint.lng], {
+                                radius: 7,
+                                color: "#0ea5e9",
+                                weight: 3,
+                                fillColor: "#0ea5e9",
+                                fillOpacity: 0.85,
+                            })
+                                .bindTooltip("Section end", { permanent: false })
+                                .addTo(markers);
+                        }
+                    }
 
-            if (startPoint && markers) {
-                if (allowEditing) {
-                    syncEditableMarkers(startPoint, null);
-                } else {
-                    L.circleMarker([startPoint.lat, startPoint.lng], {
-                        radius: 7,
-                        color: "#0ea5e9",
-                        weight: 3,
-                        fillColor: "#38bdf8",
-                        fillOpacity: 0.8,
-                    })
-                        .bindTooltip("Section start", { permanent: false })
-                        .addTo(markers);
-                }
-            }
-
-            if (endPoint && markers) {
-                if (allowEditing) {
-                    syncEditableMarkers(null, endPoint);
-                } else {
-                    L.circleMarker([endPoint.lat, endPoint.lng], {
-                        radius: 7,
-                        color: "#0ea5e9",
-                        weight: 3,
-                        fillColor: "#0ea5e9",
-                        fillOpacity: 0.85,
-                    })
-                        .bindTooltip("Section end", { permanent: false })
-                        .addTo(markers);
-                }
-            }
-
-            if (config.scope === "segment" && config.segment) {
-                const segmentStart = clampFraction(config.segment.station_from_km / roadLength);
-                const segmentEnd = clampFraction(config.segment.station_to_km / roadLength);
-                if (segmentStart !== null && segmentEnd !== null) {
-                    drawRange(
-                        interpolatePoint(roadStart, roadEnd, segmentStart),
-                        interpolatePoint(roadStart, roadEnd, segmentEnd),
-                        { color: "#f97316", weight: 7 }
-                    );
-                }
-            }
-
-            if (Array.isArray(lastPayload && lastPayload.travel_modes) && travelModeSelect) {
-                setTravelModeOptions(lastPayload.travel_modes);
-            }
+                    if (Array.isArray(lastPayload && lastPayload.travel_modes) && travelModeSelect) {
+                        setTravelModeOptions(lastPayload.travel_modes);
+                    }
+                });
         }
 
         function buildQueryString() {
