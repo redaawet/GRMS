@@ -61,6 +61,12 @@
     };
 
     function initRoadAdmin() {
+        const mapPreview = window.MapPreview;
+        if (!mapPreview) {
+            console.error("Map preview helpers failed to load.");
+            return;
+        }
+
         const config = window.road_admin_config || parseJSONScript("road-admin-config");
         const panel = document.getElementById("road-map-panel");
         if (!config || !panel) {
@@ -250,11 +256,7 @@
                 return;
             }
             mapLoaded = true;
-            map = L.map(mapNode).setView([center.lat, center.lng], 8);
-            L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-                attribution: "© OpenStreetMap contributors",
-                maxZoom: 19,
-            }).addTo(map);
+            map = mapPreview.initMap(mapNode, payload.map_region || DEFAULT_MAP_REGION);
             startMarker = L.marker([center.lat, center.lng], { title: "Start" }).addTo(map);
             endMarker = L.marker([center.lat, center.lng], { title: "End" }).addTo(map);
             syncMarkersFromInputs();
@@ -385,8 +387,10 @@
                             : payload.route.geometry;
                         const style = ROUTE_STYLES[(payload.travel_mode || travelModeSelect.value || "DRIVING").toUpperCase()] ||
                             ROUTE_STYLES.DRIVING;
-                        routeLine = L.geoJSON(geometry, { style }).addTo(map);
-                        map.fitBounds(routeLine.getBounds(), { padding: [20, 20] });
+                        routeLine = mapPreview.renderGeometry(map, geometry, style);
+                        if (routeLine) {
+                            map.fitBounds(routeLine.getBounds(), { padding: [20, 20] });
+                        }
                     } else {
                         showStatus("No geometry available — save the record first.", "error");
                     }
