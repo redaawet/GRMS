@@ -101,6 +101,7 @@
 
     function initMapAdmin() {
         const config = parseJSONScript("map-admin-config");
+        const hasParentGeometry = Boolean(config && config.section && config.section.has_parent_geometry);
         const panel = document.getElementById("map-panel");
         const refreshButton = document.getElementById("map-panel-refresh");
         const statusEl = document.getElementById("map-panel-status");
@@ -138,7 +139,9 @@
         let activeMarker = "start";
         const editableMarkers = {};
         let lastPayload = null;
-        let routeLine;
+        let roadLayer;
+        let sectionLayer;
+        let lastRoadRouteKey;
 
         function showStatus(message, level) {
             if (!statusEl) {
@@ -162,6 +165,9 @@
         }
 
         function ensureCoordinates() {
+            if (hasParentGeometry) {
+                return null;
+            }
             const values = {
                 start_lat: parseFloat(startLatInput?.value),
                 start_lng: parseFloat(startLngInput?.value),
@@ -193,6 +199,25 @@
                     ? { lat: values.end_lat, lng: values.end_lng }
                     : { easting: values.end_easting, northing: values.end_northing },
             };
+        }
+
+        if (hasParentGeometry) {
+            [
+                "id_start_lat",
+                "id_start_lng",
+                "id_end_lat",
+                "id_end_lng",
+                "id_start_easting",
+                "id_start_northing",
+                "id_end_easting",
+                "id_end_northing",
+            ].forEach(function (id) {
+                const input = document.getElementById(id);
+                const row = input && input.closest(".form-row");
+                if (row) {
+                    row.style.display = "none";
+                }
+            });
         }
 
         function setActiveMarker(value) {
@@ -308,6 +333,12 @@
                 return;
             }
 
+            if (!coords) {
+                showStatus("Parent geometry is already available for preview.", "success");
+                refreshFromInputs();
+                return;
+            }
+
             const travelMode = travelModeSelect ? travelModeSelect.value : (config.default_travel_mode || "DRIVING");
             showStatus("Requesting route preview…");
 
@@ -345,8 +376,9 @@
                         setInputsFromLatLng("end", payload.end.lat, payload.end.lng);
                     }
 
-                    if (routes) {
-                        routes.clearLayers();
+                    if (sectionLayer && routes) {
+                        routes.removeLayer(sectionLayer);
+                        sectionLayer = null;
                     }
 
                     if (payload.route && Array.isArray(payload.route.geometry) && payload.route.geometry.length && routes) {
@@ -354,8 +386,8 @@
                             ? { type: "LineString", coordinates: payload.route.geometry }
                             : payload.route.geometry;
                         const style = ROUTE_STYLES[(travelMode || "DRIVING").toUpperCase()] || ROUTE_STYLES.DRIVING;
-                        const line = L.geoJSON(geometry, { style }).addTo(routes);
-                        map.fitBounds(line.getBounds(), { padding: [24, 24] });
+                        sectionLayer = L.geoJSON(geometry, { style }).addTo(routes);
+                        map.fitBounds(sectionLayer.getBounds(), { padding: [24, 24] });
                     } else {
                         showStatus("No geometry available — save the record first.", "error");
                     }
@@ -404,6 +436,9 @@
                 }
                 if (routes) {
                     routes.clearLayers();
+                    roadLayer = null;
+                    sectionLayer = null;
+                    lastRoadRouteKey = null;
                 }
             }
 
@@ -411,6 +446,9 @@
 
             const viewportBounds = addViewport(mapRegion);
             const roadData = Object.assign({}, config.road || {}, { start: roadStart, end: roadEnd });
+            const roadRouteKey = roadData && roadData.start && roadData.end
+                ? [roadData.start.lat, roadData.start.lng, roadData.end.lat, roadData.end.lng].join("|")
+                : null;
 
             if (viewportBounds) {
                 map.fitBounds(viewportBounds, { padding: [24, 24] });
@@ -460,6 +498,57 @@
 
             if (Array.isArray(lastPayload && lastPayload.travel_modes) && travelModeSelect) {
                 setTravelModeOptions(lastPayload.travel_modes);
+            }
+
+            if (
+                roadData && roadData.start && roadData.end && config.api && config.api.route
+                && (!roadLayer || lastRoadRouteKey !== roadRouteKey)
+            ) {
+                fetch(config.api.route, {
+                    method: "POST",
+                    credentials: "same-origin",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "X-CSRFToken": document.cookie.match(/csrftoken=([^;]+)/)?.[1] || "",
+                    },
+                    body: JSON.stringify({
+                        start: roadData.start,
+                        end: roadData.end,
+                        travel_mode: config.default_travel_mode || "DRIVING",
+                    }),
+                })
+                    .then(function (response) {
+                        if (!response.ok) {
+                            return response.json().catch(function () { return {}; }).then(function (payload) {
+                                throw new Error(payload.detail || "Unable to fetch the parent road route.");
+                            });
+                        }
+                        return response.json();
+                    })
+                    .then(function (payload) {
+                        if (!routes || !payload.route || !Array.isArray(payload.route.geometry) || !payload.route.geometry.length) {
+                            showStatus("No geometry available — save the record first.", "error");
+                            return;
+                        }
+
+                        if (roadLayer) {
+                            routes.removeLayer(roadLayer);
+                        }
+
+                        const geometry = Array.isArray(payload.route.geometry)
+                            ? { type: "LineString", coordinates: payload.route.geometry }
+                            : payload.route.geometry;
+                        const style = { color: "#666", weight: 4, opacity: 0.8 };
+                        roadLayer = L.geoJSON(geometry, { style }).addTo(routes);
+                        lastRoadRouteKey = roadRouteKey;
+
+                        if (!sectionLayer) {
+                            map.fitBounds(roadLayer.getBounds(), { padding: [24, 24] });
+                        }
+                    })
+                    .catch(function (err) {
+                        showStatus(err.message, "error");
+                    });
             }
         }
 
