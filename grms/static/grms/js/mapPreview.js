@@ -393,18 +393,61 @@
         const flattened = getFlattenedGeometry(geometry);
         const roadLayer = geometry ? drawRouteLine(target, geometry, COLORS.road) : null;
 
-        const sectionSlice = sliceRouteByChainage(
-            flattened,
-            Number(road?.length_km ?? road?.total_length_km),
-            section?.start_chainage_km,
-            section?.end_chainage_km,
-        );
-        const sectionLayer = sectionSlice.length
-            ? drawRouteLine(target, { type: "LineString", coordinates: sectionSlice }, COLORS.section)
-            : null;
+        const { start: roadStart, end: roadEnd } = extractEndpoints(road);
+        let roadGeometry = null;
+        let roadLayer = null;
+        let roadPolyline = [];
+        if (!apiRoute) {
+            console.warn("Route preview endpoint is not configured.");
+        }
 
-        fitMapToGeometry(map, sectionLayer || roadLayer);
-        return { geometry, roadLayer, sectionLayer };
+        try {
+            if (!roadStart || !roadEnd) {
+                throw new Error("No road start/end coordinates available.");
+            }
+            roadGeometry = await ensureRoadGeometry(road, options);
+            roadPolyline = getFlattenedGeometry(roadGeometry);
+            if (roadPolyline.length) {
+                root._roadPolyline = roadPolyline;
+                roadLayer = drawRouteLine(target, roadGeometry, { color: "#666", weight: 4 });
+            }
+        } catch (err) {
+            console.warn("Unable to render road geometry", err);
+        }
+
+        const { start: sectionStart, end: sectionEnd } = extractSectionEndpoints(section);
+        let sectionLayer = null;
+        const sectionMarkers = [];
+
+        try {
+            if (sectionStart && sectionEnd && apiRoute) {
+                const sectionGeometry = await fetchRoutedPolyline(apiRoute, sectionStart, sectionEnd, travelMode);
+                if (sectionGeometry) {
+                    sectionLayer = drawRouteLine(target, sectionGeometry, { color: "#00aaff", weight: 7 });
+                    sectionMarkers.push(root.L.marker([sectionStart.lat, sectionStart.lng]).addTo(target));
+                    sectionMarkers.push(root.L.marker([sectionEnd.lat, sectionEnd.lng]).addTo(target));
+                }
+            } else if (roadPolyline.length) {
+                const sectionSlice = sliceByChainage(
+                    roadPolyline,
+                    section?.start_chainage_km,
+                    section?.end_chainage_km,
+                    Number(road?.length_km ?? road?.total_length_km),
+                );
+                if (sectionSlice.length) {
+                    const sectionGeometry = { type: "LineString", coordinates: sectionSlice };
+                    sectionLayer = drawRouteLine(target, sectionGeometry, { color: "#00aaff", weight: 7 });
+                }
+            }
+        } catch (err) {
+            console.warn("Unable to render section geometry", err);
+        }
+
+        const fitLayer = sectionLayer || roadLayer;
+        if (fitLayer && map) {
+            map.fitBounds(fitLayer.getBounds());
+        }
+        return { geometry: roadGeometry, roadLayer, sectionLayer, sectionMarkers };
     }
 
     async function previewRoadSegment(map, road, segment, options) {
