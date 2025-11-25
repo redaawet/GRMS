@@ -345,16 +345,8 @@
                         setInputsFromLatLng("end", payload.end.lat, payload.end.lng);
                     }
 
-                    if (payload.route && payload.route.geometry && payload.route.geometry.length && map) {
-                        if (routes) {
-                            routes.clearLayers();
-                        }
-                        const latLngs = payload.route.geometry.map(function (coord) {
-                            return [coord[1], coord[0]];
-                        });
-                        const style = ROUTE_STYLES[(payload.travel_mode || travelMode || "DRIVING").toUpperCase()] || ROUTE_STYLES.DRIVING;
-                        routeLine = L.polyline(latLngs, style).addTo(routes || map);
-                        map.fitBounds(routeLine.getBounds(), { padding: [20, 20] });
+                    if (routes) {
+                        routes.clearLayers();
                     }
                     syncEditableMarkers(readPointFromInputs(startLatInput, startLngInput), readPointFromInputs(endLatInput, endLngInput));
                 })
@@ -438,33 +430,21 @@
                 }
             }
 
-            Promise.resolve(preview)
-                .catch(function (err) {
-                    showStatus(err.message, "error");
-                    if (viewportBounds) {
-                        map.fitBounds(viewportBounds, { padding: [24, 24] });
-                    }
-                })
-                .then(function () {
-                    const configPoints = (config.section && config.section.points) || {};
-                    const startPoint = readPointFromInputs(startLatInput, startLngInput) || configPoints.start;
-                    const endPoint = readPointFromInputs(endLatInput, endLngInput) || configPoints.end;
-
-                    if (startPoint && markers) {
-                        if (allowEditing) {
-                            syncEditableMarkers(startPoint, null);
-                        } else {
-                            L.circleMarker([startPoint.lat, startPoint.lng], {
-                                radius: 7,
-                                color: "#0ea5e9",
-                                weight: 3,
-                                fillColor: "#38bdf8",
-                                fillOpacity: 0.8,
-                            })
-                                .bindTooltip("Section start", { permanent: false })
-                                .addTo(markers);
-                        }
-                    }
+            if (endPoint && markers) {
+                if (allowEditing) {
+                    syncEditableMarkers(null, endPoint);
+                } else {
+                    L.circleMarker([endPoint.lat, endPoint.lng], {
+                        radius: 7,
+                        color: "#0ea5e9",
+                        weight: 3,
+                        fillColor: "#0ea5e9",
+                        fillOpacity: 0.85,
+                    })
+                        .bindTooltip("Section end", { permanent: false })
+                        .addTo(markers);
+                }
+            }
 
             if (Array.isArray(lastPayload && lastPayload.travel_modes) && travelModeSelect) {
                 setTravelModeOptions(lastPayload.travel_modes);
