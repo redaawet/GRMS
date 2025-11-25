@@ -388,9 +388,10 @@
     }
 
     async function previewRoadSection(map, road, section, options) {
-        const apiRoute = options?.apiRoute || options?.api?.route;
-        const travelMode = (options?.travelMode || options?.default_travel_mode || "DRIVING").toUpperCase();
         const target = options?.layerGroup || map;
+        const geometry = await ensureRoadGeometry(road, options);
+        const flattened = getFlattenedGeometry(geometry);
+        const roadLayer = geometry ? drawRouteLine(target, geometry, COLORS.road) : null;
 
         const { start: roadStart, end: roadEnd } = extractEndpoints(road);
         let roadGeometry = null;
@@ -450,16 +451,15 @@
     }
 
     async function previewRoadSegment(map, road, segment, options) {
-        const geometry = await ensureRoadGeometry(road, options);
+        const parentGeometry = options?.section?.geometry || road?.geometry || options?.section?.route_geometry;
+        const geometry = parentGeometry || await ensureRoadGeometry(road, options);
         const target = options?.layerGroup || map;
-        const roadLayer = geometry ? drawRouteLine(target, geometry, COLORS.road) : null;
-
         const coords = getFlattenedGeometry(geometry);
 
-        const sectionSlice = options?.section ? sliceRouteByChainage(
+        const sectionSlice = coords.length && options?.section ? sliceRouteByChainage(
             coords,
-            Number(road?.length_km ?? road?.total_length_km),
-            options.section.start_chainage_km,
+            Number(options.section.length_km || options.section.end_chainage_km || 0),
+            0,
             options.section.end_chainage_km,
         ) : [];
         const sectionLayer = sectionSlice.length
@@ -467,8 +467,8 @@
             : null;
 
         const segmentSlice = sliceRouteByChainage(
-            coords,
-            Number(road?.length_km ?? road?.total_length_km),
+            sectionSlice.length ? sectionSlice : coords,
+            Number(options?.section?.length_km || options?.section?.end_chainage_km || road?.length_km || road?.total_length_km),
             segment?.station_from_km,
             segment?.station_to_km,
         );
@@ -478,6 +478,7 @@
             COLORS.segment,
         ) : null;
 
+        const roadLayer = (!parentGeometry && geometry) ? drawRouteLine(target, geometry, COLORS.road) : null;
         fitMapToGeometry(map, segmentLayer || sectionLayer || roadLayer);
         return { geometry, roadLayer, sectionLayer, segmentLayer };
     }
