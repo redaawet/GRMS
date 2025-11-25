@@ -87,6 +87,29 @@
         const overlay = L.layerGroup().addTo(map);
         let activeLayers = [];
 
+        const notice = document.createElement('div');
+        notice.className = 'map-notice';
+        Object.assign(notice.style, {
+            marginTop: '8px',
+            padding: '8px 12px',
+            borderRadius: '4px',
+            border: '1px solid #f59e0b',
+            background: '#fffbeb',
+            color: '#92400e',
+            display: 'none',
+        });
+        mapNode.insertAdjacentElement('afterend', notice);
+
+        function showNotice(message) {
+            notice.textContent = message;
+            notice.style.display = 'block';
+        }
+
+        function hideNotice() {
+            notice.textContent = '';
+            notice.style.display = 'none';
+        }
+
         function clearLayers() {
             activeLayers.forEach(layer => overlay.removeLayer(layer));
             activeLayers = [];
@@ -97,6 +120,19 @@
             if (!window.MapPreview) {
                 return;
             }
+
+            function flattenCoordinates(geometry) {
+                if (!geometry || !geometry.type) {
+                    return [];
+                }
+                if (geometry.type === 'LineString' && Array.isArray(geometry.coordinates)) {
+                    return geometry.coordinates;
+                }
+                if (geometry.type === 'MultiLineString' && Array.isArray(geometry.coordinates)) {
+                    return geometry.coordinates.flat().filter(Array.isArray);
+                }
+                return [];
+            }
             function sliceByChainage(polyline, chStart, chEnd, totalLen) {
                 const s = Math.floor((chStart / totalLen) * (polyline.length - 1));
                 const e = Math.floor((chEnd / totalLen) * (polyline.length - 1));
@@ -105,6 +141,7 @@
 
             const result = { roadLayer: null, sectionLayer: null };
             try {
+                hideNotice();
                 const layerGroup = overlay;
                 const roadResponse = await fetch(config.api.route, {
                     method: "POST",
@@ -117,11 +154,17 @@
                 });
 
                 const roadData = await roadResponse.json();
-                const roadCoords = roadData.geometry.coordinates.map(c => [c[1], c[0]]);
-                result.roadLayer = L.polyline(roadCoords, { color: "#666", weight: 4 }).addTo(layerGroup);
+                const roadGeometry = roadData?.geometry?.type ? roadData.geometry : { type: "LineString", coordinates: roadData?.geometry?.coordinates || [] };
+                const roadCoords = flattenCoordinates(roadGeometry);
+                if (!roadCoords.length) {
+                    showNotice("No geometry available — save the record first.");
+                    return;
+                }
+                result.roadLayer = L.geoJSON(roadGeometry, { style: { color: "#666", weight: 4 } }).addTo(layerGroup);
                 window._roadPolyline = roadCoords;
 
                 let sectionCoords = null;
+                const sectionMarkers = [];
 
                 if (config.section?.points?.start && config.section?.points?.end) {
                     const sectionResponse = await fetch(config.api.route, {
@@ -135,8 +178,13 @@
                     });
 
                     const sectionData = await sectionResponse.json();
-                    sectionCoords = sectionData.geometry.coordinates.map(c => [c[1], c[0]]);
-                    result.sectionLayer = L.polyline(sectionCoords, { color: "#00aaff", weight: 7 }).addTo(layerGroup);
+                    const sectionGeometry = sectionData?.geometry?.type ? sectionData.geometry : { type: "LineString", coordinates: sectionData?.geometry?.coordinates || [] };
+                    sectionCoords = flattenCoordinates(sectionGeometry);
+                    if (sectionCoords.length) {
+                        result.sectionLayer = L.geoJSON(sectionGeometry, { style: { color: "#00aaff", weight: 7 } }).addTo(layerGroup);
+                        sectionMarkers.push(L.marker([config.section.points.start.lat, config.section.points.start.lng]).addTo(layerGroup));
+                        sectionMarkers.push(L.marker([config.section.points.end.lat, config.section.points.end.lng]).addTo(layerGroup));
+                    }
                 } else if (Array.isArray(window._roadPolyline) && window._roadPolyline.length
                     && Number.isFinite(config.section?.start_chainage_km) && Number.isFinite(config.section?.end_chainage_km)
                 ) {
@@ -148,22 +196,23 @@
                     );
 
                     sectionCoords = sectionCoordsByChainage;
-                    result.sectionLayer = L.polyline(sectionCoordsByChainage, {
-                        color: "#00aaff",
-                        weight: 7
-                    }).addTo(layerGroup);
+                    if (sectionCoordsByChainage.length) {
+                        const sectionGeometry = { type: "LineString", coordinates: sectionCoordsByChainage };
+                        result.sectionLayer = L.geoJSON(sectionGeometry, { style: { color: "#00aaff", weight: 7 } }).addTo(layerGroup);
+                    }
                 }
 
                 if (sectionCoords && sectionCoords.length) {
-                    map.fitBounds(L.polyline(sectionCoords).getBounds());
+                    map.fitBounds(result.sectionLayer.getBounds());
+                    hideNotice();
+                } else {
+                    showNotice("No geometry available — save the record first.");
                 }
 
-                activeLayers = [result.roadLayer, result.sectionLayer].filter(Boolean);
+                activeLayers = [result.roadLayer, result.sectionLayer, ...sectionMarkers].filter(Boolean);
             } catch (err) {
                 console.error('Unable to render section preview', err);
-                const fallback = L.marker([config.map_region.center.lat, config.map_region.center.lng]).addTo(overlay);
-                fallback.bindPopup('Map preview unavailable — missing road coordinates.');
-                activeLayers.push(fallback);
+                showNotice("No geometry available — save the record first.");
             }
         }
 

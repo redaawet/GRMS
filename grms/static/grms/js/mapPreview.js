@@ -266,11 +266,7 @@
         if (!flattened.length) {
             throw new Error("Route preview did not return valid geometry.");
         }
-        const latLngPairs = toLatLngPairs(flattened);
-        if (!latLngPairs.length) {
-            throw new Error("Routed geometry could not be normalised.");
-        }
-        return latLngPairs;
+        return { type: "LineString", coordinates: flattened };
     }
 
     function drawRouteLine(mapOrLayer, geometry, style) {
@@ -397,8 +393,9 @@
         const target = options?.layerGroup || map;
 
         const { start: roadStart, end: roadEnd } = extractEndpoints(road);
-        let roadPolyline = [];
+        let roadGeometry = null;
         let roadLayer = null;
+        let roadPolyline = [];
         if (!apiRoute) {
             console.warn("Route preview endpoint is not configured.");
         }
@@ -407,10 +404,11 @@
             if (!roadStart || !roadEnd) {
                 throw new Error("No road start/end coordinates available.");
             }
-            roadPolyline = apiRoute ? await fetchRoutedPolyline(apiRoute, roadStart, roadEnd, travelMode) : [];
+            roadGeometry = await ensureRoadGeometry(road, options);
+            roadPolyline = getFlattenedGeometry(roadGeometry);
             if (roadPolyline.length) {
                 root._roadPolyline = roadPolyline;
-                roadLayer = root.L.polyline(roadPolyline, { color: "#666", weight: 4 }).addTo(target);
+                roadLayer = drawRouteLine(target, roadGeometry, { color: "#666", weight: 4 });
             }
         } catch (err) {
             console.warn("Unable to render road geometry", err);
@@ -422,9 +420,9 @@
 
         try {
             if (sectionStart && sectionEnd && apiRoute) {
-                const sectionPolyline = await fetchRoutedPolyline(apiRoute, sectionStart, sectionEnd, travelMode);
-                if (sectionPolyline.length) {
-                    sectionLayer = root.L.polyline(sectionPolyline, { color: "#00aaff", weight: 7 }).addTo(target);
+                const sectionGeometry = await fetchRoutedPolyline(apiRoute, sectionStart, sectionEnd, travelMode);
+                if (sectionGeometry) {
+                    sectionLayer = drawRouteLine(target, sectionGeometry, { color: "#00aaff", weight: 7 });
                     sectionMarkers.push(root.L.marker([sectionStart.lat, sectionStart.lng]).addTo(target));
                     sectionMarkers.push(root.L.marker([sectionEnd.lat, sectionEnd.lng]).addTo(target));
                 }
@@ -436,7 +434,8 @@
                     Number(road?.length_km ?? road?.total_length_km),
                 );
                 if (sectionSlice.length) {
-                    sectionLayer = root.L.polyline(sectionSlice, { color: "#00aaff", weight: 7 }).addTo(target);
+                    const sectionGeometry = { type: "LineString", coordinates: sectionSlice };
+                    sectionLayer = drawRouteLine(target, sectionGeometry, { color: "#00aaff", weight: 7 });
                 }
             }
         } catch (err) {
@@ -447,7 +446,7 @@
         if (fitLayer && map) {
             map.fitBounds(fitLayer.getBounds());
         }
-        return { geometry: roadPolyline, roadLayer, sectionLayer, sectionMarkers };
+        return { geometry: roadGeometry, roadLayer, sectionLayer, sectionMarkers };
     }
 
     async function previewRoadSegment(map, road, segment, options) {
