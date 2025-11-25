@@ -95,34 +95,36 @@
             }
         }
 
-        const start = config.road.start;
-        const end = config.road.end;
-        if (start && end) {
-            const roadLine = L.polyline(
-                [
-                    [start.lat, start.lng],
-                    [end.lat, end.lng],
-                ],
-                { color: '#6b7280', weight: 4 }
-            ).addTo(map);
-            map.fitBounds(roadLine.getBounds(), { padding: [30, 30] });
+        const overlay = L.layerGroup().addTo(map);
+        let activeLayers = [];
 
-            const lengthKm = config.road.length_km;
-            const sectionStartKm = config.section.start_chainage_km;
-            const sectionEndKm = config.section.end_chainage_km;
-            if (lengthKm && sectionStartKm != null && sectionEndKm != null && lengthKm > 0) {
-                const startFraction = sectionStartKm / lengthKm;
-                const endFraction = sectionEndKm / lengthKm;
-                const sectionStart = interpolatePoint(start, end, startFraction);
-                const sectionEnd = interpolatePoint(start, end, endFraction);
-                if (sectionStart && sectionEnd) {
-                    L.polyline([sectionStart, sectionEnd], { color: '#0ea5e9', weight: 6 }).addTo(map);
-                }
-            }
-        } else {
-            const fallback = L.marker([config.map_region.center.lat, config.map_region.center.lng]).addTo(map);
-            fallback.bindPopup('Map preview unavailable — missing road coordinates.');
+        function clearLayers() {
+            activeLayers.forEach(layer => overlay.removeLayer(layer));
+            activeLayers = [];
         }
+
+        async function renderMapPreview() {
+            clearLayers();
+            if (!window.MapPreview) {
+                return;
+            }
+            try {
+                const result = await window.MapPreview.previewSection(
+                    map,
+                    config.road,
+                    config.section,
+                    { layerGroup: overlay }
+                );
+                activeLayers = [result.roadLayer, result.sectionLayer].filter(Boolean);
+            } catch (err) {
+                console.error('Unable to render section preview', err);
+                const fallback = L.marker([config.map_region.center.lat, config.map_region.center.lng]).addTo(overlay);
+                fallback.bindPopup('Map preview unavailable — missing road coordinates.');
+                activeLayers.push(fallback);
+            }
+        }
+
+        renderMapPreview();
     }
 
     document.addEventListener('DOMContentLoaded', function () {

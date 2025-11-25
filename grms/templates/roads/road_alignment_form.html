@@ -1,9 +1,11 @@
 <!DOCTYPE html>
+{% load static %}
 <html>
 <head>
     <title>Road Alignment</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-WBkoXOwTeyKclOHuWtc+i2uENFpDZ9YPdf5Hf+D7ewM=" crossorigin="">
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-SmHgwlT0Q6p1t0Q6teM9YFJYHf3szgV+OGPQTqXQSEM=" crossorigin=""></script>
+    <script src="{% static 'grms/js/mapPreview.js' %}"></script>
     <style>
         body { font-family: Arial, sans-serif; margin: 2rem; }
         .wizard { display: flex; gap: 1rem; margin-bottom: 1rem; }
@@ -92,8 +94,6 @@
         const mapConfig = JSON.parse('{{ map_config|escapejs }}');
         const mapCenter = mapConfig.map_center || {lat: 13.5, lng: 39.5, zoom: 12};
         const mapBounds = mapConfig.map_bounds;
-        let start = mapConfig.start;
-        let end = mapConfig.end;
 
         const map = L.map('map');
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -111,51 +111,56 @@
         }
 
         const overlay = L.layerGroup().addTo(map);
+        let activeLayers = [];
+        const road = {
+            start: mapConfig.start,
+            end: mapConfig.end,
+        };
 
-        function renderPreview() {
-            overlay.clearLayers();
-            const bounds = [];
-
-            if (start) {
-                overlay.addLayer(L.marker([start.lat, start.lng]).bindPopup('Start'));
-                bounds.push([start.lat, start.lng]);
-            }
-            if (end) {
-                overlay.addLayer(L.marker([end.lat, end.lng]).bindPopup('End'));
-                bounds.push([end.lat, end.lng]);
-            }
-            if (bounds.length === 2) {
-                overlay.addLayer(L.polyline(bounds, {color: 'blue', dashArray: '5 5'}));
-                map.fitBounds(bounds, { padding: [20, 20] });
-            } else if (bounds.length === 1) {
-                map.setView(bounds[0], mapCenter.zoom || 12);
-            }
+        function clearActiveLayers() {
+            activeLayers.forEach(layer => overlay.removeLayer(layer));
+            activeLayers = [];
         }
 
-        function latLngFromInputs(prefix) {
-            const lat = parseFloat(document.getElementById(`id_${prefix}_latitude`).value);
-            const lng = parseFloat(document.getElementById(`id_${prefix}_longitude`).value);
+        function pointFromInputs(prefix) {
+            const lat = parseFloat(document.getElementById(`id_${prefix}_latitude`)?.value);
+            const lng = parseFloat(document.getElementById(`id_${prefix}_longitude`)?.value);
             if (Number.isFinite(lat) && Number.isFinite(lng)) {
-                return {lat, lng};
+                return { lat, lng };
+            }
+            const easting = parseFloat(document.getElementById(`id_${prefix}_easting`)?.value);
+            const northing = parseFloat(document.getElementById(`id_${prefix}_northing`)?.value);
+            if (Number.isFinite(easting) && Number.isFinite(northing) && window.MapPreview) {
+                return window.MapPreview.utmToLatLng(easting, northing, 37);
             }
             return null;
         }
 
-        function updateFromInputs() {
-            const startInput = latLngFromInputs('start');
-            const endInput = latLngFromInputs('end');
-            start = startInput || start;
-            end = endInput || end;
-            renderPreview();
+        async function renderPreview() {
+            clearActiveLayers();
+            road.start = pointFromInputs('start') || mapConfig.start;
+            road.end = pointFromInputs('end') || mapConfig.end;
+
+            if (!road.start || !road.end || !window.MapPreview) {
+                return;
+            }
+
+            try {
+                const result = await window.MapPreview.previewRoad(map, road, { layerGroup: overlay });
+                activeLayers = [result.routeLayer, result.startMarker, result.endMarker].filter(Boolean);
+            } catch (err) {
+                console.error('Unable to render map preview', err);
+            }
         }
 
-        ['start_latitude', 'start_longitude', 'end_latitude', 'end_longitude'].forEach(id => {
-            const field = document.getElementById(`id_${id}`);
-            if (field) {
-                field.addEventListener('change', updateFromInputs);
-                field.addEventListener('blur', updateFromInputs);
-            }
-        });
+        ['start_latitude', 'start_longitude', 'start_easting', 'start_northing', 'end_latitude', 'end_longitude', 'end_easting', 'end_northing']
+            .forEach(id => {
+                const field = document.getElementById(`id_${id}`);
+                if (field) {
+                    field.addEventListener('change', renderPreview);
+                    field.addEventListener('blur', renderPreview);
+                }
+            });
 
         renderPreview();
     </script>
