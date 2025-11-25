@@ -11,6 +11,7 @@ from django.forms.models import BaseInlineFormSet
 from django.shortcuts import redirect
 from django.urls import reverse
 from django.utils.html import format_html
+from django.utils.timezone import localdate
 
 from . import models
 from .services import map_services
@@ -209,6 +210,15 @@ class TrafficCountRecordInlineFormSet(BaseInlineFormSet):
             for form in self.forms:
                 form.initial.setdefault("road_segment", self.instance.road_segment)
 
+    def save_new(self, form, commit=True):
+        obj = super().save_new(form, commit=False)
+        obj.road_segment = getattr(self.instance, "road_segment", None)
+        obj.count_date = getattr(self.instance, "count_start_date", None) or localdate()
+        if commit:
+            obj.save()
+            form.save_m2m()
+        return obj
+
 
 class TrafficCountRecordInline(admin.TabularInline):
     model = models.TrafficCountRecord
@@ -218,12 +228,9 @@ class TrafficCountRecordInline(admin.TabularInline):
     fields = (
         "vehicle_class",
         "count_value",
-        "count_date",
-        "time_block_from",
-        "time_block_to",
-        "is_market_day",
-        "road_segment",
     )
+    readonly_fields = ("vehicle_class",)
+    can_delete = False
 
     vehicle_class_choices = models.TrafficCountRecord._meta.get_field("vehicle_class").choices
 
