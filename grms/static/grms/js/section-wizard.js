@@ -61,30 +61,8 @@
             return;
         }
 
-        const map = L.map(mapNode).setView(
-            [config.map_region.center.lat, config.map_region.center.lng],
-            7
-        );
-
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            maxZoom: 18,
-            attribution: '&copy; OpenStreetMap contributors',
-        }).addTo(map);
-
-        if (config.map_region && config.map_region.viewport) {
-            const { northeast, southwest } = config.map_region.viewport;
-            if (northeast && southwest) {
-                const bounds = L.latLngBounds(
-                    [southwest.lat, southwest.lng],
-                    [northeast.lat, northeast.lng]
-                );
-                L.rectangle(bounds, { color: '#22c55e', weight: 2, dashArray: '6 4', fillOpacity: 0.05 })
-                    .addTo(map);
-                map.fitBounds(bounds, { padding: [20, 20] });
-            }
-        }
-
-        const overlay = L.layerGroup().addTo(map);
+        const mapSetup = window.MapPreview.createPreviewMap(mapNode, config.map_region);
+        const { map, overlay } = mapSetup;
         let activeLayers = [];
 
         const notice = document.createElement('div');
@@ -111,7 +89,7 @@
         }
 
         function clearLayers() {
-            activeLayers.forEach(layer => overlay.removeLayer(layer));
+            window.MapPreview.clearOverlay(overlay);
             activeLayers = [];
         }
 
@@ -121,95 +99,31 @@
                 return;
             }
 
-            function flattenCoordinates(geometry) {
-                if (!geometry || !geometry.type) {
-                    return [];
-                }
-                if (geometry.type === 'LineString' && Array.isArray(geometry.coordinates)) {
-                    return geometry.coordinates;
-                }
-                if (geometry.type === 'MultiLineString' && Array.isArray(geometry.coordinates)) {
-                    return geometry.coordinates.flat().filter(Array.isArray);
-                }
-                return [];
-            }
-            function sliceByChainage(polyline, chStart, chEnd, totalLen) {
-                const s = Math.floor((chStart / totalLen) * (polyline.length - 1));
-                const e = Math.floor((chEnd / totalLen) * (polyline.length - 1));
-                return polyline.slice(s, e + 1);
-            }
-
-            const result = { roadLayer: null, sectionLayer: null };
             try {
                 hideNotice();
-                const layerGroup = overlay;
-                const roadResponse = await fetch(config.api.route, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        start: config.road.start,
-                        end: config.road.end,
-                        mode: config.default_travel_mode
-                    })
-                });
+                const result = await window.MapPreview.loadAndRenderSection(
+                    config.section?.id,
+                    config.section.start_chainage_km,
+                    config.section.end_chainage_km,
+                    {
+                        container: mapNode,
+                        mapRegion: config.map_region,
+                        road: config.road,
+                        section: config.section,
+                        api: config.api,
+                        default_travel_mode: config.default_travel_mode,
+                        layerGroup: overlay,
+                        map,
+                    },
+                );
 
-                const roadData = await roadResponse.json();
-                const roadGeometry = roadData?.geometry?.type ? roadData.geometry : { type: "LineString", coordinates: roadData?.geometry?.coordinates || [] };
-                const roadCoords = flattenCoordinates(roadGeometry);
-                if (!roadCoords.length) {
+                if (!result.sectionLayer) {
                     showNotice("No geometry available — save the record first.");
                     return;
                 }
-                result.roadLayer = L.geoJSON(roadGeometry, { style: { color: "#666", weight: 4 } }).addTo(layerGroup);
-                window._roadPolyline = roadCoords;
 
-                let sectionCoords = null;
-                const sectionMarkers = [];
-
-                if (config.section?.points?.start && config.section?.points?.end) {
-                    const sectionResponse = await fetch(config.api.route, {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({
-                            start: config.section.points.start,
-                            end: config.section.points.end,
-                            mode: config.default_travel_mode
-                        })
-                    });
-
-                    const sectionData = await sectionResponse.json();
-                    const sectionGeometry = sectionData?.geometry?.type ? sectionData.geometry : { type: "LineString", coordinates: sectionData?.geometry?.coordinates || [] };
-                    sectionCoords = flattenCoordinates(sectionGeometry);
-                    if (sectionCoords.length) {
-                        result.sectionLayer = L.geoJSON(sectionGeometry, { style: { color: "#00aaff", weight: 7 } }).addTo(layerGroup);
-                        sectionMarkers.push(L.marker([config.section.points.start.lat, config.section.points.start.lng]).addTo(layerGroup));
-                        sectionMarkers.push(L.marker([config.section.points.end.lat, config.section.points.end.lng]).addTo(layerGroup));
-                    }
-                } else if (Array.isArray(window._roadPolyline) && window._roadPolyline.length
-                    && Number.isFinite(config.section?.start_chainage_km) && Number.isFinite(config.section?.end_chainage_km)
-                ) {
-                    const sectionCoordsByChainage = sliceByChainage(
-                        window._roadPolyline,
-                        config.section.start_chainage_km,
-                        config.section.end_chainage_km,
-                        config.road.length_km
-                    );
-
-                    sectionCoords = sectionCoordsByChainage;
-                    if (sectionCoordsByChainage.length) {
-                        const sectionGeometry = { type: "LineString", coordinates: sectionCoordsByChainage };
-                        result.sectionLayer = L.geoJSON(sectionGeometry, { style: { color: "#00aaff", weight: 7 } }).addTo(layerGroup);
-                    }
-                }
-
-                if (sectionCoords && sectionCoords.length) {
-                    map.fitBounds(result.sectionLayer.getBounds());
-                    hideNotice();
-                } else {
-                    showNotice("No geometry available — save the record first.");
-                }
-
-                activeLayers = [result.roadLayer, result.sectionLayer, ...sectionMarkers].filter(Boolean);
+                hideNotice();
+                activeLayers = [result.roadLayer, result.sectionLayer, ...(result.markers || [])].filter(Boolean);
             } catch (err) {
                 console.error('Unable to render section preview', err);
                 showNotice("No geometry available — save the record first.");
