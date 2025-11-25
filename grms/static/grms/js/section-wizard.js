@@ -54,17 +54,6 @@
         }
     }
 
-    function interpolatePoint(start, end, fraction) {
-        if (!start || !end) {
-            return null;
-        }
-        const clamped = Math.max(0, Math.min(1, fraction));
-        return [
-            start.lat + (end.lat - start.lat) * clamped,
-            start.lng + (end.lng - start.lng) * clamped,
-        ];
-    }
-
     function drawMap() {
         const mapNode = document.getElementById('section-map');
         const config = getConfig('section-map-config');

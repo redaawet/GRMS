@@ -20,6 +20,7 @@
         .full-width { grid-column: span 2; }
         .actions { margin-top: 0.5rem; display: flex; justify-content: flex-end; gap: 0.5rem; }
         .errorlist { color: #b94a48; margin: 0.25rem 0; grid-column: span 2; }
+        .map-notice { margin-top: 0.5rem; padding: 0.5rem 0.75rem; border-radius: 4px; border: 1px solid #f59e0b; background: #fffbeb; color: #92400e; }
     </style>
 </head>
 <body>
@@ -83,6 +84,7 @@
         <div class="full-width">
             <h3>Map Preview</h3>
             <div id="map" class="map"></div>
+            <div id="map-notice" class="map-notice" style="display: none;"></div>
         </div>
 
         <div class="actions full-width">
@@ -113,10 +115,23 @@
 
         const overlay = L.layerGroup().addTo(map);
         let activeLayers = [];
-            const road = {
-                start: mapConfig.start,
-                end: mapConfig.end,
-            };
+        const notice = document.getElementById('map-notice');
+        const road = {
+            start: mapConfig.start,
+            end: mapConfig.end,
+        };
+
+        function showNotice(message) {
+            if (!notice) { return; }
+            notice.textContent = message;
+            notice.style.display = 'block';
+        }
+
+        function hideNotice() {
+            if (!notice) { return; }
+            notice.textContent = '';
+            notice.style.display = 'none';
+        }
 
         function clearActiveLayers() {
             activeLayers.forEach(layer => overlay.removeLayer(layer));
@@ -143,8 +158,10 @@
             road.end = pointFromInputs('end') || mapConfig.end;
 
             if (!road.start || !road.end || !window.MapPreview) {
+                showNotice('No coordinate data available.');
                 return;
             }
+            hideNotice();
 
             try {
                 const result = await window.MapPreview.previewRoad(map, road, {
