@@ -37,6 +37,7 @@
     <form method="post" novalidate>
         {% csrf_token %}
         {{ form.non_field_errors }}
+        <input type="hidden" id="id_geometry" name="geometry" />
         <div class="full-width"><h3>Start Coordinates</h3></div>
         <div>
             <label for="id_start_easting">Start Easting</label>
