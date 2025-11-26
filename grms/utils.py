@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 import math
-from typing import Dict, Optional
+from typing import Dict, Iterable, Optional, Sequence, Tuple
 from urllib.error import HTTPError, URLError
 from urllib.request import urlopen
 
@@ -42,6 +42,129 @@ def wgs84_to_utm(lat: float, lon: float, zone: int = 37) -> tuple[float, float]:
     return easting, northing
 
 from django.conf import settings
+
+# Mean Earth radius according to IUGG (km)
+EARTH_RADIUS_KM = 6371.0088
+
+
+def _haversine_km(start: Sequence[float], end: Sequence[float]) -> float:
+    """Return the haversine distance between two ``(lng, lat)`` points in km."""
+
+    lon1, lat1 = float(start[0]), float(start[1])
+    lon2, lat2 = float(end[0]), float(end[1])
+
+    lon1_rad, lat1_rad, lon2_rad, lat2_rad = map(math.radians, [lon1, lat1, lon2, lat2])
+    dlon = lon2_rad - lon1_rad
+    dlat = lat2_rad - lat1_rad
+
+    a = math.sin(dlat / 2) ** 2 + math.cos(lat1_rad) * math.cos(lat2_rad) * math.sin(dlon / 2) ** 2
+    c = 2 * math.asin(math.sqrt(a))
+    return EARTH_RADIUS_KM * c
+
+
+def _extract_coordinates(geometry) -> list[Tuple[float, float]]:
+    """Return a list of ``(lng, lat)`` pairs from a GEOS or GeoJSON geometry."""
+
+    if geometry is None:
+        return []
+
+    if hasattr(geometry, "coords"):
+        return [(float(x), float(y)) for x, y in geometry.coords]
+
+    if isinstance(geometry, dict):
+        coords = geometry.get("coordinates") or []
+        if coords and isinstance(coords[0][0], (list, tuple)):
+            # GeoJSON LineString structure
+            return [(float(x), float(y)) for x, y in coords]
+    return []
+
+
+def geometry_length_km(geometry) -> float:
+    """Calculate the total length of a linestring geometry in kilometres."""
+
+    coordinates = _extract_coordinates(geometry)
+    if len(coordinates) < 2:
+        return 0.0
+
+    total = 0.0
+    for start, end in zip(coordinates[:-1], coordinates[1:]):
+        total += _haversine_km(start, end)
+    return total
+
+
+def _interpolate_coordinate(start: Tuple[float, float], end: Tuple[float, float], fraction: float) -> Tuple[float, float]:
+    return (
+        float(start[0]) + (float(end[0]) - float(start[0])) * fraction,
+        float(start[1]) + (float(end[1]) - float(start[1])) * fraction,
+    )
+
+
+def _build_linestring(coordinates: Iterable[Tuple[float, float]], *, srid: int | None, as_geos: bool):
+    coords_list = list(coordinates)
+    if as_geos:
+        from django.contrib.gis.geos import LineString  # pragma: no cover - requires GEOS
+
+        line = LineString(coords_list)
+        if srid:
+            line.srid = srid
+        return line
+    return {"type": "LineString", "coordinates": coords_list, "srid": srid or 4326}
+
+
+def slice_geometry_by_chainage(geometry, start_chainage_km: float, end_chainage_km: float):
+    """Return a portion of a linestring between the given chainages.
+
+    The function works with both GEOS :class:`~django.contrib.gis.geos.LineString`
+    instances and GeoJSON-like dictionaries.
+    """
+
+    if start_chainage_km < 0 or end_chainage_km <= start_chainage_km:
+        return None
+
+    coords = _extract_coordinates(geometry)
+    if len(coords) < 2:
+        return None
+
+    total_length = geometry_length_km(geometry)
+    if total_length == 0:
+        return None
+
+    start_km = min(start_chainage_km, total_length)
+    end_km = min(end_chainage_km, total_length)
+    if start_km >= total_length:
+        return None
+
+    sliced_coords: list[Tuple[float, float]] = []
+    cumulative = 0.0
+    srid = getattr(geometry, "srid", None)
+    as_geos = getattr(settings, "USE_POSTGIS", False) and hasattr(geometry, "coords")
+
+    for start, end in zip(coords[:-1], coords[1:]):
+        segment_length = _haversine_km(start, end)
+        next_cumulative = cumulative + segment_length
+
+        if start_km >= cumulative and start_km <= next_cumulative:
+            fraction = (start_km - cumulative) / segment_length if segment_length else 0.0
+            sliced_start = _interpolate_coordinate(start, end, fraction)
+            sliced_coords.append(sliced_start)
+
+        if end_km >= cumulative and end_km <= next_cumulative:
+            fraction = (end_km - cumulative) / segment_length if segment_length else 0.0
+            sliced_end = _interpolate_coordinate(start, end, fraction)
+            if not sliced_coords:
+                sliced_coords.append(_interpolate_coordinate(start, end, 0))
+            sliced_coords.append(sliced_end)
+            break
+
+        if sliced_coords and end_km > next_cumulative:
+            sliced_coords.append(end)
+
+        cumulative = next_cumulative
+
+    if len(sliced_coords) < 2:
+        return None
+
+    return _build_linestring(sliced_coords, srid=srid, as_geos=as_geos)
 
 
 def make_point(lat: float, lng: float):
