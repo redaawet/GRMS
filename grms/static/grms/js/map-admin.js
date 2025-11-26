@@ -64,6 +64,24 @@
         return { lat: lat, lng: lng };
     }
 
+    function toLatLng(point) {
+        if (!point) {
+            return null;
+        }
+        if (Array.isArray(point) && point.length >= 2) {
+            const lat = Number(point[0]);
+            const lng = Number(point[1]);
+            return Number.isFinite(lat) && Number.isFinite(lng) ? { lat, lng } : null;
+        }
+        if (Number.isFinite(point.lat) && Number.isFinite(point.lng)) {
+            return { lat: Number(point.lat), lng: Number(point.lng) };
+        }
+        if (Number.isFinite(point.latitude) && Number.isFinite(point.longitude)) {
+            return { lat: Number(point.latitude), lng: Number(point.longitude) };
+        }
+        return null;
+    }
+
     const DEFAULT_MAP_REGION = {
         formatted_address: "UTM Zone 37N (Ethiopia)",
         center: { lat: 9.0, lng: 39.0 },
@@ -493,8 +511,8 @@
                 return;
             }
 
-            const startPoint = sectionConfig.points && sectionConfig.points.start;
-            const endPoint = sectionConfig.points && sectionConfig.points.end;
+            const startPointConfig = sectionConfig.points && sectionConfig.points.start;
+            const endPointConfig = sectionConfig.points && sectionConfig.points.end;
 
             geometryLayer.clearLayers();
 
@@ -503,10 +521,20 @@
                 .then(function (payload) {
                     const rawGeometry = payload && payload.geometry;
                     const parsedGeometry = typeof rawGeometry === "string" ? JSON.parse(rawGeometry) : rawGeometry;
+                    const payloadStart = toLatLng(payload && payload.start_point);
+                    const payloadEnd = toLatLng(payload && payload.end_point);
+                    const startPoint = payloadStart || toLatLng(startPointConfig);
+                    const endPoint = payloadEnd || toLatLng(endPointConfig);
 
                     if (parsedGeometry && Array.isArray(parsedGeometry.coordinates)) {
                         const coords = parsedGeometry.coordinates.map(function (coord) { return [coord[1], coord[0]]; });
                         const line = L.polyline(coords, { color: "#0050ff", weight: 6 }).addTo(geometryLayer);
+                        if (startPoint) {
+                            L.marker([startPoint.lat, startPoint.lng]).addTo(geometryLayer);
+                        }
+                        if (endPoint) {
+                            L.marker([endPoint.lat, endPoint.lng]).addTo(geometryLayer);
+                        }
                         map.fitBounds(line.getBounds());
                         return;
                     }

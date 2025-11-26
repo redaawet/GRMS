@@ -186,15 +186,23 @@ def line_distance(p1, p2):
     )
 
 
-def slice_linestring_by_chainage(parent_geom, start_km, end_km):
-    """Slice a WGS84 LineString using metric distances without Shapely."""
+def slice_linestring_by_chainage(polyline, start_chainage_km, end_chainage_km):
+    """Slice a LineString using chainages measured along the polyline itself."""
 
-    if not parent_geom or parent_geom.empty:
+    if not polyline:
         return None
 
-    parent_4326 = GEOSGeometry(parent_geom.wkt, srid=4326)
-    parent_3857 = parent_4326.transform(3857, clone=True)
-    coords = list(parent_3857.coords)
+    try:
+        geos_line = polyline if hasattr(polyline, "interpolate") else GEOSGeometry(polyline)
+    except Exception:
+        return None
+
+    if geos_line.empty:
+        return None
+
+    line_4326 = geos_line if getattr(geos_line, "srid", 4326) == 4326 else geos_line.transform(4326, clone=True)
+    metric_line = line_4326.transform(3857, clone=True)
+    coords = list(metric_line.coords)
 
     if len(coords) < 2:
         return None
@@ -207,34 +215,32 @@ def slice_linestring_by_chainage(parent_geom, start_km, end_km):
     if total_m == 0:
         return None
 
-    start_m = max(0.0, min(total_m, float(start_km) * 1000))
-    end_m = max(start_m, min(total_m, float(end_km) * 1000))
+    start_m = max(0.0, min(total_m, float(start_chainage_km) * 1000))
+    end_m = max(start_m, min(total_m, float(end_chainage_km) * 1000))
 
-    def point_at_distance(target: float):
-        if target <= 0:
-            return coords[0]
-        if target >= total_m:
-            return coords[-1]
-        for idx in range(1, len(cumulative)):
-            if cumulative[idx] >= target:
-                segment_start = coords[idx - 1]
-                segment_end = coords[idx]
-                segment_length = cumulative[idx] - cumulative[idx - 1]
-                fraction = 0.0 if segment_length == 0 else (target - cumulative[idx - 1]) / segment_length
-                return _interpolate_coordinate(segment_start, segment_end, fraction)
-        return coords[-1]
+    start_point_metric = metric_line.interpolate(start_m)
+    end_point_metric = metric_line.interpolate(end_m)
 
-    sliced_coords = [point_at_distance(start_m)]
+    sliced_coords = [
+        (float(start_point_metric.x), float(start_point_metric.y)),
+    ]
     for idx in range(1, len(coords) - 1):
         if cumulative[idx] > start_m and cumulative[idx] < end_m:
             sliced_coords.append(coords[idx])
-    sliced_coords.append(point_at_distance(end_m))
+    sliced_coords.append((float(end_point_metric.x), float(end_point_metric.y)))
 
-    if len(sliced_coords) < 2:
-        return None
+    sliced_metric = LineString(sliced_coords, srid=3857)
+    sliced_4326 = sliced_metric.transform(4326, clone=True)
 
-    sliced_3857 = LineString(sliced_coords, srid=3857)
-    return sliced_3857.transform(4326, clone=True)
+    start_point_wgs = start_point_metric.transform(4326, clone=True)
+    end_point_wgs = end_point_metric.transform(4326, clone=True)
+
+    return {
+        "geometry": sliced_4326,
+        "start_point": (float(start_point_wgs.y), float(start_point_wgs.x)),
+        "end_point": (float(end_point_wgs.y), float(end_point_wgs.x)),
+        "length_km": float(sliced_metric.length) / 1000,
+    }
 
 
 def make_point(lat: float, lng: float):

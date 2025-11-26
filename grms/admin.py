@@ -554,8 +554,18 @@ class RoadSectionAdmin(admin.ModelAdmin):
 
     def get_geometry(self, request, pk):
         section = models.RoadSection.objects.get(pk=pk)
-        geojson = section.geometry.geojson if section.geometry else None
-        return JsonResponse({"geometry": geojson})
+        geometry = _serialize_geometry(getattr(section, "geometry", None))
+        start_point = point_to_lat_lng(getattr(section, "section_start_coordinates", None))
+        end_point = point_to_lat_lng(getattr(section, "section_end_coordinates", None))
+        length_km = float(section.length_km) if section.length_km is not None else None
+        return JsonResponse(
+            {
+                "geometry": geometry,
+                "start_point": start_point,
+                "end_point": end_point,
+                "length_km": length_km,
+            }
+        )
 
     def changeform_view(self, request, object_id=None, form_url="", extra_context=None):
         extra_context = extra_context or {}

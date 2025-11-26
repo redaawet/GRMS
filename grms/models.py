@@ -18,6 +18,7 @@ from django.db import models
 from .gis_fields import LineStringField, PointField
 from .utils import (
     fetch_osrm_route,
+    geometry_length_km,
     geos_length_km,
     make_point,
     osrm_linestring_to_geos,
@@ -453,7 +454,8 @@ class Road(models.Model):
                 update_fields_set.add("geometry")
 
         if self.geometry:
-            length_km = Decimal(str(geos_length_km(self.geometry))).quantize(Decimal("0.01"))
+            polyline_length = geometry_length_km(self.geometry)
+            length_km = Decimal(str(polyline_length)).quantize(Decimal("0.01"))
             self.total_length_km = length_km
             if update_fields_set is not None:
                 update_fields_set.add("total_length_km")
@@ -635,17 +637,25 @@ class RoadSection(models.Model):
             raise ValidationError(errors)
 
     def save(self, *args, **kwargs):
-        if self.start_chainage_km is not None and self.end_chainage_km is not None:
-            self.length_km = (self.end_chainage_km - self.start_chainage_km).quantize(Decimal("0.001"))
-
-        if self.road and self.road.geometry:
+        sliced = None
+        if self.road and self.road.geometry and self.start_chainage_km is not None and self.end_chainage_km is not None:
             sliced = slice_linestring_by_chainage(
                 self.road.geometry,
                 float(self.start_chainage_km),
-                float(self.end_chainage_km)
+                float(self.end_chainage_km),
             )
-            if sliced:
-                self.geometry = sliced
+
+        if sliced:
+            self.geometry = sliced["geometry"]
+            if sliced.get("start_point"):
+                self.section_start_coordinates = make_point(*sliced["start_point"])
+            if sliced.get("end_point"):
+                self.section_end_coordinates = make_point(*sliced["end_point"])
+            if sliced.get("length_km") is not None:
+                self.length_km = Decimal(str(sliced["length_km"])).quantize(Decimal("0.001"))
+        elif self.start_chainage_km is not None and self.end_chainage_km is not None:
+            self.length_km = (self.end_chainage_km - self.start_chainage_km).quantize(Decimal("0.001"))
+
         self.full_clean()
         super().save(*args, **kwargs)
 
