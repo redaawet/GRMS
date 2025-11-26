@@ -44,6 +44,9 @@ def wgs84_to_utm(lat: float, lon: float, zone: int = 37) -> tuple[float, float]:
 
 from django.conf import settings
 from django.contrib.gis.geos import LineString
+from django.contrib.gis.geos import GEOSGeometry
+from shapely.geometry import LineString as ShapelyLineString
+from shapely.ops import substring
 
 # Mean Earth radius according to IUGG (km)
 EARTH_RADIUS_KM = 6371.0088
@@ -176,63 +179,42 @@ def line_distance(p1, p2):
     )
 
 
-def slice_linestring_by_chainage(linestring: LineString, start_km: float, end_km: float):
+def slice_linestring_by_chainage(parent_geom, start_km, end_km):
     """
-    Slice a LineString based purely on cumulative distance along the route.
-    Chainage in km → meters.
+    Correctly slice a WGS84 parent LineString by chainage (km).
+
+    Steps:
+    1. Convert parent geometry (EPSG:4326) into metric projection EPSG:3857.
+    2. Perform substring slicing using meters.
+    3. Convert sliced geometry back to EPSG:4326.
     """
 
-    if not linestring:
+    if not parent_geom or parent_geom.empty:
         return None
 
-    pts = list(linestring.coords)
-    if len(pts) < 2:
-        return None
+    # Convert GEOS → Shapely for slicing
+    parent_4326 = GEOSGeometry(parent_geom.wkt, srid=4326)
+    parent_3857 = parent_4326.transform(3857, clone=True)
+    shp_3857 = ShapelyLineString(parent_3857.coords)
 
+    total_m = shp_3857.length
     start_m = float(start_km) * 1000
     end_m = float(end_km) * 1000
 
-    cumulative = 0.0
-    selected_points = []
-    started = False
+    # Normalize ratios
+    start_ratio = max(0, min(1, start_m / total_m))
+    end_ratio = max(0, min(1, end_m / total_m))
 
-    for i in range(len(pts) - 1):
-        p1 = pts[i]
-        p2 = pts[i + 1]
+    # Slice using true metric substring
+    sliced_3857 = substring(shp_3857, start_ratio, end_ratio, normalized=True)
 
-        segment_length = line_distance(p1, p2)
-        next_cumulative = cumulative + segment_length
+    # Convert back to GEOS EPSG:3857
+    sliced_3857_geos = GEOSGeometry(LineString(sliced_3857.coords).wkt, srid=3857)
 
-        # Start inside this segment
-        if not started and start_m >= cumulative and start_m <= next_cumulative:
-            ratio = (start_m - cumulative) / segment_length
-            sp = (
-                p1[0] + ratio * (p2[0] - p1[0]),
-                p1[1] + ratio * (p2[1] - p1[1]),
-            )
-            selected_points.append(sp)
-            started = True
+    # Reproject back to WGS84 EPSG:4326 (for database storage)
+    sliced_4326 = sliced_3857_geos.transform(4326, clone=True)
 
-        if started:
-            # If entirely inside slice window
-            if next_cumulative < end_m:
-                selected_points.append(p2)
-            else:
-                # End inside this segment
-                ratio = (end_m - cumulative) / segment_length
-                ep = (
-                    p1[0] + ratio * (p2[0] - p1[0]),
-                    p1[1] + ratio * (p2[1] - p1[1]),
-                )
-                selected_points.append(ep)
-                break
-
-        cumulative = next_cumulative
-
-    if len(selected_points) < 2:
-        return None
-
-    return LineString(selected_points, srid=linestring.srid)
+    return sliced_4326
 
 
 def make_point(lat: float, lng: float):
