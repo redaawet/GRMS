@@ -5,6 +5,8 @@ from typing import Any, Optional
 
 import json
 
+import importlib.util
+
 from django import forms
 
 from . import models
@@ -141,17 +143,20 @@ class RoadAlignmentForm(forms.ModelForm):
                 except json.JSONDecodeError:
                     geometry_value = geometry_raw
 
-            try:  # pragma: no cover - GIS libraries might be unavailable
+            geos_spec = importlib.util.find_spec("django.contrib.gis.geos")
+            if geos_spec:
                 from django.contrib.gis.geos import GEOSGeometry
 
                 if isinstance(geometry_value, (dict, list)):
-                    geometry_value = GEOSGeometry(json.dumps(geometry_value))
+                    try:
+                        geometry_value = GEOSGeometry(json.dumps(geometry_value))
+                    except Exception:
+                        geometry_value = geometry_raw
                 elif isinstance(geometry_value, str):
-                    geometry_value = GEOSGeometry(geometry_value)
-            except Exception:
-                # Fall back to storing the raw JSON/dict representation when
-                # GEOS is not available in the runtime environment.
-                pass
+                    try:
+                        geometry_value = GEOSGeometry(geometry_value)
+                    except Exception:
+                        geometry_value = geometry_raw
 
             self.instance.geometry = geometry_value
 
