@@ -375,7 +375,17 @@
             };
         }
 
-        function previewRoute() {
+        async function reloadRoadGeometry() {
+            if (!config.road_id) {
+                return;
+            }
+            const response = await fetch(`/api/roads/${config.road_id}/`, { credentials: "same-origin" });
+            if (response.ok) {
+                config.road = await response.json();
+            }
+        }
+
+        async function previewRoute() {
             let coords;
             try {
                 coords = ensureCoordinates();
@@ -384,66 +394,81 @@
                 return;
             }
             showStatus("Requesting route preview…");
-            fetch(config.api.route, {
-                method: "POST",
-                credentials: "same-origin",
-                headers: {
-                    "Content-Type": "application/json",
-                    "X-CSRFToken": getCsrfToken(),
-                },
-                body: JSON.stringify({
-                    start: coords.start,
-                    end: coords.end,
-                    travel_mode: travelModeSelect ? travelModeSelect.value : "DRIVING",
-                }),
-            })
-                .then(function (response) {
-                    if (!response.ok) {
-                        return response.json().catch(function () { return {}; }).then(function (payload) {
-                            throw new Error(payload.detail || "Unable to fetch a route preview.");
-                        });
-                    }
-                    return response.json();
-                })
-                .then(function (payload) {
-                    const summary = formatRouteSummary(payload.route);
-                    if (summary) {
-                        showStatus(summary, "success");
-                    } else {
-                        showStatus("Route retrieved successfully.", "success");
-                    }
-                    if (payload.start && payload.end) {
-                        startLat.value = payload.start.lat;
-                        startLng.value = payload.start.lng;
-                        endLat.value = payload.end.lat;
-                        endLng.value = payload.end.lng;
-                    }
-                    if (payload.route && payload.route.geometry && payload.route.geometry.length && map) {
-                        if (routeLine) {
-                            map.removeLayer(routeLine);
-                        }
-                        const geometry = Array.isArray(payload.route.geometry)
-                            ? { type: "LineString", coordinates: payload.route.geometry }
-                            : payload.route.geometry;
-                        currentRouteCoords = geometry.coordinates || null;
-                        const style = ROUTE_STYLES[(payload.travel_mode || travelModeSelect.value || "DRIVING").toUpperCase()] ||
-                            ROUTE_STYLES.DRIVING;
-                        routeLine = mapPreview.renderGeometry(map, geometry, style);
-                        if (routeLine) {
-                            map.fitBounds(routeLine.getBounds(), { padding: [20, 20] });
-                        }
-                        if (geometrySaveButton) {
-                            geometrySaveButton.disabled = false;
-                        }
-                    } else {
-                        showStatus("No geometry available — save the record first.", "error");
-                        currentRouteCoords = null;
-                    }
-                    syncMarkersFromInputs();
-                })
-                .catch(function (err) {
-                    showStatus(err.message, "error");
+
+            try {
+                const response = await fetch(config.api.route, {
+                    method: "POST",
+                    credentials: "same-origin",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "X-CSRFToken": getCsrfToken(),
+                    },
+                    body: JSON.stringify({
+                        start: coords.start,
+                        end: coords.end,
+                        travel_mode: travelModeSelect ? travelModeSelect.value : "DRIVING",
+                    }),
                 });
+
+                if (!response.ok) {
+                    const payload = await response.json().catch(function () { return {}; });
+                    throw new Error(payload.detail || "Unable to fetch a route preview.");
+                }
+
+                const payload = await response.json();
+                const summary = formatRouteSummary(payload.route);
+                if (summary) {
+                    showStatus(summary, "success");
+                } else {
+                    showStatus("Route retrieved successfully.", "success");
+                }
+
+                if (payload.start && payload.end) {
+                    startLat.value = payload.start.lat;
+                    startLng.value = payload.start.lng;
+                    endLat.value = payload.end.lat;
+                    endLng.value = payload.end.lng;
+                }
+
+                if (payload.route && payload.route.geometry && payload.route.geometry.length && map) {
+                    if (routeLine) {
+                        map.removeLayer(routeLine);
+                    }
+                    const geometry = Array.isArray(payload.route.geometry)
+                        ? { type: "LineString", coordinates: payload.route.geometry }
+                        : payload.route.geometry;
+                    currentRouteCoords = geometry.coordinates || null;
+                    const style = ROUTE_STYLES[(payload.travel_mode || travelModeSelect.value || "DRIVING").toUpperCase()] ||
+                        ROUTE_STYLES.DRIVING;
+                    routeLine = mapPreview.renderGeometry(map, geometry, style);
+                    if (routeLine) {
+                        map.fitBounds(routeLine.getBounds(), { padding: [20, 20] });
+                    }
+                    if (geometrySaveButton) {
+                        geometrySaveButton.disabled = false;
+                    }
+
+                    if (config.road_id) {
+                        await fetch(`/api/roads/${config.road_id}/geometry/`, {
+                            method: "POST",
+                            credentials: "same-origin",
+                            headers: {
+                                "Content-Type": "application/json",
+                                "X-CSRFToken": getCsrfToken(),
+                            },
+                            body: JSON.stringify({ coordinates: currentRouteCoords }),
+                        });
+
+                        await reloadRoadGeometry();
+                    }
+                } else {
+                    showStatus("No geometry available — save the record first.", "error");
+                    currentRouteCoords = null;
+                }
+                syncMarkersFromInputs();
+            } catch (err) {
+                showStatus(err.message, "error");
+            }
         }
 
         function setDefaultTravelMode() {
