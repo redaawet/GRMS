@@ -16,7 +16,7 @@ from django.contrib.gis.db import models as gis_models
 from django.db import models
 
 from .gis_fields import LineStringField, PointField
-from .utils import fetch_osrm_route, make_point, utm_to_wgs84
+from .utils import fetch_osrm_route, make_point, slice_geometry_by_chainage, utm_to_wgs84
 
 # ---------------------------------------------------------------------------
 # Lookup tables
@@ -599,6 +599,22 @@ class RoadSection(models.Model):
     def save(self, *args, **kwargs):
         if self.start_chainage_km is not None and self.end_chainage_km is not None:
             self.length_km = (self.end_chainage_km - self.start_chainage_km).quantize(Decimal("0.001"))
+
+        road_geometry = getattr(self.road, "geometry", None)
+        if (
+            road_geometry
+            and self.start_chainage_km is not None
+            and self.end_chainage_km is not None
+            and self.road.total_length_km
+        ):
+            sliced = slice_geometry_by_chainage(
+                road_geometry,
+                float(self.road.total_length_km),
+                float(self.start_chainage_km),
+                float(self.end_chainage_km),
+            )
+            if sliced:
+                self.geometry = sliced
         self.full_clean()
         super().save(*args, **kwargs)
 
