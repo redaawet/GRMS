@@ -285,7 +285,7 @@
     }
 
     function ensureRoadGeometry(road) {
-        return normaliseGeometry(road?.route_geometry || road?.geometry || road?.alignment_geojson);
+        return normaliseGeometry(road?.geometry);
     }
 
     async function loadRoad(roadId, apiBase) {
@@ -325,8 +325,7 @@
         clearOverlay(overlay);
         const geometry = ensureRoadGeometry(road);
         const { start, end } = extractEndpoints(road);
-        const coords = getFlattenedGeometry(geometry);
-        const safeGeometry = isDirectFlightLine(coords, start, end) ? null : geometry;
+        const safeGeometry = geometry;
 
         const markers = [];
         if (start) { markers.push(root.L.marker([start.lat, start.lng]).addTo(overlay)); }
@@ -344,7 +343,9 @@
         if (!roadGeometry) {
             // No parent geometry: show a simple message and exit early.
             const container = map && map.getContainer ? map.getContainer() : null;
-            renderNoGeometry(container);
+            if (container) {
+                container.innerHTML = "<p style='color:red'>Road has no saved geometry.<br>Use Route Preview → Save first.</p>";
+            }
             return { roadLayer: null, sectionLayer: null, markers: [] };
         }
 
@@ -402,31 +403,20 @@
     function renderSegmentPreview(map, overlay, road, section, segment) {
         clearOverlay(overlay);
 
-        // Ensure required objects exist
         const roadGeometry = ensureRoadGeometry(road);
-        if (!roadGeometry || !section) {
+        const sectionGeometry = normaliseGeometry(section?.geometry);
+
+        if (!sectionGeometry || !section) {
+            const container = map && map.getContainer ? map.getContainer() : null;
+            if (container) {
+                container.innerHTML = "<p style='color:red'>Section has no saved geometry.<br>Use Route Preview → Save first.</p>";
+            }
             return { roadLayer: null, sectionLayer: null, segmentLayer: null };
         }
 
-        // Draw parent road (grey)
-        const roadLayer = renderGeometry(overlay, roadGeometry, COLORS.road);
-
-        // --- STEP 1: Slice the road into the SECTION geometry ---
-        const sectionSlice = sliceGeometryByChainage(
-            roadGeometry,
-            Number(road.total_length_km),
-            Number(section.start_chainage_km),
-            Number(section.end_chainage_km)
-        );
-
-        const sectionGeometry = {
-            type: "LineString",
-            coordinates: sectionSlice
-        };
-
+        const roadLayer = roadGeometry ? renderGeometry(overlay, roadGeometry, COLORS.road) : null;
         const sectionLayer = renderGeometry(overlay, sectionGeometry, COLORS.section);
 
-        // --- STEP 2: Slice the section into the SEGMENT geometry ---
         const sectionLengthKm = Number(section.end_chainage_km - section.start_chainage_km);
 
         const segmentSlice = sliceGeometryByChainage(
@@ -436,12 +426,14 @@
             Number(segment.station_to_km)
         );
 
-        const segmentGeometry = {
-            type: "LineString",
-            coordinates: segmentSlice
-        };
+        const segmentGeometry = segmentSlice && segmentSlice.length
+            ? {
+                type: "LineString",
+                coordinates: segmentSlice,
+            }
+            : null;
 
-        const segmentLayer = renderGeometry(overlay, segmentGeometry, COLORS.segment);
+        const segmentLayer = segmentGeometry ? renderGeometry(overlay, segmentGeometry, COLORS.segment) : null;
 
         // Fit map to the most specific layer
         fitMapToLayer(map, segmentLayer || sectionLayer || roadLayer);

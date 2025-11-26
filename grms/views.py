@@ -597,6 +597,33 @@ def preview_route(request: Request) -> Response:
     )
 
 
+@api_view(["POST"])
+def save_road_geometry(request, pk):
+    """
+    Saves OSRM polyline geometry into Road.geometry.
+    Request must contain GeoJSON LineString coordinates.
+    """
+    try:
+        road = models.Road.objects.get(pk=pk)
+    except models.Road.DoesNotExist:
+        return Response({"error": "Road not found"}, status=404)
+
+    coords = request.data.get("coordinates")
+    if not coords:
+        return Response({"error": "No coordinates provided"}, status=400)
+
+    try:
+        geom = LineString(coords)
+        geom.srid = 4326
+    except Exception:
+        return Response({"error": "Invalid geometry"}, status=400)
+
+    road.geometry = geom
+    road.save(update_fields=["geometry"])
+
+    return Response({"status": "geometry_saved"})
+
+
 def _road_map_context_data(request: Request, pk: Optional[int] = None) -> dict:
     def _geometry_to_json(geom):
         if not geom:

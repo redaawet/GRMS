@@ -523,6 +523,8 @@
                 || (roadData && roadData.geometry);
             if (roadGeometry && (config.section || config.segment)) {
                 renderSegmentContext(roadGeometry, roadData || {}, roadRouteKey);
+            } else if ((config.section || config.segment) && !roadGeometry) {
+                showStatus("Road has no saved geometry. Use Route Preview → Save first.", "error");
             }
 
             if (viewportBounds) {
@@ -575,55 +577,9 @@
                 setTravelModeOptions(lastPayload.travel_modes);
             }
 
-            if (
-                roadData && roadData.start && roadData.end && config.api && config.api.route
-                && (!roadLayer || lastRoadRouteKey !== roadRouteKey)
-            ) {
-                fetch(config.api.route, {
-                    method: "POST",
-                    credentials: "same-origin",
-                    headers: {
-                        "Content-Type": "application/json",
-                        "X-CSRFToken": document.cookie.match(/csrftoken=([^;]+)/)?.[1] || "",
-                    },
-                    body: JSON.stringify({
-                        start: roadData.start,
-                        end: roadData.end,
-                        travel_mode: config.default_travel_mode || "DRIVING",
-                    }),
-                })
-                    .then(function (response) {
-                        if (!response.ok) {
-                            return response.json().catch(function () { return {}; }).then(function (payload) {
-                                throw new Error(payload.detail || "Unable to fetch the parent road route.");
-                            });
-                        }
-                        return response.json();
-                    })
-                    .then(function (payload) {
-                        if (!routes || !payload.route || !Array.isArray(payload.route.geometry) || !payload.route.geometry.length) {
-                            showStatus("No geometry available — save the record first.", "error");
-                            return;
-                        }
-
-                        if (roadLayer) {
-                            routes.removeLayer(roadLayer);
-                        }
-
-                        const geometry = Array.isArray(payload.route.geometry)
-                            ? { type: "LineString", coordinates: payload.route.geometry }
-                            : payload.route.geometry;
-                        const style = { color: "#666", weight: 4, opacity: 0.8 };
-                        roadLayer = L.geoJSON(geometry, { style }).addTo(routes);
-                        lastRoadRouteKey = roadRouteKey;
-
-                        if (!sectionLayer) {
-                            map.fitBounds(roadLayer.getBounds(), { padding: [24, 24] });
-                        }
-                    })
-                    .catch(function (err) {
-                        showStatus(err.message, "error");
-                    });
+            const noGeometryForPreview = (config.section || config.segment) && !roadGeometry;
+            if (noGeometryForPreview) {
+                showStatus("No geometry available — save the record first.", "error");
             }
         }
 

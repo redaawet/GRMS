@@ -534,9 +534,12 @@ class RoadSection(models.Model):
             if self.admin_woreda_override.zone_id != self.admin_zone_override_id:
                 errors["admin_woreda_override"] = "Selected woreda does not belong to the selected zone."
 
+        # Require road geometry BEFORE allowing section creation
         road = getattr(self, "road", None)
         if not road or not road.geometry:
-            errors["road"] = "Parent road must have geometry before creating sections."
+            raise ValidationError(
+                "Road geometry is missing. Run Route Preview → Save Geometry first."
+            )
 
         geometry_length = geometry_length_km(getattr(road, "geometry", None)) if road else 0.0
 
