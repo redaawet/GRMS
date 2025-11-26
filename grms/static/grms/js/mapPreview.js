@@ -339,30 +339,62 @@
 
     function renderSectionPreview(map, overlay, road, section) {
         clearOverlay(overlay);
+
         const roadGeometry = ensureRoadGeometry(road);
         if (!roadGeometry) {
+            // No parent geometry: show a simple message and exit early.
+            const container = map && map.getContainer ? map.getContainer() : null;
+            renderNoGeometry(container);
             return { roadLayer: null, sectionLayer: null, markers: [] };
         }
 
+        // Always draw the parent road in a light style.
         const roadLayer = renderGeometry(overlay, roadGeometry, COLORS.road);
 
-        // Slice the road by section chainage
+        // Use the declared road length if available, otherwise infer from geometry.
+        const roadLengthKm = Number(road?.total_length_km ?? road?.length_km ?? 0) || null;
+
+        const startKm = section?.start_chainage_km;
+        const endKm = section?.end_chainage_km;
+
+        // Slice the road geometry by chainage.
         const sectionSlice = sliceGeometryByChainage(
             roadGeometry,
-            Number(road.total_length_km),
-            Number(section.start_chainage_km),
-            Number(section.end_chainage_km),
+            roadLengthKm,
+            startKm,
+            endKm,
         );
 
-        const sectionGeometry = {
-            type: "LineString",
-            coordinates: sectionSlice,
-        };
-
-        const sectionLayer = renderGeometry(overlay, sectionGeometry, COLORS.section);
-
-        fitMapToLayer(map, sectionLayer || roadLayer);
+        let sectionLayer = null;
         const markers = [];
+
+        if (sectionSlice && sectionSlice.length >= 2) {
+            const sectionGeometry = {
+                type: "LineString",
+                coordinates: sectionSlice,
+            };
+
+            // Draw the section in a stronger color on top of the road.
+            sectionLayer = renderGeometry(overlay, sectionGeometry, COLORS.section);
+
+            // Derive markers from the sliced geometry itself (first/last vertices).
+            const first = sectionSlice[0];
+            const last = sectionSlice[sectionSlice.length - 1];
+
+            if (Array.isArray(first) && first.length >= 2) {
+                markers.push(
+                    root.L.marker([first[1], first[0]]).addTo(overlay)
+                );
+            }
+            if (Array.isArray(last) && last.length >= 2) {
+                markers.push(
+                    root.L.marker([last[1], last[0]]).addTo(overlay)
+                );
+            }
+        }
+
+        // Focus on the section if available; otherwise on the whole road.
+        fitMapToLayer(map, sectionLayer || roadLayer);
 
         return { roadLayer, sectionLayer, markers };
     }
