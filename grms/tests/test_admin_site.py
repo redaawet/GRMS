@@ -33,6 +33,9 @@ class GRMSAdminSiteTests(TestCase):
         self.assertIs(admin.site, grms_admin_site)
         self.assertIs(admin.sites.site, grms_admin_site)
 
+    def test_site_url_points_to_front_end_root(self):
+        self.assertEqual(grms_admin_site.site_url, "/")
+
     def test_app_index_redirects_to_dashboard(self):
         response = self.client.get("/admin/auth/")
         self.assertEqual(response.status_code, 302)
