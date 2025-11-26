@@ -18,8 +18,9 @@ from django.db import models
 from .gis_fields import LineStringField, PointField
 from .utils import (
     fetch_osrm_route,
-    geometry_length_km,
+    geos_length_km,
     make_point,
+    osrm_linestring_to_geos,
     slice_linestring_by_chainage,
     utm_to_wgs84,
 )
@@ -364,11 +365,24 @@ class Road(models.Model):
         return f"Road {self.id}: {self.road_name_from}–{self.road_name_to}"
 
     def clean(self):  # pragma: no cover - simple validation
+        errors = {}
         if self.admin_woreda_id and self.admin_zone_id:
             if self.admin_woreda.zone_id != self.admin_zone_id:
-                raise ValidationError(
-                    {"admin_woreda": "Selected woreda does not belong to the selected zone."}
+                errors["admin_woreda"] = "Selected woreda does not belong to the selected zone."
+
+        if self.road_start_coordinates and self.road_end_coordinates:
+            try:
+                fetch_osrm_route(
+                    float(self.road_start_coordinates.x),
+                    float(self.road_start_coordinates.y),
+                    float(self.road_end_coordinates.x),
+                    float(self.road_end_coordinates.y),
                 )
+            except Exception:
+                errors["geometry"] = "Could not fetch OSRM route"
+
+        if errors:
+            raise ValidationError(errors)
 
     def _point_from_utm(self, easting: Optional[Decimal], northing: Optional[Decimal]):
         if easting is None or northing is None:
@@ -428,9 +442,21 @@ class Road(models.Model):
         )
 
         if should_update_geometry:
-            self.geometry = fetch_osrm_route(self.road_start_coordinates, self.road_end_coordinates)
+            route_coords = fetch_osrm_route(
+                float(self.road_start_coordinates.x),
+                float(self.road_start_coordinates.y),
+                float(self.road_end_coordinates.x),
+                float(self.road_end_coordinates.y),
+            )
+            self.geometry = osrm_linestring_to_geos(route_coords)
             if update_fields_set is not None:
                 update_fields_set.add("geometry")
+
+        if self.geometry:
+            length_km = Decimal(str(geos_length_km(self.geometry))).quantize(Decimal("0.01"))
+            self.total_length_km = length_km
+            if update_fields_set is not None:
+                update_fields_set.add("total_length_km")
 
         if update_fields_set is not None:
             kwargs["update_fields"] = list(update_fields_set)
@@ -541,7 +567,7 @@ class RoadSection(models.Model):
                 "Road geometry is missing. Run Route Preview → Save Geometry first."
             )
 
-        geometry_length = geometry_length_km(getattr(road, "geometry", None)) if road else 0.0
+        geometry_length = geos_length_km(getattr(road, "geometry", None)) if road else 0.0
 
         if self.start_chainage_km is not None:
             if self.start_chainage_km < 0:
