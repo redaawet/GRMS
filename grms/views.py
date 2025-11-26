@@ -6,6 +6,7 @@ import json
 from decimal import Decimal, InvalidOperation
 from typing import Dict, List, Optional
 
+from django.contrib.gis.geos import LineString
 from django.urls import reverse
 
 from django.db import transaction
@@ -540,6 +541,28 @@ def update_road_route(request: Request, pk: int) -> Response:
         {"road": road.id, "start": start, "end": end, "travel_mode": travel_mode, "route": route},
         status=status.HTTP_200_OK,
     )
+
+
+@api_view(["POST"])
+@permission_classes([permissions.IsAdminUser])
+def update_road_geometry(request: Request, pk: int) -> Response:
+    """Persist a road's geometry from an uploaded LineString."""
+
+    road = get_object_or_404(models.Road, pk=pk)
+    serializer = serializers.LineStringGeometrySerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+
+    coords = serializer.validated_data["coordinates"]
+    line = LineString(coords, srid=4326)
+    road.geometry = line
+    road.save(update_fields=["geometry"])
+
+    if not road.total_length_km or float(road.total_length_km) == 0.0:
+        length_m = road.geometry.length
+        road.total_length_km = Decimal(str(round(length_m / 1000.0, 3)))
+        road.save(update_fields=["total_length_km"])
+
+    return Response({"status": "ok"}, status=status.HTTP_200_OK)
 
 
 @api_view(["POST"])

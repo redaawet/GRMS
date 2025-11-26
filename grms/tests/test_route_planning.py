@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from unittest import mock
 
+from decimal import Decimal
+from django.contrib.auth import get_user_model
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
@@ -176,4 +178,52 @@ class RoutePlanningTests(RoadNetworkMixin, APITestCase):
         self.assertEqual(payload["zone"], {"id": zone.id, "name": zone.name})
         self.assertEqual(payload["woreda"], {"id": woreda.id, "name": woreda.name})
         mock_viewport.assert_called_once_with(zone.name, woreda.name)
+
+
+class RoadGeometryTests(RoadNetworkMixin, APITestCase):
+    def setUp(self):
+        super().setUp()
+        user_model = get_user_model()
+        user = user_model.objects.create_user("admin", password="pass1234", is_staff=True)
+        self.client.force_authenticate(user=user)
+
+    def test_post_geometry_saves_linestring_and_length(self):
+        road, _, _ = self.create_network("GeomSave")
+        road.total_length_km = Decimal("0")
+        road.save(update_fields=["total_length_km"])
+
+        url = reverse("road_geometry", args=[road.id])
+        payload = {
+            "type": "LineString",
+            "coordinates": [[39.0, 13.0], [39.01, 13.0]],
+        }
+
+        response = self.client.post(url, payload, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        road.refresh_from_db()
+        self.assertIsNotNone(road.geometry)
+        self.assertGreater(float(road.total_length_km), 0)
+
+    def test_road_section_creation_allowed_after_geometry_saved(self):
+        road, _, _ = self.create_network("SectionGeom")
+        road.total_length_km = Decimal("5")
+        road.save(update_fields=["total_length_km"])
+
+        url = reverse("road_geometry", args=[road.id])
+        payload = {"coordinates": [[39.0, 13.0], [39.005, 13.0], [39.01, 13.0]]}
+        response = self.client.post(url, payload, format="json")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        section = models.RoadSection.objects.create(
+            road=road,
+            section_number=2,
+            sequence_on_road=2,
+            start_chainage_km=Decimal("0"),
+            end_chainage_km=Decimal("1"),
+            length_km=Decimal("1"),
+            surface_type="Earth",
+        )
+
+        self.assertIsNotNone(section.pk)
 

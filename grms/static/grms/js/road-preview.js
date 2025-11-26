@@ -76,6 +76,7 @@
 
         const routeButton = document.getElementById("road-route-preview");
         const refreshButton = document.getElementById("road-map-refresh");
+        const geometrySaveButton = document.getElementById("road-geometry-save");
         const statusEl = document.getElementById("road-map-status");
         const travelModeSelect = document.getElementById("road-travel-mode");
         const zoneSelect = document.getElementById("id_admin_zone");
@@ -97,6 +98,7 @@
         let mapLoaded = false;
         let routeLine;
         let roadLine;
+        let currentRouteCoords = null;
 
         function showStatus(message, level) {
             if (!statusEl) {
@@ -169,6 +171,43 @@
                 map.fitBounds(bounds, { padding: [40, 40] });
             }
             return true;
+        }
+
+        function saveRouteGeometry() {
+            if (!config.api.geometry || !geometrySaveButton) {
+                return;
+            }
+            if (!currentRouteCoords || !currentRouteCoords.length) {
+                alert("Generate a route preview before saving geometry.");
+                return;
+            }
+            showStatus("Saving route geometry…");
+            const csrfToken = window.django?.csrfToken || getCsrfToken();
+            fetch(config.api.geometry, {
+                method: "POST",
+                credentials: "same-origin",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRFToken": csrfToken,
+                },
+                body: JSON.stringify({ type: "LineString", coordinates: currentRouteCoords }),
+            })
+                .then(function (response) {
+                    if (!response.ok) {
+                        return response.json().catch(function () { return {}; }).then(function (payload) {
+                            throw new Error(payload.detail || "Unable to save geometry.");
+                        });
+                    }
+                    return response.json();
+                })
+                .then(function () {
+                    showStatus("Route geometry saved.", "success");
+                })
+                .catch(function (err) {
+                    console.error(err);
+                    showStatus(err.message || "Unable to save geometry.", "error");
+                    alert("Could not save route geometry. See console for details.");
+                });
         }
 
         function ensureMapContainer() {
@@ -386,14 +425,19 @@
                         const geometry = Array.isArray(payload.route.geometry)
                             ? { type: "LineString", coordinates: payload.route.geometry }
                             : payload.route.geometry;
+                        currentRouteCoords = geometry.coordinates || null;
                         const style = ROUTE_STYLES[(payload.travel_mode || travelModeSelect.value || "DRIVING").toUpperCase()] ||
                             ROUTE_STYLES.DRIVING;
                         routeLine = mapPreview.renderGeometry(map, geometry, style);
                         if (routeLine) {
                             map.fitBounds(routeLine.getBounds(), { padding: [20, 20] });
                         }
+                        if (geometrySaveButton) {
+                            geometrySaveButton.disabled = false;
+                        }
                     } else {
                         showStatus("No geometry available — save the record first.", "error");
+                        currentRouteCoords = null;
                     }
                     syncMarkersFromInputs();
                 })
@@ -463,6 +507,16 @@
                 routeButton.title = "Save the road to enable server-powered route previews.";
             } else {
                 routeButton.addEventListener("click", previewRoute);
+            }
+        }
+
+        if (geometrySaveButton) {
+            if (!config.api.geometry) {
+                geometrySaveButton.disabled = true;
+                geometrySaveButton.title = "Save the road and generate a route before persisting geometry.";
+            } else {
+                geometrySaveButton.disabled = true;
+                geometrySaveButton.addEventListener("click", saveRouteGeometry);
             }
         }
 
