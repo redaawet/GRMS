@@ -135,6 +135,7 @@
         let overlay;
         let markers;
         let routes;
+        let geometryLayer;
         let mapClickBound = false;
         let activeMarker = "start";
         const editableMarkers = {};
@@ -481,6 +482,47 @@
             }
         }
 
+        function renderStoredSectionGeometry() {
+            const sectionConfig = config.section || {};
+            const sectionId = sectionConfig.id;
+            const geometryUrl = sectionConfig.geometry_url || (sectionId
+                ? `/admin/grms/roadsection/${sectionId}/get_geometry/`
+                : null);
+
+            if (!geometryLayer || !map || !sectionId || !geometryUrl) {
+                return;
+            }
+
+            const startPoint = sectionConfig.points && sectionConfig.points.start;
+            const endPoint = sectionConfig.points && sectionConfig.points.end;
+
+            geometryLayer.clearLayers();
+
+            fetch(geometryUrl)
+                .then(function (response) { return response.json(); })
+                .then(function (payload) {
+                    const rawGeometry = payload && payload.geometry;
+                    const parsedGeometry = typeof rawGeometry === "string" ? JSON.parse(rawGeometry) : rawGeometry;
+
+                    if (parsedGeometry && Array.isArray(parsedGeometry.coordinates)) {
+                        const coords = parsedGeometry.coordinates.map(function (coord) { return [coord[1], coord[0]]; });
+                        const line = L.polyline(coords, { color: "#0050ff", weight: 6 }).addTo(geometryLayer);
+                        map.fitBounds(line.getBounds());
+                        return;
+                    }
+
+                    if (startPoint) {
+                        L.marker([startPoint.lat, startPoint.lng]).addTo(geometryLayer);
+                    }
+                    if (endPoint) {
+                        L.marker([endPoint.lat, endPoint.lng]).addTo(geometryLayer);
+                    }
+                })
+                .catch(function (err) {
+                    console.error(err);
+                });
+        }
+
         function renderMap(payload) {
             lastPayload = payload || lastPayload || {};
             const mapNode = ensureMapContainer();
@@ -498,6 +540,7 @@
                 overlay = L.layerGroup().addTo(map);
                 markers = L.layerGroup().addTo(map);
                 routes = L.layerGroup().addTo(map);
+                geometryLayer = L.layerGroup().addTo(map);
             } else if (overlay) {
                 overlay.clearLayers();
                 if (markers) {
@@ -508,6 +551,9 @@
                     roadLayer = null;
                     sectionLayer = null;
                     lastRoadRouteKey = null;
+                }
+                if (geometryLayer) {
+                    geometryLayer.clearLayers();
                 }
             }
 
@@ -571,6 +617,11 @@
                         .bindTooltip("Section end", { permanent: false })
                         .addTo(markers);
                 }
+            }
+
+            if ((config.scope === "section" || config.scope === "segment")
+                && config.section && config.section.id) {
+                renderStoredSectionGeometry();
             }
 
             if (Array.isArray(lastPayload && lastPayload.travel_modes) && travelModeSelect) {
