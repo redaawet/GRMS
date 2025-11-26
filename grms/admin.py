@@ -9,8 +9,9 @@ from django import forms
 from django.contrib import admin
 from django.contrib.admin import AdminSite
 from django.forms.models import BaseInlineFormSet
+from django.http import JsonResponse
 from django.shortcuts import redirect
-from django.urls import reverse
+from django.urls import path, reverse
 from django.utils.html import format_html
 from django.utils.timezone import localdate
 
@@ -488,7 +489,7 @@ class RoadSectionAdmin(admin.ModelAdmin):
     readonly_fields = (
         "length_km",
     )
-    change_form_template = "admin/grms/roadsection/change_form.html"
+    change_form_template = "admin/roadsection_change_form.html"
     fieldsets = (
         ("Parent road", {"fields": ("road",)}),
         (
@@ -540,6 +541,22 @@ class RoadSectionAdmin(admin.ModelAdmin):
 
         return tuple(cleaned_fieldsets)
 
+    def get_urls(self):
+        urls = super().get_urls()
+        custom = [
+            path(
+                "<int:pk>/get_geometry/",
+                self.admin_site.admin_view(self.get_geometry),
+                name="roadsection-get-geometry",
+            )
+        ]
+        return custom + urls
+
+    def get_geometry(self, request, pk):
+        section = models.RoadSection.objects.get(pk=pk)
+        geojson = section.geometry.geojson if section.geometry else None
+        return JsonResponse({"geometry": geojson})
+
     def changeform_view(self, request, object_id=None, form_url="", extra_context=None):
         extra_context = extra_context or {}
         instance = self.get_object(request, object_id)
@@ -582,6 +599,7 @@ class RoadSectionAdmin(admin.ModelAdmin):
                 "geometry": road_geometry,
             },
             "section": {
+                "id": getattr(section, "id", None),
                 "name": getattr(section, "name", None),
                 "start_chainage_km": _to_float(getattr(section, "start_chainage_km", None)),
                 "end_chainage_km": _to_float(getattr(section, "end_chainage_km", None)),
@@ -589,6 +607,9 @@ class RoadSectionAdmin(admin.ModelAdmin):
                 "zone_override_id": getattr(section, "admin_zone_override_id", None),
                 "woreda_override_id": getattr(section, "admin_woreda_override_id", None),
                 "geometry": section_geometry,
+                "geometry_url": (
+                    reverse("admin:roadsection-get-geometry", args=[section.id]) if section else ""
+                ),
                 "has_parent_geometry": bool(road_geometry),
                 "points": {
                     "start": start_point,
