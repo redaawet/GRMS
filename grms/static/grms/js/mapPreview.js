@@ -336,14 +336,13 @@
         const { start, end } = extractEndpoints(road);
         const coords = getFlattenedGeometry(geometry);
         const safeGeometry = isDirectFlightLine(coords, start, end) ? null : geometry;
-        if (!safeGeometry) {
-            return { geometry: null, roadLayer: null, markers: [] };
-        }
-        const roadLayer = renderGeometry(overlay, safeGeometry, COLORS.road);
+
         const markers = [];
         if (start) { markers.push(root.L.marker([start.lat, start.lng]).addTo(overlay)); }
         if (end) { markers.push(root.L.marker([end.lat, end.lng]).addTo(overlay)); }
-        fitMapToLayer(map, roadLayer);
+
+        const roadLayer = safeGeometry ? renderGeometry(overlay, safeGeometry, COLORS.road) : null;
+        fitMapToLayer(map, roadLayer || overlay);
         return { geometry: safeGeometry, roadLayer, markers };
     }
 
@@ -353,25 +352,12 @@
         const { start, end } = extractSectionEndpoints(section);
         const roadCoords = getFlattenedGeometry(roadGeometry);
         const safeRoadGeometry = isDirectFlightLine(roadCoords, start, end) ? null : roadGeometry;
-        if (!safeRoadGeometry) {
-            return { roadLayer: null, sectionLayer: null, markers: [] };
-        }
-        const roadLayer = renderGeometry(overlay, safeRoadGeometry, COLORS.road);
-        const roadLength = road?.length_km ?? road?.total_length_km;
-        const sectionSlice = sliceGeometryByChainage(
-            safeRoadGeometry,
-            Number(roadLength),
-            section?.start_chainage_km,
-            section?.end_chainage_km,
-        );
-        const safeSectionSlice = isDirectFlightLine(sectionSlice, start, end) ? [] : sectionSlice;
-        const sectionLayer = safeSectionSlice.length
-            ? renderGeometry(overlay, { type: "LineString", coordinates: safeSectionSlice }, COLORS.section)
-            : null;
 
         // Sections are defined purely by chainage, so we avoid placing
         // coordinate markers here to prevent any fallback to manual points.
         const markers = [];
+        if (start) { markers.push(root.L.marker([start.lat, start.lng]).addTo(overlay)); }
+        if (end) { markers.push(root.L.marker([end.lat, end.lng]).addTo(overlay)); }
 
         const roadLayer = safeRoadGeometry ? renderGeometry(overlay, safeRoadGeometry, COLORS.road) : null;
         const roadLength = road?.length_km ?? road?.total_length_km;
