@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import math
+from math import sqrt
 from typing import Dict, Iterable, Optional, Sequence, Tuple
 from urllib.error import HTTPError, URLError
 from urllib.request import urlopen
@@ -42,6 +43,7 @@ def wgs84_to_utm(lat: float, lon: float, zone: int = 37) -> tuple[float, float]:
     return easting, northing
 
 from django.conf import settings
+from django.contrib.gis.geos import LineString
 
 # Mean Earth radius according to IUGG (km)
 EARTH_RADIUS_KM = 6371.0088
@@ -165,6 +167,72 @@ def slice_geometry_by_chainage(geometry, start_chainage_km: float, end_chainage_
         return None
 
     return _build_linestring(sliced_coords, srid=srid, as_geos=as_geos)
+
+
+def line_distance(p1, p2):
+    return sqrt(
+        (p1[0] - p2[0]) ** 2 +
+        (p1[1] - p2[1]) ** 2
+    )
+
+
+def slice_linestring_by_chainage(linestring: LineString, start_km: float, end_km: float):
+    """
+    Slice a LineString based purely on cumulative distance along the route.
+    Chainage in km → meters.
+    """
+
+    if not linestring:
+        return None
+
+    pts = list(linestring.coords)
+    if len(pts) < 2:
+        return None
+
+    start_m = float(start_km) * 1000
+    end_m = float(end_km) * 1000
+
+    cumulative = 0.0
+    selected_points = []
+    started = False
+
+    for i in range(len(pts) - 1):
+        p1 = pts[i]
+        p2 = pts[i + 1]
+
+        segment_length = line_distance(p1, p2)
+        next_cumulative = cumulative + segment_length
+
+        # Start inside this segment
+        if not started and start_m >= cumulative and start_m <= next_cumulative:
+            ratio = (start_m - cumulative) / segment_length
+            sp = (
+                p1[0] + ratio * (p2[0] - p1[0]),
+                p1[1] + ratio * (p2[1] - p1[1]),
+            )
+            selected_points.append(sp)
+            started = True
+
+        if started:
+            # If entirely inside slice window
+            if next_cumulative < end_m:
+                selected_points.append(p2)
+            else:
+                # End inside this segment
+                ratio = (end_m - cumulative) / segment_length
+                ep = (
+                    p1[0] + ratio * (p2[0] - p1[0]),
+                    p1[1] + ratio * (p2[1] - p1[1]),
+                )
+                selected_points.append(ep)
+                break
+
+        cumulative = next_cumulative
+
+    if len(selected_points) < 2:
+        return None
+
+    return LineString(selected_points, srid=linestring.srid)
 
 
 def make_point(lat: float, lng: float):
