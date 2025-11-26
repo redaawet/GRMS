@@ -7,8 +7,6 @@ from typing import Dict, Optional
 from urllib.error import HTTPError, URLError
 from urllib.request import urlopen
 
-from django.contrib.gis.geos import LineString
-
 try:  # pragma: no cover - optional dependency for conversion
     from pyproj import Transformer
 except ImportError:  # pragma: no cover - handled at runtime for clarity
@@ -73,15 +71,16 @@ def point_to_lat_lng(point) -> Optional[Dict[str, float]]:
     return {"lat": lat, "lng": lng}
 
 
-def fetch_osrm_route(start_point, end_point) -> LineString:
-    """Fetch the OSRM route geometry between two GEOS points.
+def fetch_osrm_route(start_point, end_point):
+    """Fetch the OSRM route geometry between two points.
 
     Args:
-        start_point: GEOS :class:`~django.contrib.gis.geos.Point` for the start coordinate.
-        end_point: GEOS :class:`~django.contrib.gis.geos.Point` for the end coordinate.
+        start_point: Point geometry returned from :func:`make_point`.
+        end_point: Point geometry returned from :func:`make_point`.
 
     Returns:
-        A GEOS :class:`~django.contrib.gis.geos.LineString` representing the route.
+        A GEOS :class:`~django.contrib.gis.geos.LineString` or GeoJSON-like dict
+        representing the route, depending on :data:`settings.USE_POSTGIS`.
 
     Raises:
         ValueError: If the OSRM API returns an error or lacks geometry data.
@@ -91,8 +90,14 @@ def fetch_osrm_route(start_point, end_point) -> LineString:
     if not start_point or not end_point:
         raise ValueError("Start and end points are required to fetch OSRM route")
 
-    start_lon, start_lat = float(start_point.x), float(start_point.y)
-    end_lon, end_lat = float(end_point.x), float(end_point.y)
+    start_coords = point_to_lat_lng(start_point)
+    end_coords = point_to_lat_lng(end_point)
+
+    if not start_coords or not end_coords:
+        raise ValueError("Start and end points must be valid geometry objects")
+
+    start_lon, start_lat = float(start_coords["lng"]), float(start_coords["lat"])
+    end_lon, end_lat = float(end_coords["lng"]), float(end_coords["lat"])
 
     url = (
         "https://router.project-osrm.org/route/v1/driving/"
@@ -117,5 +122,11 @@ def fetch_osrm_route(start_point, end_point) -> LineString:
     if not coordinates:
         raise ValueError("OSRM route geometry is missing from the response")
 
-    line_string = LineString([(float(lon), float(lat)) for lon, lat in coordinates], srid=4326)
-    return line_string
+    mapped_coordinates = [(float(lon), float(lat)) for lon, lat in coordinates]
+
+    if getattr(settings, "USE_POSTGIS", False):
+        from django.contrib.gis.geos import LineString  # pragma: no cover - requires GEOS
+
+        return LineString(mapped_coordinates, srid=4326)
+
+    return {"type": "LineString", "coordinates": mapped_coordinates, "srid": 4326}
