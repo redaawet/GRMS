@@ -94,6 +94,28 @@ class RoadRouteRequestSerializer(serializers.Serializer):
         return mode
 
 
+class LineStringGeometrySerializer(serializers.Serializer):
+    coordinates = serializers.ListField(
+        child=serializers.ListField(
+            child=serializers.FloatField(),
+            min_length=2,
+            max_length=2,
+        )
+    )
+    type = serializers.CharField(required=False)
+
+    def validate(self, attrs):
+        coords = attrs.get("coordinates")
+        if not coords or len(coords) < 2:
+            raise serializers.ValidationError("At least two coordinate pairs are required.")
+
+        geom_type = attrs.get("type")
+        if geom_type and geom_type != "LineString":
+            raise serializers.ValidationError("Only LineString geometries are supported.")
+
+        return {"coordinates": coords}
+
+
 class StructureInventorySerializer(serializers.ModelSerializer):
     class Meta:
         model = models.StructureInventory
