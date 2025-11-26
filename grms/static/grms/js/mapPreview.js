@@ -351,7 +351,7 @@
             roadGeometry,
             Number(road.total_length_km),
             Number(section.start_chainage_km),
-            Number(section.end_chainage_km)
+            Number(section.end_chainage_km),
         );
 
         const sectionGeometry = {
@@ -362,7 +362,9 @@
         const sectionLayer = renderGeometry(overlay, sectionGeometry, COLORS.section);
 
         fitMapToLayer(map, sectionLayer || roadLayer);
-        return { roadLayer, sectionLayer, markers: [] };
+        const markers = [];
+
+        return { roadLayer, sectionLayer, markers };
     }
 
     function renderSegmentPreview(map, overlay, road, section, segment) {
