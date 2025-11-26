@@ -62,6 +62,7 @@ class GRMSAdminSite(AdminSite):
     site_title = "GRMS Admin"
     index_title = "Gravel Road Management System"
     index_template = "admin/grms_index.html"
+    site_url = "/"
 
     SECTION_DEFINITIONS: Sequence[Dict[str, object]] = (
         {
