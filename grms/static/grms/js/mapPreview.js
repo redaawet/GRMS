@@ -284,15 +284,6 @@
         return { start, end };
     }
 
-    function extractSectionEndpoints(section) {
-        if (!section) {
-            return {};
-        }
-        const start = latLngFromPoint(section.start || section.section_start_coordinates);
-        const end = latLngFromPoint(section.end || section.section_end_coordinates);
-        return { start, end };
-    }
-
     function ensureRoadGeometry(road) {
         return normaliseGeometry(road?.route_geometry || road?.geometry || road?.alignment_geojson);
     }
@@ -349,80 +340,76 @@
     function renderSectionPreview(map, overlay, road, section) {
         clearOverlay(overlay);
         const roadGeometry = ensureRoadGeometry(road);
-        const { start, end } = extractSectionEndpoints(section);
-        const roadCoords = getFlattenedGeometry(roadGeometry);
-        const safeRoadGeometry = isDirectFlightLine(roadCoords, start, end) ? null : roadGeometry;
+        if (!roadGeometry) {
+            return { roadLayer: null, sectionLayer: null, markers: [] };
+        }
 
-        // Sections are defined purely by chainage, so we avoid placing
-        // coordinate markers here to prevent any fallback to manual points.
+        const roadLayer = renderGeometry(overlay, roadGeometry, COLORS.road);
+
+        // Slice the road by section chainage
+        const sectionSlice = sliceGeometryByChainage(
+            roadGeometry,
+            Number(road.total_length_km),
+            Number(section.start_chainage_km),
+            Number(section.end_chainage_km),
+        );
+
+        const sectionGeometry = {
+            type: "LineString",
+            coordinates: sectionSlice,
+        };
+
+        const sectionLayer = renderGeometry(overlay, sectionGeometry, COLORS.section);
+
+        fitMapToLayer(map, sectionLayer || roadLayer);
         const markers = [];
-        if (start) { markers.push(root.L.marker([start.lat, start.lng]).addTo(overlay)); }
-        if (end) { markers.push(root.L.marker([end.lat, end.lng]).addTo(overlay)); }
 
-        const roadLayer = safeRoadGeometry ? renderGeometry(overlay, safeRoadGeometry, COLORS.road) : null;
-        const roadLength = road?.length_km ?? road?.total_length_km;
-        const sectionSlice = safeRoadGeometry
-            ? sliceGeometryByChainage(
-                safeRoadGeometry,
-                Number(roadLength),
-                section?.start_chainage_km,
-                section?.end_chainage_km,
-            )
-            : [];
-        const safeSectionSlice = isDirectFlightLine(sectionSlice, start, end) ? [] : sectionSlice;
-        const sectionLayer = safeSectionSlice.length
-            ? renderGeometry(overlay, { type: "LineString", coordinates: safeSectionSlice }, COLORS.section)
-            : null;
-
-        fitMapToLayer(map, sectionLayer || roadLayer || overlay);
         return { roadLayer, sectionLayer, markers };
     }
 
     function renderSegmentPreview(map, overlay, road, section, segment) {
         clearOverlay(overlay);
-        const { start: roadStart, end: roadEnd } = extractEndpoints(road);
-        const { start: sectionStart, end: sectionEnd } = extractSectionEndpoints(section);
-
-        const parentGeometry = normaliseGeometry(section?.route_geometry || section?.geometry);
+        // Always derive section geometry from the road
         const roadGeometry = ensureRoadGeometry(road);
-        const safeRoadGeometry = isDirectFlightLine(getFlattenedGeometry(roadGeometry), roadStart, roadEnd)
-            ? null
-            : roadGeometry;
-        const safeParentGeometry = isDirectFlightLine(getFlattenedGeometry(parentGeometry), sectionStart, sectionEnd)
-            ? null
-            : parentGeometry;
-        const referenceGeometry = safeParentGeometry || safeRoadGeometry;
-        if (!referenceGeometry) {
+        if (!roadGeometry) {
             return { roadLayer: null, sectionLayer: null, segmentLayer: null };
         }
 
-        const markers = [];
-        if (sectionStart) { markers.push(root.L.marker([sectionStart.lat, sectionStart.lng]).addTo(overlay)); }
-        if (sectionEnd) { markers.push(root.L.marker([sectionEnd.lat, sectionEnd.lng]).addTo(overlay)); }
+        const roadLayer = renderGeometry(overlay, roadGeometry, COLORS.road);
 
-        const roadLayer = safeRoadGeometry ? renderGeometry(overlay, safeRoadGeometry, COLORS.road) : null;
-        const sectionLengthKm = section?.length_km ?? section?.end_chainage_km ?? 0;
-        const sectionSlice = safeParentGeometry
-            ? getFlattenedGeometry(safeParentGeometry)
-            : sliceGeometryByChainage(referenceGeometry, road?.length_km ?? road?.total_length_km, section?.start_chainage_km, section?.end_chainage_km);
-
-        const sectionGeometry = sectionSlice.length
-            ? { type: "LineString", coordinates: sectionSlice }
-            : safeParentGeometry;
-        const sectionLayer = sectionGeometry ? renderGeometry(overlay, sectionGeometry, COLORS.section) : null;
-
-        const segmentSlice = sliceGeometryByChainage(
-            sectionGeometry || referenceGeometry,
-            sectionLengthKm || road?.length_km || road?.total_length_km,
-            segment?.station_from_km ?? segment?.start_chainage_km,
-            segment?.station_to_km ?? segment?.end_chainage_km,
+        // Step 1: slice road into section
+        const sectionSlice = sliceGeometryByChainage(
+            roadGeometry,
+            Number(road.total_length_km),
+            Number(section.start_chainage_km),
+            Number(section.end_chainage_km)
         );
-        const segmentLayer = segmentSlice.length
-            ? renderGeometry(overlay, { type: "LineString", coordinates: segmentSlice }, COLORS.segment)
-            : null;
 
-        fitMapToLayer(map, segmentLayer || sectionLayer || roadLayer || overlay);
-        return { roadLayer, sectionLayer, segmentLayer, markers };
+        const sectionGeometry = {
+            type: "LineString",
+            coordinates: sectionSlice,
+        };
+
+        const sectionLayer = renderGeometry(overlay, sectionGeometry, COLORS.section);
+
+        // Step 2: slice section into segment
+        const segmentSlice = sliceGeometryByChainage(
+            sectionGeometry,
+            Number(section.length_km),
+            Number(segment.station_from_km),
+            Number(segment.station_to_km)
+        );
+
+        const segmentGeometry = {
+            type: "LineString",
+            coordinates: segmentSlice,
+        };
+
+        const segmentLayer = renderGeometry(overlay, segmentGeometry, COLORS.segment);
+
+        fitMapToLayer(map, segmentLayer || sectionLayer || roadLayer);
+
+        return { roadLayer, sectionLayer, segmentLayer };
     }
 
     async function loadAndRenderRoad(roadId, options = {}) {
@@ -526,7 +513,6 @@
         previewRoadSection,
         previewRoadSegment,
         getFlattenedGeometry,
-        extractSectionEndpoints,
         utm37ToLatLng,
     };
 })(window);
