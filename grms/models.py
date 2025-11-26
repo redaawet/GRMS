@@ -486,8 +486,8 @@ class RoadSection(models.Model):
                 errors["admin_woreda_override"] = "Selected woreda does not belong to the selected zone."
 
         road = getattr(self, "road", None)
-        if not road or not road.geometry:
-            errors["road"] = "Parent road must have geometry before creating sections."
+        if not road:
+            errors["road"] = "A parent road is required for a section."
 
         if self.start_chainage_km is not None:
             if self.start_chainage_km < 0:
