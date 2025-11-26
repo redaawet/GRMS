@@ -16,7 +16,7 @@ from django.contrib.gis.db import models as gis_models
 from django.db import models
 
 from .gis_fields import LineStringField, PointField
-from .utils import make_point, utm_to_wgs84
+from .utils import fetch_osrm_route, make_point, utm_to_wgs84
 
 # ---------------------------------------------------------------------------
 # Lookup tables
@@ -374,17 +374,60 @@ class Road(models.Model):
         # Update WGS84 coordinates from UTM inputs when provided. Zone and
         # woreda selections are left untouched.
         update_fields = kwargs.get("update_fields")
-        allow_autofill = not update_fields or "start_easting" in update_fields or "start_northing" in update_fields
+        update_fields_set = set(update_fields) if update_fields else None
+
+        allow_autofill = (
+            not update_fields_set
+            or "start_easting" in update_fields_set
+            or "start_northing" in update_fields_set
+        )
         if allow_autofill:
             start_point = self._point_from_utm(self.start_easting, self.start_northing)
             if start_point:
                 self.road_start_coordinates = start_point
+                if update_fields_set is not None:
+                    update_fields_set.add("road_start_coordinates")
 
-        allow_autofill_end = not update_fields or "end_easting" in update_fields or "end_northing" in update_fields
+        allow_autofill_end = (
+            not update_fields_set
+            or "end_easting" in update_fields_set
+            or "end_northing" in update_fields_set
+        )
         if allow_autofill_end:
             end_point = self._point_from_utm(self.end_easting, self.end_northing)
             if end_point:
                 self.road_end_coordinates = end_point
+                if update_fields_set is not None:
+                    update_fields_set.add("road_end_coordinates")
+
+        should_update_geometry = (
+            self.road_start_coordinates
+            and self.road_end_coordinates
+            and (
+                update_fields_set is None
+                or bool(
+                    {
+                        "road_start_coordinates",
+                        "road_end_coordinates",
+                        "start_easting",
+                        "start_northing",
+                        "end_easting",
+                        "end_northing",
+                        "geometry",
+                    }
+                    & update_fields_set
+                )
+                or self.geometry is None
+            )
+        )
+
+        if should_update_geometry:
+            self.geometry = fetch_osrm_route(self.road_start_coordinates, self.road_end_coordinates)
+            if update_fields_set is not None:
+                update_fields_set.add("geometry")
+
+        if update_fields_set is not None:
+            kwargs["update_fields"] = list(update_fields_set)
 
         super().save(*args, **kwargs)
 

@@ -2,7 +2,12 @@
 
 from __future__ import annotations
 
+import json
 from typing import Dict, Optional
+from urllib.error import HTTPError, URLError
+from urllib.request import urlopen
+
+from django.contrib.gis.geos import LineString
 
 try:  # pragma: no cover - optional dependency for conversion
     from pyproj import Transformer
@@ -66,3 +71,51 @@ def point_to_lat_lng(point) -> Optional[Dict[str, float]]:
             return None
         lng, lat = float(coords[0]), float(coords[1])
     return {"lat": lat, "lng": lng}
+
+
+def fetch_osrm_route(start_point, end_point) -> LineString:
+    """Fetch the OSRM route geometry between two GEOS points.
+
+    Args:
+        start_point: GEOS :class:`~django.contrib.gis.geos.Point` for the start coordinate.
+        end_point: GEOS :class:`~django.contrib.gis.geos.Point` for the end coordinate.
+
+    Returns:
+        A GEOS :class:`~django.contrib.gis.geos.LineString` representing the route.
+
+    Raises:
+        ValueError: If the OSRM API returns an error or lacks geometry data.
+        URLError, HTTPError: If the OSRM API cannot be reached.
+    """
+
+    if not start_point or not end_point:
+        raise ValueError("Start and end points are required to fetch OSRM route")
+
+    start_lon, start_lat = float(start_point.x), float(start_point.y)
+    end_lon, end_lat = float(end_point.x), float(end_point.y)
+
+    url = (
+        "https://router.project-osrm.org/route/v1/driving/"
+        f"{start_lon},{start_lat};{end_lon},{end_lat}?overview=full&geometries=geojson"
+    )
+
+    try:
+        with urlopen(url) as response:
+            data = response.read()
+    except (HTTPError, URLError):  # pragma: no cover - network failures
+        raise
+
+    payload = json.loads(data)
+    if payload.get("code") != "Ok":
+        raise ValueError(payload.get("message", "OSRM routing failed"))
+
+    routes = payload.get("routes") or []
+    if not routes:
+        raise ValueError("OSRM response did not include any routes")
+
+    coordinates = routes[0].get("geometry", {}).get("coordinates") or []
+    if not coordinates:
+        raise ValueError("OSRM route geometry is missing from the response")
+
+    line_string = LineString([(float(lon), float(lat)) for lon, lat in coordinates], srid=4326)
+    return line_string
