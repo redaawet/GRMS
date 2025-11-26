@@ -12,6 +12,7 @@ from decimal import Decimal
 from typing import Iterable, Optional
 
 from django.core.exceptions import ValidationError
+from django.contrib.gis.db import models as gis_models
 from django.db import models
 
 from .gis_fields import LineStringField, PointField
