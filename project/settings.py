@@ -5,27 +5,20 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'change-me-in-production'
 DEBUG = True
 ALLOWED_HOSTS = ['*']
+USE_POSTGIS = True
 
-USE_POSTGIS = os.environ.get('USE_POSTGIS', '').lower() in {'1', 'true', 'yes'}
-
- -----------------------
+# -----------------------
 # Windows GDAL + GEOS paths (REAL OSGeo4W path)
 # -----------------------
-WINDOWS_GDAL_PATH = Path(r"C:\OSGeo4W\bin\gdal311.dll")
-if WINDOWS_GDAL_PATH.exists():
-    GDAL_LIBRARY_PATH = str(WINDOWS_GDAL_PATH)
+# -----------------------
+# Windows GDAL + GEOS paths (OSGeo4W)
+# -----------------------
+GDAL_LIBRARY_PATH = r"C:\OSGeo4W\bin\gdal312.dll"
+GEOS_LIBRARY_PATH = r"C:\OSGeo4W\bin\geos_c.dll"
 
-WINDOWS_GEOS_PATH = Path(r"C:\OSGeo4W\bin\geos_c.dll")
-if WINDOWS_GEOS_PATH.exists():
-    GEOS_LIBRARY_PATH = str(WINDOWS_GEOS_PATH)
+os.environ["GDAL_DATA"] = r"C:\OSGeo4W\share\gdal"
+os.environ["PROJ_LIB"] = r"C:\OSGeo4W\share\proj"
 
-WINDOWS_GDAL_DATA = Path(r"C:\OSGeo4W\share\gdal")
-if WINDOWS_GDAL_DATA.exists():
-    os.environ.setdefault("GDAL_DATA", str(WINDOWS_GDAL_DATA))
-
-WINDOWS_PROJ_LIB = Path(r"C:\OSGeo4W\share\proj")
-if WINDOWS_PROJ_LIB.exists():
-    os.environ.setdefault("PROJ_LIB", str(WINDOWS_PROJ_LIB))
 
 INSTALLED_APPS = [
     'grms.admin_config.GRMSAdminConfig',
