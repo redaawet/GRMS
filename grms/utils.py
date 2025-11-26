@@ -208,8 +208,19 @@ def slice_linestring_by_chainage(parent_geom, start_km, end_km):
     # Slice using true metric substring
     sliced_3857 = substring(shp_3857, start_ratio, end_ratio, normalized=True)
 
+    # Guard against degenerate slices (e.g., zero-length results)
+    coords = []
+    if hasattr(sliced_3857, "geoms"):
+        for geom in sliced_3857.geoms:
+            coords.extend(list(getattr(geom, "coords", [])))
+    else:
+        coords = list(getattr(sliced_3857, "coords", []))
+
+    if len(coords) < 2:
+        return None
+
     # Convert back to GEOS EPSG:3857
-    sliced_3857_geos = GEOSGeometry(LineString(sliced_3857.coords).wkt, srid=3857)
+    sliced_3857_geos = GEOSGeometry(LineString(coords).wkt, srid=3857)
 
     # Reproject back to WGS84 EPSG:4326 (for database storage)
     sliced_4326 = sliced_3857_geos.transform(4326, clone=True)
