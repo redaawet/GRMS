@@ -482,12 +482,16 @@ class RoadSection(models.Model):
             if self.admin_woreda_override.zone_id != self.admin_zone_override_id:
                 errors["admin_woreda_override"] = "Selected woreda does not belong to the selected zone."
 
+        road = getattr(self, "road", None)
+        if not road or not road.geometry:
+            errors["road"] = "Parent road must have geometry before creating sections."
+
         if self.start_chainage_km is not None:
             if self.start_chainage_km < 0:
                 errors["start_chainage_km"] = "Start chainage cannot be negative."
 
         if self.start_chainage_km is not None and self.end_chainage_km is not None:
-            if self.start_chainage_km >= self.end_chainage_km:
+            if self.end_chainage_km <= self.start_chainage_km:
                 errors["end_chainage_km"] = "End chainage must be greater than start chainage."
 
             if self.road_id:
@@ -542,20 +546,6 @@ class RoadSection(models.Model):
         if self.surface_type in {"Gravel", "DBST", "Asphalt", "Sealed"}:
             if self.surface_thickness_cm is None:
                 errors["surface_thickness_cm"] = "Thickness is required for gravel or paved surfaces."
-
-        start_pair_complete = self.start_easting is not None and self.start_northing is not None
-        end_pair_complete = self.end_easting is not None and self.end_northing is not None
-        start_point_set = self.section_start_coordinates is not None
-        end_point_set = self.section_end_coordinates is not None
-
-        if start_pair_complete and not start_point_set:
-            lat, lng = utm_to_wgs84(float(self.start_easting), float(self.start_northing), zone=37)
-            self.section_start_coordinates = make_point(lat, lng)
-            start_point_set = True
-        if end_pair_complete and not end_point_set:
-            lat, lng = utm_to_wgs84(float(self.end_easting), float(self.end_northing), zone=37)
-            self.section_end_coordinates = make_point(lat, lng)
-            end_point_set = True
 
         if errors:
             raise ValidationError(errors)
