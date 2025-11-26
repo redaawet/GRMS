@@ -435,6 +435,7 @@ class RoadAdmin(admin.ModelAdmin):
             "road_id": road_id,
             "api": {
                 "route": _reverse_or_empty("road_route", road_id),
+                "geometry": _reverse_or_empty("road_geometry", road_id),
                 "map_context": map_context_url,
             },
         }
