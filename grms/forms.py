@@ -3,6 +3,8 @@ from __future__ import annotations
 from decimal import Decimal
 from typing import Any, Optional
 
+import json
+
 from django import forms
 
 from . import models
@@ -45,6 +47,7 @@ class RoadBasicForm(forms.ModelForm):
 class RoadAlignmentForm(forms.ModelForm):
     """Second step of the road wizard – capture alignment coordinates."""
 
+    geometry = forms.CharField(required=False, widget=forms.HiddenInput)
     start_latitude = forms.FloatField(required=False)
     start_longitude = forms.FloatField(required=False)
     end_latitude = forms.FloatField(required=False)
@@ -57,6 +60,7 @@ class RoadAlignmentForm(forms.ModelForm):
             "start_northing",
             "end_easting",
             "end_northing",
+            "geometry",
         )
         widgets = {
             "start_easting": forms.NumberInput(attrs={"step": "0.01"}),
@@ -127,6 +131,29 @@ class RoadAlignmentForm(forms.ModelForm):
             self.instance.road_start_coordinates = make_point(start_lat, start_lng)
         if end_lat is not None and end_lng is not None:
             self.instance.road_end_coordinates = make_point(end_lat, end_lng)
+
+        geometry_raw = self.cleaned_data.get("geometry")
+        if geometry_raw:
+            geometry_value = geometry_raw
+            if isinstance(geometry_raw, str):
+                try:
+                    geometry_value = json.loads(geometry_raw)
+                except json.JSONDecodeError:
+                    geometry_value = geometry_raw
+
+            try:  # pragma: no cover - GIS libraries might be unavailable
+                from django.contrib.gis.geos import GEOSGeometry
+
+                if isinstance(geometry_value, (dict, list)):
+                    geometry_value = GEOSGeometry(json.dumps(geometry_value))
+                elif isinstance(geometry_value, str):
+                    geometry_value = GEOSGeometry(geometry_value)
+            except Exception:
+                # Fall back to storing the raw JSON/dict representation when
+                # GEOS is not available in the runtime environment.
+                pass
+
+            self.instance.geometry = geometry_value
 
         return super().save(commit=commit)
 
