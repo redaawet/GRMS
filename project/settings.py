@@ -37,7 +37,26 @@ INSTALLED_APPS = [
 ]
 
 if USE_POSTGIS:
-    INSTALLED_APPS.insert(6, 'django.contrib.gis')
+    import warnings
+
+    def _spatial_libs_available() -> bool:
+        try:
+            from django.contrib.gis.gdal import libgdal  # noqa: F401
+            from django.contrib.gis.geos import geos_version  # noqa: F401
+
+            return True
+        except Exception as exc:  # pragma: no cover - environment dependent
+            warnings.warn(
+                "USE_POSTGIS was requested but spatial libraries could not be loaded; "
+                "falling back to non-GIS configuration."
+            )
+            warnings.warn(str(exc))
+            return False
+
+    if _spatial_libs_available():
+        INSTALLED_APPS.insert(6, 'django.contrib.gis')
+    else:
+        USE_POSTGIS = False
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
