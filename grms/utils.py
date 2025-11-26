@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import math
 from typing import Dict, Optional
 from urllib.error import HTTPError, URLError
 from urllib.request import urlopen
@@ -122,52 +123,64 @@ def fetch_osrm_route(start_point, end_point) -> LineString:
     return line_string
 
 
+def _haversine_km(p1: Point, p2: Point) -> float:
+    """Return the great-circle distance between two WGS84 points in kilometers."""
+
+    lon1, lat1, lon2, lat2 = map(math.radians, [p1.x, p1.y, p2.x, p2.y])
+    dlon = lon2 - lon1
+    dlat = lat2 - lat1
+    a = math.sin(dlat / 2) ** 2 + math.cos(lat1) * math.cos(lat2) * math.sin(dlon / 2) ** 2
+    c = 2 * math.asin(math.sqrt(a))
+    return 6371.0 * c
+
+
+def geometry_length_km(geometry: LineString) -> float:
+    """Compute the geodesic length of a LineString in kilometers."""
+
+    if not geometry or len(geometry.coords) < 2:
+        return 0.0
+
+    coords = list(geometry.coords)
+    total = 0.0
+    for idx in range(len(coords) - 1):
+        total += _haversine_km(Point(*coords[idx]), Point(*coords[idx + 1]))
+    return total
+
+
 def slice_geometry_by_chainage(
     geometry: LineString,
-    road_length_km: float,
     start_chainage_km: float,
     end_chainage_km: float,
 ) -> Optional[LineString]:
     """Return the portion of a road geometry that covers the given chainage range.
 
-    The slicing is done in the geometry's native units using a normalized fraction
-    of the road length to avoid reliance on geodesic calculations. The resulting
-    geometry keeps the input SRID.
+    Uses geodesic (haversine) distances to keep section start/end aligned with the
+    parent road geometry even when recorded road lengths differ from true path
+    length. Chainages are clamped to the actual geometry length.
     """
 
-    if not geometry or road_length_km is None:
+    if not geometry or start_chainage_km is None or end_chainage_km is None:
         return None
 
     coords = list(geometry.coords)
     if len(coords) < 2:
         return None
 
-    if start_chainage_km is None or end_chainage_km is None:
-        return None
-
-    if road_length_km <= 0:
-        return None
-
-    start_frac = max(0.0, min(1.0, float(start_chainage_km) / float(road_length_km)))
-    end_frac = max(0.0, min(1.0, float(end_chainage_km) / float(road_length_km)))
-
-    if end_frac <= start_frac:
-        return None
-
     segment_lengths = []
     total_length = 0.0
     for idx in range(len(coords) - 1):
-        p1 = coords[idx]
-        p2 = coords[idx + 1]
-        length = ((p2[0] - p1[0]) ** 2 + (p2[1] - p1[1]) ** 2) ** 0.5
-        segment_lengths.append(length)
-        total_length += length
+        seg_len = _haversine_km(Point(*coords[idx]), Point(*coords[idx + 1]))
+        segment_lengths.append(seg_len)
+        total_length += seg_len
 
     if total_length == 0:
         return None
 
-    target_start = total_length * start_frac
-    target_end = total_length * end_frac
+    target_start = max(0.0, min(total_length, float(start_chainage_km)))
+    target_end = max(0.0, min(total_length, float(end_chainage_km)))
+
+    if target_end <= target_start:
+        return None
 
     def _interpolate_point(p1: Point, p2: Point, distance_along: float, segment_length: float) -> Point:
         ratio = 0 if segment_length == 0 else distance_along / segment_length
