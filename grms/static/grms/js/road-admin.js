@@ -491,4 +491,20 @@
     }
 
     document.addEventListener("DOMContentLoaded", initRoadAdmin);
+
+    // Save OSRM routed geometry into hidden field before form submit
+    document.addEventListener("submit", function (event) {
+        try {
+            if (window.currentRouteGeoJSON) {
+                const geoField = document.getElementById("id_geometry");
+                if (geoField) {
+                    geoField.value = JSON.stringify(
+                        window.currentRouteGeoJSON.geometry || window.currentRouteGeoJSON,
+                    );
+                }
+            }
+        } catch (e) {
+            console.warn("Could not save geometry:", e);
+        }
+    });
 })();
