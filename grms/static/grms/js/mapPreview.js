@@ -369,15 +369,17 @@
 
     function renderSegmentPreview(map, overlay, road, section, segment) {
         clearOverlay(overlay);
-        // Always derive section geometry from the road
+
+        // Ensure required objects exist
         const roadGeometry = ensureRoadGeometry(road);
-        if (!roadGeometry) {
+        if (!roadGeometry || !section) {
             return { roadLayer: null, sectionLayer: null, segmentLayer: null };
         }
 
+        // Draw parent road (grey)
         const roadLayer = renderGeometry(overlay, roadGeometry, COLORS.road);
 
-        // Step 1: slice road into section
+        // --- STEP 1: Slice the road into the SECTION geometry ---
         const sectionSlice = sliceGeometryByChainage(
             roadGeometry,
             Number(road.total_length_km),
@@ -387,26 +389,29 @@
 
         const sectionGeometry = {
             type: "LineString",
-            coordinates: sectionSlice,
+            coordinates: sectionSlice
         };
 
         const sectionLayer = renderGeometry(overlay, sectionGeometry, COLORS.section);
 
-        // Step 2: slice section into segment
+        // --- STEP 2: Slice the section into the SEGMENT geometry ---
+        const sectionLengthKm = Number(section.end_chainage_km - section.start_chainage_km);
+
         const segmentSlice = sliceGeometryByChainage(
             sectionGeometry,
-            Number(section.length_km),
+            sectionLengthKm,
             Number(segment.station_from_km),
             Number(segment.station_to_km)
         );
 
         const segmentGeometry = {
             type: "LineString",
-            coordinates: segmentSlice,
+            coordinates: segmentSlice
         };
 
         const segmentLayer = renderGeometry(overlay, segmentGeometry, COLORS.segment);
 
+        // Fit map to the most specific layer
         fitMapToLayer(map, segmentLayer || sectionLayer || roadLayer);
 
         return { roadLayer, sectionLayer, segmentLayer };
