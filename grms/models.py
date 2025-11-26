@@ -326,7 +326,9 @@ class Road(models.Model):
         help_text="UTM northing for the end point (Zone 37N)",
     )
     road_end_coordinates = PointField(srid=4326, null=True, blank=True)
-    geometry = LineStringField(null=True, blank=True, help_text="Road geometry (LineString)")
+    geometry = LineStringField(
+        geography=True, null=True, blank=True, help_text="Road geometry (LineString)"
+    )
     surface_type = models.CharField(
         max_length=10,
         choices=[("Earth", "Earth"), ("Gravel", "Gravel"), ("Paved", "Paved")],
