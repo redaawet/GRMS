@@ -20,7 +20,7 @@ from .utils import (
     fetch_osrm_route,
     geometry_length_km,
     make_point,
-    slice_geometry_by_chainage,
+    slice_linestring_by_chainage,
     utm_to_wgs84,
 )
 
@@ -612,12 +612,11 @@ class RoadSection(models.Model):
         if self.start_chainage_km is not None and self.end_chainage_km is not None:
             self.length_km = (self.end_chainage_km - self.start_chainage_km).quantize(Decimal("0.001"))
 
-        road_geometry = getattr(self.road, "geometry", None)
-        if road_geometry and self.start_chainage_km is not None and self.end_chainage_km is not None:
-            sliced = slice_geometry_by_chainage(
-                road_geometry,
+        if self.road and self.road.geometry:
+            sliced = slice_linestring_by_chainage(
+                self.road.geometry,
                 float(self.start_chainage_km),
-                float(self.end_chainage_km),
+                float(self.end_chainage_km)
             )
             if sliced:
                 self.geometry = sliced
