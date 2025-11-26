@@ -43,10 +43,7 @@ def wgs84_to_utm(lat: float, lon: float, zone: int = 37) -> tuple[float, float]:
     return easting, northing
 
 from django.conf import settings
-from django.contrib.gis.geos import LineString
-from django.contrib.gis.geos import GEOSGeometry
-from shapely.geometry import LineString as ShapelyLineString
-from shapely.ops import substring
+from django.contrib.gis.geos import GEOSGeometry, LineString
 
 # Mean Earth radius according to IUGG (km)
 EARTH_RADIUS_KM = 6371.0088
@@ -95,6 +92,16 @@ def geometry_length_km(geometry) -> float:
     for start, end in zip(coordinates[:-1], coordinates[1:]):
         total += _haversine_km(start, end)
     return total
+
+
+def geos_length_km(geometry: GEOSGeometry | None) -> float:
+    """Return metric length for a GEOS geometry by transforming to EPSG:3857."""
+
+    if geometry is None or geometry.empty:
+        return 0.0
+
+    geom_3857 = geometry.transform(3857, clone=True)
+    return float(geom_3857.length) / 1000
 
 
 def _interpolate_coordinate(start: Tuple[float, float], end: Tuple[float, float], fraction: float) -> Tuple[float, float]:
@@ -180,52 +187,54 @@ def line_distance(p1, p2):
 
 
 def slice_linestring_by_chainage(parent_geom, start_km, end_km):
-    """
-    Correctly slice a WGS84 parent LineString by chainage (km).
-
-    Steps:
-    1. Convert parent geometry (EPSG:4326) into metric projection EPSG:3857.
-    2. Perform substring slicing using meters.
-    3. Convert sliced geometry back to EPSG:4326.
-    """
+    """Slice a WGS84 LineString using metric distances without Shapely."""
 
     if not parent_geom or parent_geom.empty:
         return None
 
-    # Convert GEOS → Shapely for slicing
     parent_4326 = GEOSGeometry(parent_geom.wkt, srid=4326)
     parent_3857 = parent_4326.transform(3857, clone=True)
-    shp_3857 = ShapelyLineString(parent_3857.coords)
-
-    total_m = shp_3857.length
-    start_m = float(start_km) * 1000
-    end_m = float(end_km) * 1000
-
-    # Normalize ratios
-    start_ratio = max(0, min(1, start_m / total_m))
-    end_ratio = max(0, min(1, end_m / total_m))
-
-    # Slice using true metric substring
-    sliced_3857 = substring(shp_3857, start_ratio, end_ratio, normalized=True)
-
-    # Guard against degenerate slices (e.g., zero-length results)
-    coords = []
-    if hasattr(sliced_3857, "geoms"):
-        for geom in sliced_3857.geoms:
-            coords.extend(list(getattr(geom, "coords", [])))
-    else:
-        coords = list(getattr(sliced_3857, "coords", []))
+    coords = list(parent_3857.coords)
 
     if len(coords) < 2:
         return None
 
-    # Convert back to GEOS EPSG:3857
-    sliced_3857_geos = GEOSGeometry(LineString(coords).wkt, srid=3857)
+    cumulative = [0.0]
+    for start, end in zip(coords[:-1], coords[1:]):
+        cumulative.append(cumulative[-1] + line_distance(start, end))
 
-    # Reproject back to WGS84 EPSG:4326 (for database storage)
-    sliced_4326 = sliced_3857_geos.transform(4326, clone=True)
+    total_m = cumulative[-1]
+    if total_m == 0:
+        return None
 
-    return sliced_4326
+    start_m = max(0.0, min(total_m, float(start_km) * 1000))
+    end_m = max(start_m, min(total_m, float(end_km) * 1000))
+
+    def point_at_distance(target: float):
+        if target <= 0:
+            return coords[0]
+        if target >= total_m:
+            return coords[-1]
+        for idx in range(1, len(cumulative)):
+            if cumulative[idx] >= target:
+                segment_start = coords[idx - 1]
+                segment_end = coords[idx]
+                segment_length = cumulative[idx] - cumulative[idx - 1]
+                fraction = 0.0 if segment_length == 0 else (target - cumulative[idx - 1]) / segment_length
+                return _interpolate_coordinate(segment_start, segment_end, fraction)
+        return coords[-1]
+
+    sliced_coords = [point_at_distance(start_m)]
+    for idx in range(1, len(coords) - 1):
+        if cumulative[idx] > start_m and cumulative[idx] < end_m:
+            sliced_coords.append(coords[idx])
+    sliced_coords.append(point_at_distance(end_m))
+
+    if len(sliced_coords) < 2:
+        return None
+
+    sliced_3857 = LineString(sliced_coords, srid=3857)
+    return sliced_3857.transform(4326, clone=True)
 
 
 def make_point(lat: float, lng: float):
@@ -256,37 +265,12 @@ def point_to_lat_lng(point) -> Optional[Dict[str, float]]:
     return {"lat": lat, "lng": lng}
 
 
-def fetch_osrm_route(start_point, end_point):
-    """Fetch the OSRM route geometry between two points.
-
-    Args:
-        start_point: Point geometry returned from :func:`make_point`.
-        end_point: Point geometry returned from :func:`make_point`.
-
-    Returns:
-        A GEOS :class:`~django.contrib.gis.geos.LineString` or GeoJSON-like dict
-        representing the route, depending on :data:`settings.USE_POSTGIS`.
-
-    Raises:
-        ValueError: If the OSRM API returns an error or lacks geometry data.
-        URLError, HTTPError: If the OSRM API cannot be reached.
-    """
-
-    if not start_point or not end_point:
-        raise ValueError("Start and end points are required to fetch OSRM route")
-
-    start_coords = point_to_lat_lng(start_point)
-    end_coords = point_to_lat_lng(end_point)
-
-    if not start_coords or not end_coords:
-        raise ValueError("Start and end points must be valid geometry objects")
-
-    start_lon, start_lat = float(start_coords["lng"]), float(start_coords["lat"])
-    end_lon, end_lat = float(end_coords["lng"]), float(end_coords["lat"])
+def fetch_osrm_route(start_lng: float, start_lat: float, end_lng: float, end_lat: float) -> list[list[float]]:
+    """Fetch the decoded OSRM route geometry between two coordinates."""
 
     url = (
         "https://router.project-osrm.org/route/v1/driving/"
-        f"{start_lon},{start_lat};{end_lon},{end_lat}?overview=full&geometries=geojson"
+        f"{start_lng},{start_lat};{end_lng},{end_lat}?overview=full&geometries=geojson"
     )
 
     try:
@@ -307,11 +291,16 @@ def fetch_osrm_route(start_point, end_point):
     if not coordinates:
         raise ValueError("OSRM route geometry is missing from the response")
 
-    mapped_coordinates = [(float(lon), float(lat)) for lon, lat in coordinates]
+    return [[float(lon), float(lat)] for lon, lat in coordinates]
 
-    if getattr(settings, "USE_POSTGIS", False):
-        from django.contrib.gis.geos import LineString  # pragma: no cover - requires GEOS
 
-        return LineString(mapped_coordinates, srid=4326)
+def osrm_linestring_to_geos(coords: Sequence[Sequence[float]]) -> GEOSGeometry:
+    """Convert decoded OSRM coordinates to a GEOS LineString with SRID 4326."""
 
-    return {"type": "LineString", "coordinates": mapped_coordinates, "srid": 4326}
+    cleaned = [(float(lon), float(lat)) for lon, lat in coords]
+    if len(cleaned) < 2:
+        raise ValueError("At least two coordinates are required to build a LineString")
+
+    geom = LineString(cleaned)
+    geom.srid = 4326
+    return geom

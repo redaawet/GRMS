@@ -132,16 +132,6 @@
         return coords[coords.length - 1];
     }
 
-    function deriveTotalKilometres(totalLengthKm, coords) {
-        const declared = Number(totalLengthKm);
-        if (Number.isFinite(declared) && declared > 0) {
-            return declared;
-        }
-        const cumulative = computeCumulativeDistances(coords);
-        const routeLengthMeters = cumulative[cumulative.length - 1] || 0;
-        return routeLengthMeters / 1000;
-    }
-
     function sliceGeometryByChainage(geometry, totalLengthKm, startKm, endKm) {
         const coords = getFlattenedGeometry(geometry);
         if (!coords.length || coords.length < 2) {
@@ -152,16 +142,15 @@
         if (!routeLengthMeters) {
             return [];
         }
-        const effectiveLengthKm = deriveTotalKilometres(totalLengthKm, coords);
-        if (!Number.isFinite(effectiveLengthKm) || effectiveLengthKm <= 0) {
-            return [];
-        }
+        const declaredTotalKm = Number(totalLengthKm);
+        const effectiveTotalKm = Number.isFinite(declaredTotalKm) && declaredTotalKm > 0
+            ? declaredTotalKm
+            : routeLengthMeters / 1000;
 
-        const scale = routeLengthMeters / (effectiveLengthKm * 1000);
         const safeStartKm = Number.isFinite(Number(startKm)) ? Number(startKm) : 0;
-        const safeEndKm = Number.isFinite(Number(endKm)) ? Number(endKm) : effectiveLengthKm;
-        const startDistance = Math.max(0, Math.min(routeLengthMeters, safeStartKm * 1000 * scale));
-        const endDistance = Math.max(startDistance, Math.min(routeLengthMeters, safeEndKm * 1000 * scale));
+        const safeEndKm = Number.isFinite(Number(endKm)) ? Number(endKm) : effectiveTotalKm;
+        const startDistance = Math.max(0, Math.min(routeLengthMeters, safeStartKm * 1000));
+        const endDistance = Math.max(startDistance, Math.min(routeLengthMeters, safeEndKm * 1000));
 
         const sliced = [];
         const startPoint = pointAtDistance(coords, cumulative, startDistance);
@@ -169,7 +158,7 @@
             sliced.push(startPoint);
         }
         for (let i = 1; i < coords.length - 1; i += 1) {
-            if (cumulative[i] > startDistance && cumulative[i] < endDistance) {
+            if (cumulative[i] >= startDistance && cumulative[i] <= endDistance) {
                 sliced.push(coords[i]);
             }
         }
