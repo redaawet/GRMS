@@ -141,6 +141,7 @@
         let lastPayload = null;
         let roadLayer;
         let sectionLayer;
+        let segmentLayer;
         let lastRoadRouteKey;
 
         function showStatus(message, level) {
@@ -412,6 +413,74 @@
             return bounds;
         }
 
+        function renderSegmentContext(roadGeometry, roadData, roadRouteKey) {
+            if (!routes || !window.MapPreview) {
+                return;
+            }
+
+            const coords = window.MapPreview.getFlattenedGeometry(roadGeometry);
+            if (!coords.length) {
+                return;
+            }
+
+            const baseRoadGeometry = { type: "LineString", coordinates: coords };
+
+            if (roadLayer) {
+                routes.removeLayer(roadLayer);
+            }
+            roadLayer = L.geoJSON(baseRoadGeometry, { style: { color: "#94a3b8", weight: 3.5, opacity: 0.75 } }).addTo(routes);
+            lastRoadRouteKey = roadRouteKey || "geometry";
+
+            const sectionConfig = config.section || {};
+            const sectionSourceGeometry = sectionConfig.geometry || baseRoadGeometry;
+            const sectionCoords = window.MapPreview.getFlattenedGeometry(sectionSourceGeometry);
+            const sectionLength = sectionConfig.length_km || sectionConfig.end_chainage_km || roadData.length_km;
+            const sectionSlice = window.MapPreview.sliceRouteByChainage(
+                sectionSourceGeometry,
+                sectionLength,
+                sectionConfig.start_chainage_km,
+                sectionConfig.end_chainage_km,
+            );
+
+            const effectiveSectionGeometry = sectionSlice && sectionSlice.length
+                ? { type: "LineString", coordinates: sectionSlice }
+                : (sectionCoords.length ? { type: "LineString", coordinates: sectionCoords } : null);
+
+            if (sectionLayer) {
+                routes.removeLayer(sectionLayer);
+                sectionLayer = null;
+            }
+
+            if (effectiveSectionGeometry) {
+                sectionLayer = L.geoJSON(effectiveSectionGeometry, { style: { color: "#1d4ed8", weight: 5, opacity: 0.9 } })
+                    .addTo(routes);
+            }
+
+            if (segmentLayer) {
+                routes.removeLayer(segmentLayer);
+                segmentLayer = null;
+            }
+
+            const segmentConfig = config.segment;
+            if (segmentConfig && effectiveSectionGeometry) {
+                const segmentSlice = window.MapPreview.sliceRouteByChainage(
+                    effectiveSectionGeometry,
+                    segmentConfig.length_km || sectionLength,
+                    segmentConfig.station_from_km || segmentConfig.start_chainage_km,
+                    segmentConfig.station_to_km || segmentConfig.end_chainage_km,
+                );
+                if (segmentSlice && segmentSlice.length) {
+                    segmentLayer = L.geoJSON(
+                        { type: "LineString", coordinates: segmentSlice },
+                        { style: { color: "#06b6d4", weight: 6, opacity: 0.95 } },
+                    ).addTo(routes);
+                    map.fitBounds(segmentLayer.getBounds(), { padding: [24, 24] });
+                } else if (sectionLayer) {
+                    map.fitBounds(sectionLayer.getBounds(), { padding: [24, 24] });
+                }
+            }
+        }
+
         function renderMap(payload) {
             lastPayload = payload || lastPayload || {};
             const mapNode = ensureMapContainer();
@@ -449,6 +518,12 @@
             const roadRouteKey = roadData && roadData.start && roadData.end
                 ? [roadData.start.lat, roadData.start.lng, roadData.end.lat, roadData.end.lng].join("|")
                 : null;
+
+            const roadGeometry = (lastPayload && lastPayload.road && lastPayload.road.geometry)
+                || (roadData && roadData.geometry);
+            if (roadGeometry && (config.section || config.segment)) {
+                renderSegmentContext(roadGeometry, roadData || {}, roadRouteKey);
+            }
 
             if (viewportBounds) {
                 map.fitBounds(viewportBounds, { padding: [24, 24] });
