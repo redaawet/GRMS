@@ -811,7 +811,6 @@ class StructureInventoryAdmin(admin.ModelAdmin):
                     "section",
                     "structure_category",
                     "structure_name",
-                    "geometry_type",
                 )
             },
         ),
@@ -820,8 +819,6 @@ class StructureInventoryAdmin(admin.ModelAdmin):
             {
                 "fields": (
                     "station_km",
-                    "location_latitude",
-                    "location_longitude",
                     "location_point",
                 )
             },
@@ -839,7 +836,6 @@ class StructureInventoryAdmin(admin.ModelAdmin):
                     "section",
                     "structure_category",
                     "structure_name",
-                    "geometry_type",
                 )
             },
         ),
@@ -858,8 +854,8 @@ class StructureInventoryAdmin(admin.ModelAdmin):
     )
 
     def get_fieldsets(self, request, obj=None):
-        geometry_type = getattr(obj, "geometry_type", None) or request.POST.get("geometry_type")
-        if geometry_type == models.StructureInventory.LINE:
+        category = getattr(obj, "structure_category", None) or request.POST.get("structure_category")
+        if category in {"Retaining Wall", "Gabion Wall"}:
             return self.line_fieldsets
         return self.point_fieldsets
 
