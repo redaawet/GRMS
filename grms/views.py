@@ -6,7 +6,12 @@ import json
 from decimal import Decimal, InvalidOperation
 from typing import Dict, List, Optional
 
-from django.contrib.gis.geos import LineString
+try:
+    from django.contrib.gis.geos import LineString
+except Exception:  # pragma: no cover - runtime fallback when GIS libs are missing
+    class LineString:  # type: ignore[override]
+        def __init__(self, *args, **kwargs):
+            raise ImportError("GEOS library is required for geometry operations.")
 from django.urls import reverse
 
 from django.db import transaction
@@ -62,7 +67,7 @@ class StructureInventoryViewSet(viewsets.ModelViewSet):
 
 
 class FurnitureInventoryViewSet(viewsets.ModelViewSet):
-    queryset = models.FurnitureInventory.objects.select_related("road_segment", "road_segment__section").all()
+    queryset = models.FurnitureInventory.objects.select_related("section", "section__road").all()
     serializer_class = serializers.FurnitureInventorySerializer
 
 

@@ -43,7 +43,23 @@ def wgs84_to_utm(lat: float, lon: float, zone: int = 37) -> tuple[float, float]:
     return easting, northing
 
 from django.conf import settings
-from django.contrib.gis.geos import GEOSGeometry, LineString
+
+try:
+    from django.contrib.gis.geos import GEOSGeometry, LineString
+
+    GEOS_AVAILABLE = True
+except Exception:  # pragma: no cover - runtime fallback when GIS libs are missing
+    GEOS_AVAILABLE = False
+
+    class _MissingGEOS:
+        def __init__(self, *args, **kwargs):
+            raise ImportError("GEOS library is required for geometry operations.")
+
+    def GEOSGeometry(*args, **kwargs):  # type: ignore[override]
+        raise ImportError("GEOS library is required for geometry operations.")
+
+    class LineString(_MissingGEOS):  # type: ignore[override]
+        pass
 
 # Mean Earth radius according to IUGG (km)
 EARTH_RADIUS_KM = 6371.0088
