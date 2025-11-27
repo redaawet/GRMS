@@ -764,6 +764,8 @@ class StructureInventory(models.Model):
         RoadSection,
         on_delete=models.PROTECT,
         related_name="structures",
+        null=True,
+        blank=True,
         help_text="Road section containing the structure",
     )
     geometry_type = models.CharField(
@@ -851,15 +853,31 @@ class StructureInventory(models.Model):
     def clean(self):
         errors = {}
 
-        if not self.section_id:
-            errors["section"] = "Section is required for structures."
         category = self.structure_category
+        if category in {"Bridge", "Culvert", "Ford"}:
+            self.geometry_type = self.POINT
+        elif category in {"Retaining Wall", "Gabion Wall"}:
+            self.geometry_type = self.LINE
+
         geometry_type = self.geometry_type
+
+        if not self.road_id:
+            errors["road"] = "Road is required for structures."
+
+        if self.section_id and self.road_id and self.section.road_id != self.road_id:
+            errors["section"] = "Selected section must belong to the chosen road."
 
         if category in {"Bridge", "Culvert", "Ford"} and geometry_type != self.POINT:
             errors["geometry_type"] = "Bridge, Culvert, and Ford structures must use point geometry."
         if category in {"Retaining Wall", "Gabion Wall"} and geometry_type != self.LINE:
             errors["geometry_type"] = "Retaining Wall and Gabion Wall structures must use line geometry."
+
+        base_geometry = (
+            getattr(self.section, "geometry", None)
+            if self.section_id
+            else getattr(self.road, "geometry", None)
+        )
+        base_length_km = geos_length_km(base_geometry) if base_geometry else None
 
         if geometry_type == self.POINT:
             if self.station_km is None:
@@ -870,6 +888,14 @@ class StructureInventory(models.Model):
                 errors["end_chainage_km"] = "End chainage is only applicable to line structures."
             if self.location_line:
                 errors["location_line"] = "Line geometry is only applicable to line structures."
+            if base_geometry is None and self.station_km is not None:
+                errors["section" if self.section_id else "road"] = "Geometry is required to place point structures."
+            if (
+                base_length_km is not None
+                and self.station_km is not None
+                and (self.station_km < 0 or float(self.station_km) > base_length_km + 0.001)
+            ):
+                errors["station_km"] = "Station km must fall within the parent geometry chainage."
         elif geometry_type == self.LINE:
             if self.start_chainage_km is None:
                 errors["start_chainage_km"] = "Start chainage km is required for line structures."
@@ -889,6 +915,18 @@ class StructureInventory(models.Model):
                 errors["location_latitude"] = "Latitude is only applicable to point structures."
             if self.location_longitude is not None:
                 errors["location_longitude"] = "Longitude is only applicable to point structures."
+            if base_geometry is None and self.start_chainage_km is not None and self.end_chainage_km is not None:
+                errors["section" if self.section_id else "road"] = "Geometry is required to place line structures."
+            if (
+                base_length_km is not None
+                and self.start_chainage_km is not None
+                and self.end_chainage_km is not None
+                and (
+                    float(self.start_chainage_km) < 0
+                    or float(self.end_chainage_km) > base_length_km + 0.001
+                )
+            ):
+                errors["start_chainage_km"] = "Chainages must fall within the parent geometry limits."
 
         if self.section_id:
             start = self.section.start_chainage_km
@@ -906,14 +944,20 @@ class StructureInventory(models.Model):
             raise ValidationError(errors)
 
     def _populate_geometry_fields(self) -> None:
+        base_geometry = (
+            getattr(self.section, "geometry", None)
+            if self.section_id
+            else getattr(self.road, "geometry", None)
+        )
+
         if self.geometry_type == self.POINT:
             self.start_chainage_km = None
             self.end_chainage_km = None
             self.location_point = None
             self.location_line = None
-            if self.road and getattr(self.road, "geometry", None) is not None and self.station_km is not None:
+            if base_geometry is not None and self.station_km is not None:
                 sliced = slice_linestring_by_chainage(
-                    self.road.geometry,
+                    base_geometry,
                     float(self.station_km),
                     float(self.station_km) + 0.0001,
                 )
@@ -925,14 +969,9 @@ class StructureInventory(models.Model):
             self.location_latitude = None
             self.location_longitude = None
             self.location_line = None
-            if (
-                self.road
-                and getattr(self.road, "geometry", None) is not None
-                and self.start_chainage_km is not None
-                and self.end_chainage_km is not None
-            ):
+            if base_geometry is not None and self.start_chainage_km is not None and self.end_chainage_km is not None:
                 sliced = slice_linestring_by_chainage(
-                    self.road.geometry,
+                    base_geometry,
                     float(self.start_chainage_km),
                     float(self.end_chainage_km),
                 )
