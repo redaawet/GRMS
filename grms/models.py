@@ -872,12 +872,7 @@ class StructureInventory(models.Model):
         if category in {"Retaining Wall", "Gabion Wall"} and geometry_type != self.LINE:
             errors["geometry_type"] = "Retaining Wall and Gabion Wall structures must use line geometry."
 
-        base_geometry = (
-            getattr(self.section, "geometry", None)
-            if self.section_id
-            else getattr(self.road, "geometry", None)
-        )
-        base_length_km = geos_length_km(base_geometry) if base_geometry else None
+        road_length = float(self.road.total_length_km) if getattr(self, "road", None) else None
 
         if geometry_type == self.POINT:
             if self.station_km is None:
@@ -888,25 +883,34 @@ class StructureInventory(models.Model):
                 errors["end_chainage_km"] = "End chainage is only applicable to line structures."
             if self.location_line:
                 errors["location_line"] = "Line geometry is only applicable to line structures."
-            if base_geometry is None and self.station_km is not None:
-                errors["section" if self.section_id else "road"] = "Geometry is required to place point structures."
-            if (
-                base_length_km is not None
-                and self.station_km is not None
-                and (self.station_km < 0 or float(self.station_km) > base_length_km + 0.001)
-            ):
-                errors["station_km"] = "Station km must fall within the parent geometry chainage."
+            if self.station_km is not None:
+                if self.station_km < 0:
+                    errors["station_km"] = "Station chainage cannot be negative."
+                if road_length is not None and float(self.station_km) > road_length:
+                    errors["station_km"] = "Station chainage must be within the parent road range."
+
+            if self.section_id and self.station_km is not None:
+                start = self.section.start_chainage_km
+                end = self.section.end_chainage_km
+                if self.station_km < start or self.station_km > end:
+                    errors["station_km"] = "Station chainage must fall inside the selected section."
+
+            if not self.section_id and self.station_km is not None and self.road_id and "station_km" not in errors:
+                matching_section = RoadSection.objects.filter(
+                    road=self.road,
+                    start_chainage_km__lte=self.station_km,
+                    end_chainage_km__gte=self.station_km,
+                ).first()
+                if matching_section:
+                    self.section = matching_section
+                else:
+                    errors["section"] = "No section covers this station chainage."
+
         elif geometry_type == self.LINE:
             if self.start_chainage_km is None:
                 errors["start_chainage_km"] = "Start chainage km is required for line structures."
             if self.end_chainage_km is None:
                 errors["end_chainage_km"] = "End chainage km is required for line structures."
-            if (
-                self.start_chainage_km is not None
-                and self.end_chainage_km is not None
-                and self.end_chainage_km <= self.start_chainage_km
-            ):
-                errors["end_chainage_km"] = "End chainage must be greater than start chainage."
             if self.station_km is not None:
                 errors["station_km"] = "Station km is only applicable to point structures."
             if self.location_point:
@@ -915,40 +919,61 @@ class StructureInventory(models.Model):
                 errors["location_latitude"] = "Latitude is only applicable to point structures."
             if self.location_longitude is not None:
                 errors["location_longitude"] = "Longitude is only applicable to point structures."
-            if base_geometry is None and self.start_chainage_km is not None and self.end_chainage_km is not None:
-                errors["section" if self.section_id else "road"] = "Geometry is required to place line structures."
+
             if (
-                base_length_km is not None
+                self.start_chainage_km is not None
+                and self.end_chainage_km is not None
+                and self.end_chainage_km <= self.start_chainage_km
+            ):
+                errors["end_chainage_km"] = "End chainage must be greater than start chainage."
+
+            if self.start_chainage_km is not None:
+                if self.start_chainage_km < 0:
+                    errors["start_chainage_km"] = "Start chainage outside parent road range."
+                elif road_length is not None and float(self.start_chainage_km) > road_length:
+                    errors["start_chainage_km"] = "Start chainage outside parent road range."
+
+            if self.end_chainage_km is not None and "end_chainage_km" not in errors:
+                if self.end_chainage_km < 0:
+                    errors["end_chainage_km"] = "End chainage outside parent road range."
+                elif road_length is not None and float(self.end_chainage_km) > road_length:
+                    errors["end_chainage_km"] = "End chainage outside parent road range."
+
+            if (
+                self.section_id
                 and self.start_chainage_km is not None
                 and self.end_chainage_km is not None
-                and (
-                    float(self.start_chainage_km) < 0
-                    or float(self.end_chainage_km) > base_length_km + 0.001
-                )
+                and "start_chainage_km" not in errors
+                and "end_chainage_km" not in errors
             ):
-                errors["start_chainage_km"] = "Chainages must fall within the parent geometry limits."
+                start = self.section.start_chainage_km
+                end = self.section.end_chainage_km
+                if self.start_chainage_km < start or self.end_chainage_km > end:
+                    errors["start_chainage_km"] = "Line structure must fit inside selected section."
 
-        if self.section_id:
-            start = self.section.start_chainage_km
-            end = self.section.end_chainage_km
-            if geometry_type == self.POINT and self.station_km is not None:
-                if self.station_km < start or self.station_km > end:
-                    errors["station_km"] = "Station km must fall within the parent section chainage."
-            if geometry_type == self.LINE and self.start_chainage_km is not None and self.end_chainage_km is not None:
-                if self.start_chainage_km < start or self.start_chainage_km > end:
-                    errors["start_chainage_km"] = "Start chainage must fall within the parent section chainage."
-                if self.end_chainage_km < start or self.end_chainage_km > end:
-                    errors["end_chainage_km"] = "End chainage must fall within the parent section chainage."
+            if (
+                not self.section_id
+                and self.road_id
+                and self.start_chainage_km is not None
+                and self.end_chainage_km is not None
+                and "start_chainage_km" not in errors
+                and "end_chainage_km" not in errors
+            ):
+                matching_section = RoadSection.objects.filter(
+                    road=self.road,
+                    start_chainage_km__lte=self.start_chainage_km,
+                    end_chainage_km__gte=self.end_chainage_km,
+                ).first()
+                if matching_section:
+                    self.section = matching_section
+                else:
+                    errors["section"] = "No section covers the requested chainage range."
 
         if errors:
             raise ValidationError(errors)
 
     def _populate_geometry_fields(self) -> None:
-        base_geometry = (
-            getattr(self.section, "geometry", None)
-            if self.section_id
-            else getattr(self.road, "geometry", None)
-        )
+        base_geometry = getattr(self.road, "geometry", None)
 
         if self.geometry_type == self.POINT:
             self.start_chainage_km = None
