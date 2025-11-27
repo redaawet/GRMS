@@ -857,6 +857,36 @@ class BridgeDetailAdmin(admin.ModelAdmin):
     )
 
 
+@admin.register(models.CulvertDetail, site=grms_admin_site)
+class CulvertDetailAdmin(admin.ModelAdmin):
+    class CulvertDetailForm(forms.ModelForm):
+        class Meta:
+            model = models.CulvertDetail
+            fields = "__all__"
+
+    form = CulvertDetailForm
+    list_display = (
+        "structure",
+        "culvert_type",
+        "width_m",
+        "span_m",
+        "clear_height_m",
+        "num_pipes",
+        "pipe_diameter_m",
+        "has_head_walls",
+    )
+    fieldsets = (
+        ("Structure", {"fields": ("structure",)}),
+        ("Culvert type", {"fields": ("culvert_type",)}),
+        (
+            "Slab/Box dimensions",
+            {"fields": (("width_m", "span_m", "clear_height_m"),)},
+        ),
+        ("Pipe details", {"fields": (("num_pipes", "pipe_diameter_m"),)}),
+        ("Head walls", {"fields": ("has_head_walls",)}),
+    )
+
+
 @admin.register(models.FurnitureInventory, site=grms_admin_site)
 class FurnitureInventoryAdmin(admin.ModelAdmin):
     list_display = ("furniture_type", "road_segment", "chainage_from_km", "chainage_to_km")
@@ -1225,7 +1255,6 @@ for model in [
     models.UnitCost,
     models.PCULookup,
     models.NightAdjustmentLookup,
-    models.CulvertDetail,
     models.FordDetail,
     models.RetainingWallDetail,
     models.GabionWallDetail,
