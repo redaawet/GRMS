@@ -830,9 +830,7 @@ class StructureInventoryAdmin(admin.ModelAdmin):
             {
                 "fields": (
                     "structure_category",
-                    "structure_type",
-                    "condition_code",
-                    "head_walls_flag",
+                    "structure_name",
                 )
             },
         ),
