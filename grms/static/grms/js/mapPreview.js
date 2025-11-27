@@ -3,9 +3,9 @@
 
     // Color palette for preview layers
     const COLORS = {
-        road: { color: "#cbd5e1", weight: 4, opacity: 0.75 },
-        section: { color: "#1d4ed8", weight: 5, opacity: 0.9 },
-        segment: { color: "#06b6d4", weight: 6, opacity: 0.95 },
+        road: { color: "#0f172a", weight: 6, opacity: 1 },
+        section: { color: "#1d4ed8", weight: 7, opacity: 1 },
+        segment: { color: "#f97316", weight: 8, opacity: 1 },
     };
 
     function ensureLeaflet() {

@@ -56,9 +56,9 @@
     const defaultMapPayload = { map_region: DEFAULT_MAP_REGION };
 
     const ROUTE_STYLES = {
-        DRIVING: { color: "#2563eb", weight: 4, opacity: 0.85 },
-        WALKING: { color: "#16a34a", weight: 4, opacity: 0.9 },
-        BICYCLING: { color: "#f97316", weight: 4, opacity: 0.9 },
+        DRIVING: { color: "#1d4ed8", weight: 6, opacity: 1 },
+        WALKING: { color: "#15803d", weight: 6, opacity: 1 },
+        BICYCLING: { color: "#c2410c", weight: 6, opacity: 1 },
     };
 
     function initRoadAdmin() {

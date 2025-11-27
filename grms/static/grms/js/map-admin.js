@@ -427,7 +427,7 @@
             if (!bounds) {
                 return null;
             }
-            const rectangle = L.rectangle(bounds, { color: "#22c55e", weight: 2, dashArray: "6 4", fillOpacity: 0.05 });
+            const rectangle = L.rectangle(bounds, { color: "#16a34a", weight: 3, dashArray: "6 4", fillOpacity: 0.08 });
             rectangle.addTo(overlay);
             return bounds;
         }
@@ -447,7 +447,7 @@
             if (roadLayer) {
                 routes.removeLayer(roadLayer);
             }
-            roadLayer = L.geoJSON(baseRoadGeometry, { style: { color: "#94a3b8", weight: 3.5, opacity: 0.75 } }).addTo(routes);
+            roadLayer = L.geoJSON(baseRoadGeometry, { style: { color: "#0f172a", weight: 5, opacity: 1 } }).addTo(routes);
             lastRoadRouteKey = roadRouteKey || "geometry";
 
             const sectionConfig = config.section || {};
@@ -471,7 +471,7 @@
             }
 
             if (effectiveSectionGeometry) {
-                sectionLayer = L.geoJSON(effectiveSectionGeometry, { style: { color: "#1d4ed8", weight: 5, opacity: 0.9 } })
+                sectionLayer = L.geoJSON(effectiveSectionGeometry, { style: { color: "#1d4ed8", weight: 6, opacity: 1 } })
                     .addTo(routes);
             }
 
@@ -491,7 +491,7 @@
                 if (segmentSlice && segmentSlice.length) {
                     segmentLayer = L.geoJSON(
                         { type: "LineString", coordinates: segmentSlice },
-                        { style: { color: "#06b6d4", weight: 6, opacity: 0.95 } },
+                        { style: { color: "#f97316", weight: 7, opacity: 1 } },
                     ).addTo(routes);
                     map.fitBounds(segmentLayer.getBounds(), { padding: [24, 24] });
                 } else if (sectionLayer) {
