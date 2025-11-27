@@ -802,7 +802,7 @@ class StructureInventoryAdmin(admin.ModelAdmin):
         LineStringField: {"widget": geometry_widget},
     }
 
-    point_fieldsets = (
+    fieldsets = (
         (
             "Structure",
             {
@@ -811,57 +811,36 @@ class StructureInventoryAdmin(admin.ModelAdmin):
                     "section",
                     "structure_category",
                     "structure_name",
-                    "geometry_type",
                 )
             },
         ),
         (
-            "Location",
+            "Point location",
             {
+                "classes": ("structure-point",),
                 "fields": (
                     "station_km",
-                    "location_latitude",
-                    "location_longitude",
                     "location_point",
-                )
-            },
-        ),
-        ("Documentation", {"fields": ("comments", "attachments")}),
-        ("Timestamps", {"fields": ("created_date", "modified_date")}),
-    )
-
-    line_fieldsets = (
-        (
-            "Structure",
-            {
-                "fields": (
-                    "road",
-                    "section",
-                    "structure_category",
-                    "structure_name",
-                    "geometry_type",
-                )
+                ),
             },
         ),
         (
-            "Location",
+            "Line location",
             {
+                "classes": ("structure-line",),
                 "fields": (
                     "start_chainage_km",
                     "end_chainage_km",
                     "location_line",
-                )
+                ),
             },
         ),
         ("Documentation", {"fields": ("comments", "attachments")}),
         ("Timestamps", {"fields": ("created_date", "modified_date")}),
     )
 
-    def get_fieldsets(self, request, obj=None):
-        geometry_type = getattr(obj, "geometry_type", None) or request.POST.get("geometry_type")
-        if geometry_type == models.StructureInventory.LINE:
-            return self.line_fieldsets
-        return self.point_fieldsets
+    class Media:
+        js = ("grms/js/structure-inventory-admin.js",)
 
 
 @admin.register(models.BridgeDetail, site=grms_admin_site)
