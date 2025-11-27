@@ -860,9 +860,45 @@ class BridgeDetailAdmin(admin.ModelAdmin):
 @admin.register(models.CulvertDetail, site=grms_admin_site)
 class CulvertDetailAdmin(admin.ModelAdmin):
     class CulvertDetailForm(forms.ModelForm):
+        class Media:
+            js = ("grms/js/culvert-detail-admin.js",)
+
         class Meta:
             model = models.CulvertDetail
             fields = "__all__"
+
+        slab_box_fields = ("width_m", "span_m", "clear_height_m")
+        pipe_fields = ("num_pipes", "pipe_diameter_m")
+
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            culvert_type = (
+                self.initial.get("culvert_type")
+                or getattr(self.instance, "culvert_type", None)
+            )
+            self._apply_field_state(culvert_type)
+
+        def _apply_field_state(self, culvert_type: str | None):
+            def set_disabled(field_names, disabled: bool):
+                for name in field_names:
+                    field = self.fields.get(name)
+                    if not field:
+                        continue
+                    field.disabled = disabled
+                    if disabled:
+                        field.widget.attrs["aria-disabled"] = "true"
+                    else:
+                        field.widget.attrs.pop("aria-disabled", None)
+
+            if culvert_type in {"Slab Culvert", "Box Culvert"}:
+                set_disabled(self.pipe_fields, True)
+                set_disabled(self.slab_box_fields, False)
+            elif culvert_type == "Pipe Culvert":
+                set_disabled(self.slab_box_fields, True)
+                set_disabled(self.pipe_fields, False)
+            else:
+                set_disabled(self.pipe_fields, False)
+                set_disabled(self.slab_box_fields, False)
 
     form = CulvertDetailForm
     list_display = (
