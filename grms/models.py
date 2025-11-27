@@ -760,11 +760,9 @@ class StructureInventory(models.Model):
     )
     section = models.ForeignKey(
         RoadSection,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
+        on_delete=models.PROTECT,
         related_name="structures",
-        help_text="Optional road section reference",
+        help_text="Road section containing the structure",
     )
     station_km = models.DecimalField(
         max_digits=8,
@@ -805,6 +803,20 @@ class StructureInventory(models.Model):
         verbose_name = "Structure inventory"
         verbose_name_plural = "Structure inventories"
         ordering = ["road", "station_km"]
+
+    def clean(self):
+        errors = {}
+
+        if not self.section_id:
+            errors["section"] = "Section is required for structures."
+        elif self.station_km is not None:
+            start = self.section.start_chainage_km
+            end = self.section.end_chainage_km
+            if self.station_km < start or self.station_km > end:
+                errors["station_km"] = "Station km must fall within the parent section chainage."
+
+        if errors:
+            raise ValidationError(errors)
 
     def __str__(self) -> str:  # pragma: no cover
         return f"{self.structure_category} at {self.station_km} km on road {self.road_id}"
