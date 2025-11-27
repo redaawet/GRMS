@@ -885,21 +885,74 @@ class CulvertDetail(models.Model):
         limit_choices_to={"structure_category": "Culvert"},
     )
     culvert_type = models.CharField(
-        max_length=10,
-        choices=[("Slab", "Slab"), ("Box", "Box"), ("Steel", "Steel"), ("Pipe", "Pipe")],
+        max_length=20,
+        choices=[
+            ("Slab Culvert", "Slab Culvert"),
+            ("Box Culvert", "Box Culvert"),
+            ("Pipe Culvert", "Pipe Culvert"),
+        ],
         help_text="Type of culvert",
     )
-    width_span_m = models.DecimalField(
+    width_m = models.DecimalField(
         max_digits=6,
         decimal_places=2,
         null=True,
         blank=True,
-        help_text="Span width (slab/box culverts)",
+        help_text="Width (slab/box culverts)",
     )
-    clear_height_m = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True, help_text="Clear height (slab/box culverts)")
-    num_pipes = models.PositiveSmallIntegerField(null=True, blank=True, help_text="# of pipes (pipe culvert)")
-    pipe_diameter_m = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True, help_text="Pipe diameter (m)")
-    has_head_walls = models.BooleanField(default=False)
+    span_m = models.DecimalField(
+        max_digits=6,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Span (slab/box culverts)",
+    )
+    clear_height_m = models.DecimalField(
+        max_digits=6,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Clear height (slab/box culverts)",
+    )
+    num_pipes = models.PositiveSmallIntegerField(
+        null=True,
+        blank=True,
+        help_text="Number of pipes (pipe culvert)",
+    )
+    pipe_diameter_m = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Pipe diameter (m)",
+    )
+    has_head_walls = models.BooleanField(default=False, help_text="Head walls present")
+
+    def clean(self):
+        super().clean()
+
+        slab_box_fields = ("width_m", "span_m", "clear_height_m")
+        pipe_fields = ("num_pipes", "pipe_diameter_m")
+        errors = {}
+
+        if self.culvert_type in {"Slab Culvert", "Box Culvert"}:
+            for field in slab_box_fields:
+                if getattr(self, field) in (None, ""):
+                    errors[field] = "Required for slab/box culverts"
+            for field in pipe_fields:
+                if getattr(self, field):
+                    setattr(self, field, None)
+
+        if self.culvert_type == "Pipe Culvert":
+            for field in pipe_fields:
+                if getattr(self, field) in (None, ""):
+                    errors[field] = "Required for pipe culverts"
+            for field in slab_box_fields:
+                if getattr(self, field):
+                    setattr(self, field, None)
+
+        if errors:
+            raise ValidationError(errors)
 
     class Meta:
         verbose_name = "Culvert detail"
