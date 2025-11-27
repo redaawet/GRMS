@@ -774,12 +774,57 @@ class RoadSegmentAdmin(admin.ModelAdmin):
 
 @admin.register(models.StructureInventory, site=grms_admin_site)
 class StructureInventoryAdmin(admin.ModelAdmin):
+    class StructureInventoryForm(forms.ModelForm):
+        location_lat = forms.FloatField(label="Location latitude", required=False)
+        location_lng = forms.FloatField(label="Location longitude", required=False)
+
+        class Meta:
+            model = models.StructureInventory
+            exclude = ("location_point",)
+
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            coords = point_to_lat_lng(getattr(self.instance, "location_point", None))
+            if coords:
+                self.fields["location_lat"].initial = coords.get("lat")
+                self.fields["location_lng"].initial = coords.get("lng")
+
+        def clean(self):
+            cleaned = super().clean()
+            lat = cleaned.get("location_lat")
+            lng = cleaned.get("location_lng")
+
+            if lat is None and lng is None:
+                cleaned["location_point"] = None
+                return cleaned
+
+            if lat is None or lng is None:
+                missing_field = "location_lng" if lat is not None else "location_lat"
+                missing_label = "longitude" if lat is not None else "latitude"
+                raise forms.ValidationError(
+                    {missing_field: f"Provide both latitude and longitude; missing {missing_label}."}
+                )
+
+            cleaned["location_point"] = make_point(lat, lng)
+            return cleaned
+
+    form = StructureInventoryForm
     list_display = ("road", "structure_category", "station_km")
     list_filter = ("structure_category",)
     search_fields = ("road__road_name_from", "road__road_name_to")
     readonly_fields = ("created_date", "modified_date")
     fieldsets = (
-        ("Location", {"fields": ("road", "section", "station_km", "location_point")}),
+        (
+            "Location",
+            {
+                "fields": (
+                    "road",
+                    "section",
+                    "station_km",
+                    ("location_lat", "location_lng"),
+                )
+            },
+        ),
         (
             "Structure details",
             {
