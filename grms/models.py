@@ -751,6 +751,9 @@ class StructureInventory(models.Model):
         ("Other", "Other"),
     ]
 
+    POINT = "Point"
+    LINE = "Line"
+
     road = models.ForeignKey(
         Road,
         on_delete=models.CASCADE,
@@ -763,16 +766,58 @@ class StructureInventory(models.Model):
         related_name="structures",
         help_text="Road section containing the structure",
     )
+    geometry_type = models.CharField(
+        max_length=10,
+        choices=[(POINT, "Point"), (LINE, "Line")],
+        default=POINT,
+        help_text="Indicates whether the structure is mapped as a point or line",
+    )
     station_km = models.DecimalField(
         max_digits=8,
         decimal_places=3,
+        null=True,
+        blank=True,
         help_text="Location along road (chainage km)",
+    )
+    start_chainage_km = models.DecimalField(
+        max_digits=8,
+        decimal_places=3,
+        null=True,
+        blank=True,
+        help_text="Start chainage (km) for line structures",
+    )
+    end_chainage_km = models.DecimalField(
+        max_digits=8,
+        decimal_places=3,
+        null=True,
+        blank=True,
+        help_text="End chainage (km) for line structures",
     )
     location_point = PointField(
         srid=4326,
         null=True,
         blank=True,
         help_text="GPS coordinates of the structure",
+    )
+    location_line = LineStringField(
+        srid=4326,
+        null=True,
+        blank=True,
+        help_text="Geometry of line structures",
+    )
+    location_latitude = models.DecimalField(
+        max_digits=9,
+        decimal_places=6,
+        null=True,
+        blank=True,
+        help_text="Optional latitude override for point structures",
+    )
+    location_longitude = models.DecimalField(
+        max_digits=9,
+        decimal_places=6,
+        null=True,
+        blank=True,
+        help_text="Optional longitude override for point structures",
     )
 
     # High-level classification only
@@ -801,23 +846,106 @@ class StructureInventory(models.Model):
     class Meta:
         verbose_name = "Structure inventory"
         verbose_name_plural = "Structure inventories"
-        ordering = ["road", "station_km"]
+        ordering = ["road", "structure_category", "station_km", "start_chainage_km"]
 
     def clean(self):
         errors = {}
 
         if not self.section_id:
             errors["section"] = "Section is required for structures."
-        elif self.station_km is not None:
+        category = self.structure_category
+        geometry_type = self.geometry_type
+
+        if category in {"Bridge", "Culvert", "Ford"} and geometry_type != self.POINT:
+            errors["geometry_type"] = "Bridge, Culvert, and Ford structures must use point geometry."
+        if category in {"Retaining Wall", "Gabion Wall"} and geometry_type != self.LINE:
+            errors["geometry_type"] = "Retaining Wall and Gabion Wall structures must use line geometry."
+
+        if geometry_type == self.POINT:
+            if self.station_km is None:
+                errors["station_km"] = "Station km is required for point structures."
+            if self.start_chainage_km is not None:
+                errors["start_chainage_km"] = "Start chainage is only applicable to line structures."
+            if self.end_chainage_km is not None:
+                errors["end_chainage_km"] = "End chainage is only applicable to line structures."
+            if self.location_line:
+                errors["location_line"] = "Line geometry is only applicable to line structures."
+        elif geometry_type == self.LINE:
+            if self.start_chainage_km is None:
+                errors["start_chainage_km"] = "Start chainage km is required for line structures."
+            if self.end_chainage_km is None:
+                errors["end_chainage_km"] = "End chainage km is required for line structures."
+            if (
+                self.start_chainage_km is not None
+                and self.end_chainage_km is not None
+                and self.end_chainage_km <= self.start_chainage_km
+            ):
+                errors["end_chainage_km"] = "End chainage must be greater than start chainage."
+            if self.station_km is not None:
+                errors["station_km"] = "Station km is only applicable to point structures."
+            if self.location_point:
+                errors["location_point"] = "Point geometry is only applicable to point structures."
+            if self.location_latitude is not None:
+                errors["location_latitude"] = "Latitude is only applicable to point structures."
+            if self.location_longitude is not None:
+                errors["location_longitude"] = "Longitude is only applicable to point structures."
+
+        if self.section_id:
             start = self.section.start_chainage_km
             end = self.section.end_chainage_km
-            if self.station_km < start or self.station_km > end:
-                errors["station_km"] = "Station km must fall within the parent section chainage."
+            if geometry_type == self.POINT and self.station_km is not None:
+                if self.station_km < start or self.station_km > end:
+                    errors["station_km"] = "Station km must fall within the parent section chainage."
+            if geometry_type == self.LINE and self.start_chainage_km is not None and self.end_chainage_km is not None:
+                if self.start_chainage_km < start or self.start_chainage_km > end:
+                    errors["start_chainage_km"] = "Start chainage must fall within the parent section chainage."
+                if self.end_chainage_km < start or self.end_chainage_km > end:
+                    errors["end_chainage_km"] = "End chainage must fall within the parent section chainage."
 
         if errors:
             raise ValidationError(errors)
 
+    def _populate_geometry_fields(self) -> None:
+        if self.geometry_type == self.POINT:
+            self.start_chainage_km = None
+            self.end_chainage_km = None
+            self.location_point = None
+            self.location_line = None
+            if self.road and getattr(self.road, "geometry", None) is not None and self.station_km is not None:
+                sliced = slice_linestring_by_chainage(
+                    self.road.geometry,
+                    float(self.station_km),
+                    float(self.station_km) + 0.0001,
+                )
+                start_point = sliced.get("start_point") if sliced else None
+                self.location_point = make_point(*start_point) if start_point else None
+        elif self.geometry_type == self.LINE:
+            self.station_km = None
+            self.location_point = None
+            self.location_latitude = None
+            self.location_longitude = None
+            self.location_line = None
+            if (
+                self.road
+                and getattr(self.road, "geometry", None) is not None
+                and self.start_chainage_km is not None
+                and self.end_chainage_km is not None
+            ):
+                sliced = slice_linestring_by_chainage(
+                    self.road.geometry,
+                    float(self.start_chainage_km),
+                    float(self.end_chainage_km),
+                )
+                self.location_line = sliced.get("geometry") if sliced else None
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        self._populate_geometry_fields()
+        super().save(*args, **kwargs)
+
     def __str__(self) -> str:  # pragma: no cover
+        if self.geometry_type == self.LINE:
+            return f"{self.structure_category} from {self.start_chainage_km} to {self.end_chainage_km} km on road {self.road_id}"
         return f"{self.structure_category} at {self.station_km} km on road {self.road_id}"
 
 
