@@ -925,6 +925,15 @@ class CulvertDetailAdmin(admin.ModelAdmin):
 
 @admin.register(models.FurnitureInventory, site=grms_admin_site)
 class FurnitureInventoryAdmin(admin.ModelAdmin):
+    class FurnitureInventoryForm(forms.ModelForm):
+        class Meta:
+            model = models.FurnitureInventory
+            fields = "__all__"
+
+        class Media:
+            js = ("grms/js/furniture-admin.js",)
+
+    form = FurnitureInventoryForm
     list_display = (
         "furniture_type",
         "section",
