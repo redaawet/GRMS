@@ -796,6 +796,24 @@ class StructureInventoryAdmin(admin.ModelAdmin):
     )
 
 
+@admin.register(models.BridgeDetail, site=grms_admin_site)
+class BridgeDetailAdmin(admin.ModelAdmin):
+    list_display = ("structure", "bridge_type", "span_count", "has_head_walls")
+    fieldsets = (
+        ("Structure", {"fields": ("structure",)}),
+        (
+            "Bridge details",
+            {
+                "fields": (
+                    "bridge_type",
+                    ("span_count", "width_m", "length_m"),
+                    "has_head_walls",
+                )
+            },
+        ),
+    )
+
+
 @admin.register(models.FurnitureInventory, site=grms_admin_site)
 class FurnitureInventoryAdmin(admin.ModelAdmin):
     list_display = ("furniture_type", "road_segment", "chainage_from_km", "chainage_to_km")
@@ -816,7 +834,7 @@ class FurnitureInventoryAdmin(admin.ModelAdmin):
 
 @admin.register(models.StructureConditionSurvey, site=grms_admin_site)
 class StructureConditionSurveyAdmin(admin.ModelAdmin):
-    list_display = ("structure", "survey_year", "condition_rating", "qa_status")
+    list_display = ("structure", "survey_year", "condition_code", "condition_rating", "qa_status")
     list_filter = ("survey_year", "condition_rating")
     readonly_fields = ("created_at", "modified_at")
     fieldsets = (
@@ -826,6 +844,7 @@ class StructureConditionSurveyAdmin(admin.ModelAdmin):
             {
                 "fields": (
                     "survey_year",
+                    "condition_code",
                     "condition_rating",
                     "inspector_name",
                     "inspection_date",
@@ -1163,7 +1182,6 @@ for model in [
     models.UnitCost,
     models.PCULookup,
     models.NightAdjustmentLookup,
-    models.BridgeDetail,
     models.CulvertDetail,
     models.FordDetail,
     models.RetainingWallDetail,
