@@ -925,6 +925,11 @@ class FurnitureInventory(models.Model):
 class StructureConditionSurvey(models.Model):
     structure = models.ForeignKey(StructureInventory, on_delete=models.CASCADE, related_name="surveys")
     survey_year = models.PositiveIntegerField(help_text="Year of survey")
+    condition_code = models.PositiveSmallIntegerField(
+        null=True,
+        blank=True,
+        help_text="Overall condition rating code (1=Good, 4=Poor)",
+    )
     condition_rating = models.ForeignKey(
         ConditionRating,
         on_delete=models.PROTECT,
