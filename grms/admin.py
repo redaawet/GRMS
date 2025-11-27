@@ -16,8 +16,14 @@ from django.utils.html import format_html
 from django.utils.timezone import localdate
 
 from . import models
+from .gis_fields import LineStringField, PointField
 from .services import map_services
 from .utils import make_point, point_to_lat_lng, utm_to_wgs84, wgs84_to_utm
+
+try:  # pragma: no cover - depends on spatial libs
+    from django.contrib.gis.forms import OSMWidget
+except Exception:  # pragma: no cover - fallback when GIS libs missing
+    OSMWidget = None
 
 
 def _serialize_geometry(geom):
@@ -774,69 +780,88 @@ class RoadSegmentAdmin(admin.ModelAdmin):
 
 @admin.register(models.StructureInventory, site=grms_admin_site)
 class StructureInventoryAdmin(admin.ModelAdmin):
-    class StructureInventoryForm(forms.ModelForm):
-        location_lat = forms.FloatField(label="Location latitude", required=False)
-        location_lng = forms.FloatField(label="Location longitude", required=False)
+    geometry_widget = (
+        OSMWidget(attrs={"map_width": 800, "map_height": 500})
+        if OSMWidget
+        else forms.Textarea(attrs={"rows": 3})
+    )
 
-        class Meta:
-            model = models.StructureInventory
-            exclude = ("location_point",)
-
-        def __init__(self, *args, **kwargs):
-            super().__init__(*args, **kwargs)
-            coords = point_to_lat_lng(getattr(self.instance, "location_point", None))
-            if coords:
-                self.fields["location_lat"].initial = coords.get("lat")
-                self.fields["location_lng"].initial = coords.get("lng")
-
-        def clean(self):
-            cleaned = super().clean()
-            lat = cleaned.get("location_lat")
-            lng = cleaned.get("location_lng")
-
-            if lat is None and lng is None:
-                cleaned["location_point"] = None
-                return cleaned
-
-            if lat is None or lng is None:
-                missing_field = "location_lng" if lat is not None else "location_lat"
-                missing_label = "longitude" if lat is not None else "latitude"
-                raise forms.ValidationError(
-                    {missing_field: f"Provide both latitude and longitude; missing {missing_label}."}
-                )
-
-            cleaned["location_point"] = make_point(lat, lng)
-            return cleaned
-
-    form = StructureInventoryForm
-    list_display = ("road", "structure_category", "station_km")
-    list_filter = ("structure_category",)
+    list_display = (
+        "road",
+        "structure_category",
+        "geometry_type",
+        "station_km",
+        "start_chainage_km",
+        "end_chainage_km",
+    )
+    list_filter = ("structure_category", "geometry_type")
     search_fields = ("road__road_name_from", "road__road_name_to")
     readonly_fields = ("created_date", "modified_date")
-    fieldsets = (
+    formfield_overrides = {
+        PointField: {"widget": geometry_widget},
+        LineStringField: {"widget": geometry_widget},
+    }
+
+    point_fieldsets = (
         (
-            "Location",
+            "Structure",
             {
                 "fields": (
                     "road",
                     "section",
-                    "station_km",
-                    ("location_lat", "location_lng"),
+                    "structure_category",
+                    "structure_name",
+                    "geometry_type",
                 )
             },
         ),
         (
-            "Structure details",
+            "Location",
             {
                 "fields": (
-                    "structure_category",
-                    "structure_name",
+                    "station_km",
+                    "location_latitude",
+                    "location_longitude",
+                    "location_point",
                 )
             },
         ),
         ("Documentation", {"fields": ("comments", "attachments")}),
         ("Timestamps", {"fields": ("created_date", "modified_date")}),
     )
+
+    line_fieldsets = (
+        (
+            "Structure",
+            {
+                "fields": (
+                    "road",
+                    "section",
+                    "structure_category",
+                    "structure_name",
+                    "geometry_type",
+                )
+            },
+        ),
+        (
+            "Location",
+            {
+                "fields": (
+                    "start_chainage_km",
+                    "end_chainage_km",
+                    "location_line",
+                )
+            },
+        ),
+        ("Documentation", {"fields": ("comments", "attachments")}),
+        ("Timestamps", {"fields": ("created_date", "modified_date")}),
+    )
+
+    def get_fieldsets(self, request, obj=None):
+        geometry_type = getattr(obj, "geometry_type", None) or request.POST.get("geometry_type")
+        if geometry_type == models.StructureInventory.LINE:
+            return self.line_fieldsets
+        return self.point_fieldsets
 
 
 @admin.register(models.BridgeDetail, site=grms_admin_site)
