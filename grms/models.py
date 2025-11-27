@@ -12,7 +12,6 @@ from decimal import Decimal
 from typing import Iterable, Optional
 
 from django.core.exceptions import ValidationError
-from django.contrib.gis.db import models as gis_models
 from django.db import models
 
 from .gis_fields import LineStringField, PointField
@@ -1011,21 +1010,31 @@ class GabionWallDetail(models.Model):
 
 
 class FurnitureInventory(models.Model):
-    road_segment = models.ForeignKey(RoadSegment, on_delete=models.CASCADE, related_name="furniture")
+    KM_POST = "KM Post"
+    ROAD_SIGN = "Road Sign"
+    GUARD_POST = "Guard Post"
+    GUARD_RAIL = "Guard Rail"
+
+    POINT_FURNITURE = {KM_POST, ROAD_SIGN}
+    LINEAR_FURNITURE = {GUARD_POST, GUARD_RAIL}
+
+    section = models.ForeignKey(RoadSection, on_delete=models.CASCADE, related_name="furniture")
     furniture_type = models.CharField(
         max_length=20,
         choices=[
-            ("Guard Post", "Guard Post"),
-            ("Guard Rail", "Guard Rail"),
-            ("KM Post", "KM Post"),
-            ("Road Sign", "Road Sign"),
+            (GUARD_POST, "Guard Post"),
+            (GUARD_RAIL, "Guard Rail"),
+            (KM_POST, "KM Post"),
+            (ROAD_SIGN, "Road Sign"),
         ],
         help_text="Furniture category",
     )
+    chainage_km = models.DecimalField(max_digits=8, decimal_places=3, null=True, blank=True)
     chainage_from_km = models.DecimalField(max_digits=8, decimal_places=3, null=True, blank=True)
     chainage_to_km = models.DecimalField(max_digits=8, decimal_places=3, null=True, blank=True)
     left_present = models.BooleanField(default=False)
     right_present = models.BooleanField(default=False)
+    location_point = PointField(null=True, blank=True, help_text="Optional GPS location of the furniture")
     comments = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     modified_at = models.DateTimeField(auto_now=True)
@@ -1034,8 +1043,63 @@ class FurnitureInventory(models.Model):
         verbose_name = "Furniture inventory"
         verbose_name_plural = "Furniture inventories"
 
+    def clean(self) -> None:
+        super().clean()
+
+        errors = {}
+        section = self.section
+        start_chainage = getattr(section, "start_chainage_km", None)
+        end_chainage = getattr(section, "end_chainage_km", None)
+
+        if self.furniture_type in self.POINT_FURNITURE:
+            if self.chainage_km is None:
+                errors["chainage_km"] = "chainage_km is required for point furniture."
+            if self.chainage_from_km is not None:
+                errors["chainage_from_km"] = "chainage_from_km is not allowed for point furniture."
+            if self.chainage_to_km is not None:
+                errors["chainage_to_km"] = "chainage_to_km is not allowed for point furniture."
+            if self.left_present or self.right_present:
+                errors["left_present"] = "left/right flags are not allowed for point furniture."
+
+            if section and self.chainage_km is not None:
+                if start_chainage is not None and self.chainage_km < start_chainage:
+                    errors["chainage_km"] = "chainage_km must be within the section bounds."
+                if end_chainage is not None and self.chainage_km > end_chainage:
+                    errors["chainage_km"] = "chainage_km must be within the section bounds."
+
+        elif self.furniture_type in self.LINEAR_FURNITURE:
+            if self.chainage_km is not None:
+                errors["chainage_km"] = "chainage_km is not allowed for linear furniture."
+            if self.chainage_from_km is None:
+                errors["chainage_from_km"] = "chainage_from_km is required for linear furniture."
+            if self.chainage_to_km is None:
+                errors["chainage_to_km"] = "chainage_to_km is required for linear furniture."
+            if not (self.left_present or self.right_present):
+                errors["left_present"] = "At least one side (left/right) must be marked as present."
+            if (
+                self.chainage_from_km is not None
+                and self.chainage_to_km is not None
+                and self.chainage_from_km > self.chainage_to_km
+            ):
+                errors["chainage_from_km"] = "chainage_from_km cannot exceed chainage_to_km."
+
+            if section and self.chainage_from_km is not None and self.chainage_to_km is not None:
+                if start_chainage is not None and (
+                    self.chainage_from_km < start_chainage or self.chainage_to_km < start_chainage
+                ):
+                    errors["chainage_from_km"] = "Chainages must be within the section bounds."
+                if end_chainage is not None and (
+                    self.chainage_from_km > end_chainage or self.chainage_to_km > end_chainage
+                ):
+                    errors["chainage_to_km"] = "Chainages must be within the section bounds."
+        else:
+            errors["furniture_type"] = "Invalid furniture type."
+
+        if errors:
+            raise ValidationError(errors)
+
     def __str__(self) -> str:  # pragma: no cover
-        return f"{self.furniture_type} on segment {self.road_segment_id}"
+        return f"{self.furniture_type} on section {self.section_id}"
 
 
 # ---------------------------------------------------------------------------
