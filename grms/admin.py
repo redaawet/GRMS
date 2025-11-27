@@ -802,7 +802,7 @@ class StructureInventoryAdmin(admin.ModelAdmin):
         LineStringField: {"widget": geometry_widget},
     }
 
-    point_fieldsets = (
+    fieldsets = (
         (
             "Structure",
             {
@@ -815,49 +815,32 @@ class StructureInventoryAdmin(admin.ModelAdmin):
             },
         ),
         (
-            "Location",
+            "Point location",
             {
+                "classes": ("structure-point",),
                 "fields": (
                     "station_km",
                     "location_point",
-                )
-            },
-        ),
-        ("Documentation", {"fields": ("comments", "attachments")}),
-        ("Timestamps", {"fields": ("created_date", "modified_date")}),
-    )
-
-    line_fieldsets = (
-        (
-            "Structure",
-            {
-                "fields": (
-                    "road",
-                    "section",
-                    "structure_category",
-                    "structure_name",
-                )
+                ),
             },
         ),
         (
-            "Location",
+            "Line location",
             {
+                "classes": ("structure-line",),
                 "fields": (
                     "start_chainage_km",
                     "end_chainage_km",
                     "location_line",
-                )
+                ),
             },
         ),
         ("Documentation", {"fields": ("comments", "attachments")}),
         ("Timestamps", {"fields": ("created_date", "modified_date")}),
     )
 
-    def get_fieldsets(self, request, obj=None):
-        category = getattr(obj, "structure_category", None) or request.POST.get("structure_category")
-        if category in {"Retaining Wall", "Gabion Wall"}:
-            return self.line_fieldsets
-        return self.point_fieldsets
+    class Media:
+        js = ("grms/js/structure-inventory-admin.js",)
 
 
 @admin.register(models.BridgeDetail, site=grms_admin_site)
