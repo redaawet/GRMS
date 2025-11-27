@@ -739,7 +739,25 @@ class RoadSegment(models.Model):
 
 
 class StructureInventory(models.Model):
-    road = models.ForeignKey(Road, on_delete=models.CASCADE, related_name="structures")
+    """
+    Master structure inventory (parent for Bridge/Culvert/Ford/Wall/etc.)
+    """
+
+    CATEGORY_CHOICES = [
+        ("Bridge", "Bridge"),
+        ("Culvert", "Culvert"),
+        ("Ford", "Ford"),
+        ("Retaining Wall", "Retaining Wall"),
+        ("Gabion Wall", "Gabion Wall"),
+        ("Other", "Other"),
+    ]
+
+    road = models.ForeignKey(
+        Road,
+        on_delete=models.CASCADE,
+        related_name="structures",
+        help_text="Parent road carrying or associated with the structure",
+    )
     section = models.ForeignKey(
         RoadSection,
         on_delete=models.SET_NULL,
@@ -748,58 +766,108 @@ class StructureInventory(models.Model):
         related_name="structures",
         help_text="Optional road section reference",
     )
-    station_km = models.DecimalField(max_digits=8, decimal_places=3, help_text="Location along road (chainage km)")
-    location_point = PointField(srid=4326, null=True, blank=True, help_text="GPS coordinates of the structure")
+    station_km = models.DecimalField(
+        max_digits=8,
+        decimal_places=3,
+        help_text="Location along road (chainage km)",
+    )
+    location_point = PointField(
+        srid=4326,
+        null=True,
+        blank=True,
+        help_text="GPS coordinates of the structure",
+    )
+
+    # High-level classification only
     structure_category = models.CharField(
         max_length=20,
-        choices=[
-            ("Bridge", "Bridge"),
-            ("Culvert", "Culvert"),
-            ("Ford", "Ford"),
-            ("Retaining Wall", "Retaining Wall"),
-            ("Gabion Wall", "Gabion Wall"),
-            ("Other", "Other"),
-        ],
+        choices=CATEGORY_CHOICES,
         help_text="General category of structure",
     )
-    structure_type = models.CharField(max_length=50, blank=True)
-    condition_code = models.PositiveSmallIntegerField(null=True, blank=True, help_text="Overall condition rating code (1=Good, 4=Poor)")
-    head_walls_flag = models.BooleanField(default=False, help_text="Head walls present?")
+
+    # Free text type/name if needed (e.g. 'RC slab bridge')
+    structure_name = models.CharField(
+        max_length=100,
+        blank=True,
+        help_text="Optional structure name / local ID",
+    )
+
     comments = models.TextField(blank=True)
-    attachments = models.JSONField(null=True, blank=True, help_text="Photos or inspection docs")
+    attachments = models.JSONField(
+        null=True,
+        blank=True,
+        help_text="Design documents and photos (store file metadata, URLs, or other attachment descriptors)",
+    )
     created_date = models.DateTimeField(auto_now_add=True)
     modified_date = models.DateTimeField(auto_now=True)
 
     class Meta:
         verbose_name = "Structure inventory"
         verbose_name_plural = "Structure inventories"
+        ordering = ["road", "station_km"]
 
     def __str__(self) -> str:  # pragma: no cover
-        return f"Structure {self.id} ({self.structure_category} at {self.station_km} km)"
+        return f"{self.structure_category} at {self.station_km} km on road {self.road_id}"
 
 
 class BridgeDetail(models.Model):
+    """
+    Detailed attributes for bridge structures.
+
+    Parent record lives in StructureInventory with structure_category='Bridge'.
+    """
+
     structure = models.OneToOneField(
         StructureInventory,
         on_delete=models.CASCADE,
         primary_key=True,
         limit_choices_to={"structure_category": "Bridge"},
     )
+
+    BRIDGE_TYPE_CHOICES = [
+        ("Concrete", "Concrete Bridge"),
+        ("Stone", "Stone Bridge"),
+        ("Bailey", "Bailey Bridge"),
+        ("Steel", "Steel Bridge"),
+        ("Timber", "Timber Bridge"),
+    ]
+
     bridge_type = models.CharField(
         max_length=20,
-        choices=[
-            ("Concrete", "Concrete"),
-            ("Stone", "Stone"),
-            ("Bailey", "Bailey"),
-            ("Steel", "Steel"),
-            ("Timber", "Timber"),
-        ],
-        help_text="Type of bridge structure",
+        choices=BRIDGE_TYPE_CHOICES,
+        help_text="Type of bridge",
     )
-    span_count = models.PositiveSmallIntegerField(null=True, blank=True)
-    width_m = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True)
-    length_m = models.DecimalField(max_digits=8, decimal_places=2, null=True, blank=True)
-    has_head_walls = models.BooleanField(default=False, help_text="Head walls present")
+
+    # “Number of spans” (SRAD: dropdown 1–5… UI handles the choices)
+    span_count = models.PositiveSmallIntegerField(
+        null=True,
+        blank=True,
+        help_text="Number of spans",
+    )
+
+    # Width (m)
+    width_m = models.DecimalField(
+        max_digits=6,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Deck width (m)",
+    )
+
+    # Length (m)
+    length_m = models.DecimalField(
+        max_digits=8,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Total bridge length (m)",
+    )
+
+    # Head walls (Yes/No)
+    has_head_walls = models.BooleanField(
+        default=False,
+        help_text="Head walls present",
+    )
 
     class Meta:
         verbose_name = "Bridge detail"
