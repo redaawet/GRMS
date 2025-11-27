@@ -119,7 +119,25 @@ class LineStringGeometrySerializer(serializers.Serializer):
 class StructureInventorySerializer(serializers.ModelSerializer):
     class Meta:
         model = models.StructureInventory
-        fields = "__all__"
+        fields = (
+            "id",
+            "road",
+            "section",
+            "structure_category",
+            "structure_name",
+            "geometry_type",
+            "station_km",
+            "location_latitude",
+            "location_longitude",
+            "location_point",
+            "start_chainage_km",
+            "end_chainage_km",
+            "location_line",
+            "comments",
+            "attachments",
+            "created_date",
+            "modified_date",
+        )
 
 
 class BridgeDetailSerializer(serializers.ModelSerializer):

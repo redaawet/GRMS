@@ -65,6 +65,12 @@ class StructureInventoryViewSet(viewsets.ModelViewSet):
     queryset = models.StructureInventory.objects.select_related("road", "section").all()
     serializer_class = serializers.StructureInventorySerializer
 
+    def perform_create(self, serializer):
+        serializer.save()
+
+    def perform_update(self, serializer):
+        serializer.save()
+
 
 class FurnitureInventoryViewSet(viewsets.ModelViewSet):
     queryset = models.FurnitureInventory.objects.select_related("section", "section__road").all()
