@@ -889,18 +889,32 @@ class CulvertDetailAdmin(admin.ModelAdmin):
 
 @admin.register(models.FurnitureInventory, site=grms_admin_site)
 class FurnitureInventoryAdmin(admin.ModelAdmin):
-    list_display = ("furniture_type", "road_segment", "chainage_from_km", "chainage_to_km")
+    class FurnitureInventoryForm(forms.ModelForm):
+        class Meta:
+            model = models.FurnitureInventory
+            fields = "__all__"
+
+        class Media:
+            js = ("grms/js/furniture-admin.js",)
+
+    form = FurnitureInventoryForm
+    list_display = (
+        "furniture_type",
+        "section",
+        "chainage_km",
+        "chainage_from_km",
+        "chainage_to_km",
+        "left_present",
+        "right_present",
+    )
     list_filter = ("furniture_type",)
     readonly_fields = ("created_at", "modified_at")
     fieldsets = (
-        ("Road segment", {"fields": ("road_segment", "furniture_type")}),
-        (
-            "Location", {"fields": (("chainage_from_km", "chainage_to_km"),)}),
-        (
-            "Presence",
-            {"fields": (("left_present", "right_present"),)},
-        ),
-        ("Notes", {"fields": ("comments",)}),
+        ("Furniture Info", {"fields": ("furniture_type", "section")}),
+        ("Point Furniture", {"fields": ("chainage_km",)}),
+        ("Linear Furniture", {"fields": ("chainage_from_km", "chainage_to_km", "left_present", "right_present")}),
+        ("Optional GPS", {"fields": ("location_point",)}),
+        ("Comments", {"fields": ("comments",)}),
         ("Timestamps", {"fields": ("created_at", "modified_at")}),
     )
 
