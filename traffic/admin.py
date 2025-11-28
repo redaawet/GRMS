@@ -1,6 +1,7 @@
 from django.contrib import admin
 
 from grms.admin import grms_admin_site
+from .forms import PcuBulkAddForm
 from .models import (
     NightAdjustmentLookup,
     PcuLookup,
@@ -11,6 +12,7 @@ from .models import (
     TrafficSurvey,
     TrafficSurveySummary,
 )
+from .models import VEHICLE_FIELD_MAP
 
 
 @admin.register(TrafficSurvey, site=grms_admin_site)
@@ -138,9 +140,53 @@ class TrafficQcAdmin(admin.ModelAdmin):
 
 @admin.register(PcuLookup, site=grms_admin_site)
 class PcuLookupAdmin(admin.ModelAdmin):
+    add_form = PcuBulkAddForm
     list_display = ("vehicle_class", "pcu_factor", "effective_date", "region")
     list_filter = ("vehicle_class", "region")
     search_fields = ("vehicle_class", "region")
+
+    def get_form(self, request, obj=None, **kwargs):  # pragma: no cover - admin hook
+        if obj is None:
+            defaults = {"form": self.add_form}
+            defaults.update(kwargs)
+            return super().get_form(request, obj, **defaults)
+        return super().get_form(request, obj, **kwargs)
+
+    def save_model(self, request, obj, form, change):  # pragma: no cover - admin hook
+        if change:
+            return super().save_model(request, obj, form, change)
+
+        created_entries = []
+        base_fields = {
+            "effective_date": form.cleaned_data.get("effective_date"),
+            "expiry_date": form.cleaned_data.get("expiry_date"),
+            "region": form.cleaned_data.get("region"),
+            "notes": form.cleaned_data.get("notes", ""),
+        }
+
+        for vehicle_class, field_name in VEHICLE_FIELD_MAP.items():
+            factor = form.cleaned_data.get(field_name)
+            if factor is not None:
+                created_entries.append(
+                    PcuLookup.objects.create(
+                        vehicle_class=vehicle_class,
+                        pcu_factor=factor,
+                        **base_fields,
+                    )
+                )
+
+        if created_entries:
+            first = created_entries[0]
+            obj.pk = first.pk
+            obj.vehicle_class = first.vehicle_class
+            obj.pcu_factor = first.pcu_factor
+
+    def response_add(self, request, obj, post_url_continue=None):  # pragma: no cover - admin hook
+        self.message_user(
+            request,
+            "Created PCU lookup entries for provided vehicle classes.",
+        )
+        return super().response_add(request, obj, post_url_continue)
 
 
 @admin.register(NightAdjustmentLookup, site=grms_admin_site)
