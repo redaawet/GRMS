@@ -23,6 +23,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.request import Request
 from rest_framework.response import Response
 
+from traffic import models as traffic_models
 from . import models, serializers
 from .forms import RoadAlignmentForm, RoadBasicForm, RoadSectionBasicForm
 from .services import map_services
@@ -129,32 +130,32 @@ class OtherStructureConditionSurveyViewSet(viewsets.ModelViewSet):
 
 
 class TrafficSurveyViewSet(viewsets.ModelViewSet):
-    queryset = models.TrafficSurvey.objects.select_related("road_segment", "road_segment__section").all()
+    queryset = traffic_models.TrafficSurvey.objects.select_related("road_segment", "road_segment__section").all()
     serializer_class = serializers.TrafficSurveySerializer
 
 
 class TrafficCountRecordViewSet(viewsets.ModelViewSet):
-    queryset = models.TrafficCountRecord.objects.select_related("traffic_survey", "road_segment").all()
+    queryset = traffic_models.TrafficCountRecord.objects.select_related("traffic_survey", "road_segment").all()
     serializer_class = serializers.TrafficCountRecordSerializer
 
 
 class TrafficCycleSummaryViewSet(viewsets.ModelViewSet):
-    queryset = models.TrafficCycleSummary.objects.select_related("traffic_survey", "road_segment").all()
+    queryset = traffic_models.TrafficCycleSummary.objects.select_related("traffic_survey", "road_segment").all()
     serializer_class = serializers.TrafficCycleSummarySerializer
 
 
 class TrafficSurveySummaryViewSet(viewsets.ModelViewSet):
-    queryset = models.TrafficSurveySummary.objects.select_related("traffic_survey", "road_segment").all()
+    queryset = traffic_models.TrafficSurveySummary.objects.select_related("traffic_survey", "road_segment").all()
     serializer_class = serializers.TrafficSurveySummarySerializer
 
 
 class TrafficQCViewSet(viewsets.ModelViewSet):
-    queryset = models.TrafficQC.objects.select_related("traffic_survey", "road_segment").all()
+    queryset = traffic_models.TrafficQc.objects.select_related("traffic_survey", "road_segment").all()
     serializer_class = serializers.TrafficQCSerializer
 
 
 class TrafficForPrioritizationViewSet(viewsets.ModelViewSet):
-    queryset = models.TrafficForPrioritization.objects.select_related("road", "road_segment").all()
+    queryset = traffic_models.TrafficForPrioritization.objects.select_related("road", "road_segment").all()
     serializer_class = serializers.TrafficForPrioritizationSerializer
 
 
@@ -746,7 +747,7 @@ def run_prioritization(request: Request) -> Response:
     }
     fiscal_year = request.data.get("fiscal_year")
 
-    traffic_values = models.TrafficForPrioritization.objects.all()
+    traffic_values = traffic_models.TrafficForPrioritization.objects.all()
     if fiscal_year:
         traffic_values = traffic_values.filter(fiscal_year=fiscal_year)
     pcu_values = [float(item.value) for item in traffic_values.filter(value_type="PCU")]
@@ -763,7 +764,7 @@ def run_prioritization(request: Request) -> Response:
             )
             cs_norm = float(latest_survey.calculated_mci) if latest_survey and latest_survey.calculated_mci else 0.0
 
-            traffic_qs = models.TrafficForPrioritization.objects.filter(road=road)
+            traffic_qs = traffic_models.TrafficForPrioritization.objects.filter(road=road)
             if fiscal_year:
                 traffic_qs = traffic_qs.filter(fiscal_year=fiscal_year)
             traffic_value = traffic_qs.filter(value_type="PCU").order_by("-fiscal_year").first()
