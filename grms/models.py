@@ -1637,7 +1637,9 @@ class FurnitureConditionDetailedSurvey(models.Model):
 
 
 class TrafficSurvey(models.Model):
-    road_segment = models.ForeignKey(RoadSegment, on_delete=models.CASCADE, related_name="traffic_surveys")
+    road_segment = models.ForeignKey(
+        RoadSegment, on_delete=models.CASCADE, related_name="legacy_traffic_surveys"
+    )
     survey_year = models.PositiveIntegerField()
     cycle_number = models.PositiveSmallIntegerField(help_text="Economic season cycle (1,2,3)")
     count_start_date = models.DateField(null=True, blank=True)
