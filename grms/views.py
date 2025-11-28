@@ -135,7 +135,7 @@ class TrafficSurveyViewSet(viewsets.ModelViewSet):
 
 
 class TrafficCountRecordViewSet(viewsets.ModelViewSet):
-    queryset = traffic_models.TrafficCountRecord.objects.select_related("traffic_survey", "road_segment").all()
+    queryset = traffic_models.TrafficCountRecord.objects.select_related("traffic_survey", "traffic_survey__road_segment").all()
     serializer_class = serializers.TrafficCountRecordSerializer
 
 

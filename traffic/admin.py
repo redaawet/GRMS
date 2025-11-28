@@ -13,18 +13,8 @@ from .models import (
 )
 
 
-class TrafficCountRecordInline(admin.TabularInline):
-    model = TrafficCountRecord
-    extra = 0
-    readonly_fields = ("road_segment",)
-
-    def has_add_permission(self, request, obj=None):  # pragma: no cover - admin hook
-        return True
-
-
 @admin.register(TrafficSurvey, site=grms_admin_site)
 class TrafficSurveyAdmin(admin.ModelAdmin):
-    inlines = [TrafficCountRecordInline]
     list_display = (
         "road_segment",
         "survey_year",
@@ -44,19 +34,42 @@ class TrafficSurveyAdmin(admin.ModelAdmin):
 
 @admin.register(TrafficCountRecord, site=grms_admin_site)
 class TrafficCountRecordAdmin(admin.ModelAdmin):
+    fieldsets = (
+        (
+            "Time block",
+            {
+                "fields": (
+                    "traffic_survey",
+                    "count_date",
+                    "time_block_from",
+                    "time_block_to",
+                    "is_market_day",
+                )
+            },
+        ),
+        (
+            "Vehicle counts",
+            {
+                "fields": (
+                    ("cars", "light_goods", "minibuses"),
+                    ("medium_goods", "heavy_goods", "buses"),
+                    ("tractors", "motorcycles", "bicycles", "pedestrians"),
+                )
+            },
+        ),
+    )
     list_display = (
         "traffic_survey",
-        "road_segment",
-        "vehicle_class",
-        "count_value",
         "count_date",
         "time_block_from",
         "time_block_to",
         "is_market_day",
     )
-    readonly_fields = ("road_segment",)
-    list_filter = ("vehicle_class", "count_date", "is_market_day")
-    search_fields = ("traffic_survey__id", "road_segment__id")
+    list_filter = ("count_date", "is_market_day")
+    search_fields = ("traffic_survey__id",)
+
+    class Media:
+        css = {"all": ["traffic/admin.css"]}
 
 
 class _ReadOnlyAdmin(admin.ModelAdmin):

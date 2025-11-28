@@ -16,6 +16,20 @@ from .choices import (
 )
 
 
+VEHICLE_FIELD_MAP = {
+    "Car": "cars",
+    "LightGoods": "light_goods",
+    "MiniBus": "minibuses",
+    "MediumGoods": "medium_goods",
+    "HeavyGoods": "heavy_goods",
+    "Bus": "buses",
+    "Tractor": "tractors",
+    "Motorcycle": "motorcycles",
+    "Bicycle": "bicycles",
+    "Pedestrian": "pedestrians",
+}
+
+
 class TrafficSurvey(models.Model):
     """
     Survey header metadata for a 7-day traffic count campaign on a road segment.
@@ -120,7 +134,7 @@ class TrafficSurvey(models.Model):
 
 class TrafficCountRecord(models.Model):
     """
-    Raw traffic counts by date, optional time block and vehicle class.
+    One record captures counts for all vehicle classes in a single date/time block.
     """
 
     count_id = models.BigAutoField(primary_key=True)
@@ -131,25 +145,20 @@ class TrafficCountRecord(models.Model):
         related_name="count_records",
     )
 
-    road_segment = models.ForeignKey(
-        RoadSegment,
-        on_delete=models.PROTECT,
-        related_name="traffic_count_records",
-    )
-
     count_date = models.DateField()
     time_block_from = models.TimeField(null=True, blank=True)
     time_block_to = models.TimeField(null=True, blank=True)
 
-    vehicle_class = models.CharField(
-        max_length=20,
-        choices=VEHICLE_CLASS_CHOICES,
-    )
-
-    count_value = models.IntegerField(
-        default=0,
-        help_text="Observed count for this block.",
-    )
+    cars = models.IntegerField(default=0)
+    light_goods = models.IntegerField(default=0)
+    minibuses = models.IntegerField(default=0)
+    medium_goods = models.IntegerField(default=0)
+    heavy_goods = models.IntegerField(default=0)
+    buses = models.IntegerField(default=0)
+    tractors = models.IntegerField(default=0)
+    motorcycles = models.IntegerField(default=0)
+    bicycles = models.IntegerField(default=0)
+    pedestrians = models.IntegerField(default=0)
 
     is_market_day = models.BooleanField(
         default=False,
@@ -160,17 +169,8 @@ class TrafficCountRecord(models.Model):
 
     class Meta:
         db_table = "traffic_count_record"
-        indexes = [
-            models.Index(fields=["traffic_survey", "count_date"]),
-            models.Index(fields=["road_segment", "count_date"]),
-        ]
-        verbose_name = "Traffic count record"
-        verbose_name_plural = "Traffic count records"
-
-    def save(self, *args, **kwargs):
-        if self.traffic_survey_id:
-            self.road_segment = self.traffic_survey.road_segment
-        super().save(*args, **kwargs)
+        verbose_name = "Traffic count"
+        verbose_name_plural = "Traffic counts"
 
 
 class PcuLookup(models.Model):
@@ -394,29 +394,22 @@ def recompute_cycle_summaries_for_survey(survey: TrafficSurvey):
     Derive TrafficCycleSummary rows from TrafficCountRecord for a given survey.
     """
 
-    from django.db.models import Count, Sum
+    from django.db.models import Sum
+
+    records_qs = TrafficCountRecord.objects.filter(traffic_survey=survey)
+    if not records_qs.exists():
+        return
 
     night_factor = survey.night_adjustment_factor or Decimal("1.0")
-    base_qs = (
-        TrafficCountRecord.objects
-        .filter(traffic_survey=survey)
-        .values("vehicle_class")
-        .annotate(
-            cycle_sum_count=Sum("count_value"),
-            cycle_days_counted=Count("count_date", distinct=True),
-        )
-    )
+    cycle_days_counted = records_qs.values("count_date").distinct().count() or 1
 
-    for row in base_qs:
-        vehicle_class = row["vehicle_class"]
-        cycle_sum = row["cycle_sum_count"] or 0
-        days = row["cycle_days_counted"] or 1
+    road = survey.road_segment.road if hasattr(survey.road_segment, "road") else None
+    region_name = getattr(getattr(road, "admin_zone", None), "name", None) if road else None
 
-        cycle_daily_avg = Decimal(cycle_sum) / Decimal(days)
+    for vehicle_class, field_name in VEHICLE_FIELD_MAP.items():
+        cycle_sum = records_qs.aggregate(total=Sum(field_name)).get("total") or 0
+        cycle_daily_avg = Decimal(cycle_sum) / Decimal(cycle_days_counted)
         cycle_daily_24hr = cycle_daily_avg * night_factor
-
-        road = survey.road_segment.road if hasattr(survey.road_segment, "road") else None
-        region_name = getattr(getattr(road, "admin_zone", None), "name", None) if road else None
 
         pcu_factor = PcuLookup.get_effective_factor(
             vehicle_class=vehicle_class,
@@ -432,7 +425,7 @@ def recompute_cycle_summaries_for_survey(survey: TrafficSurvey):
             vehicle_class=vehicle_class,
             cycle_number=survey.cycle_number,
             defaults=dict(
-                cycle_days_counted=days,
+                cycle_days_counted=cycle_days_counted,
                 cycle_sum_count=cycle_sum,
                 cycle_daily_avg=cycle_daily_avg,
                 cycle_daily_24hr=cycle_daily_24hr,
