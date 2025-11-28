@@ -9,9 +9,4 @@ class Migration(migrations.Migration):
         ('traffic', '0004_rename_value_trafficforprioritization_final_value_and_more'),
     ]
 
-    operations = [
-        migrations.RemoveField(
-            model_name='trafficqc',
-            name='road_segment',
-        ),
-    ]
+    operations = []

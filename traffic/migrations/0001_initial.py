@@ -78,15 +78,15 @@ class Migration(migrations.Migration):
                 ("created_at", models.DateTimeField(auto_now_add=True)),
                 ("approved_at", models.DateTimeField(blank=True, null=True)),
                 (
-                    "road_segment",
-                    models.ForeignKey(on_delete=models.deletion.PROTECT, related_name="traffic_surveys", to="grms.roadsegment"),
+                    "road",
+                    models.ForeignKey(on_delete=models.deletion.PROTECT, related_name="traffic_surveys", to="grms.road"),
                 ),
             ],
             options={
                 "verbose_name": "Traffic survey",
                 "verbose_name_plural": "Traffic surveys",
                 "db_table": "traffic_survey",
-                "unique_together": {("road_segment", "survey_year", "cycle_number")},
+                "unique_together": {("road", "survey_year", "cycle_number")},
             },
         ),
         migrations.CreateModel(
@@ -163,12 +163,8 @@ class Migration(migrations.Migration):
                     models.ForeignKey(on_delete=models.deletion.PROTECT, related_name="traffic_prioritization_values", to="grms.road"),
                 ),
                 (
-                    "road_segment",
-                    models.ForeignKey(on_delete=models.deletion.PROTECT, related_name="traffic_prioritization_values", to="grms.roadsegment"),
-                ),
-                (
                     "is_active",
-                    models.BooleanField(default=True, help_text="Only one active record per road_segment+fiscal_year+value_type."),
+                    models.BooleanField(default=True, help_text="Only one active record per road+fiscal_year+value_type."),
                 ),
                 ("prepared_at", models.DateTimeField(auto_now_add=True)),
             ],
@@ -176,7 +172,7 @@ class Migration(migrations.Migration):
                 "verbose_name": "Traffic value for prioritization",
                 "verbose_name_plural": "Traffic values for prioritization",
                 "db_table": "traffic_for_prioritization",
-                "unique_together": {("road_segment", "fiscal_year", "value_type", "is_active")},
+                "unique_together": {("road", "fiscal_year", "value_type", "is_active")},
             },
         ),
         migrations.CreateModel(
@@ -192,8 +188,8 @@ class Migration(migrations.Migration):
                 ("confidence_score", models.DecimalField(decimal_places=2, max_digits=5)),
                 ("computed_at", models.DateTimeField(auto_now_add=True)),
                 (
-                    "road_segment",
-                    models.ForeignKey(on_delete=models.deletion.PROTECT, related_name="traffic_survey_summaries", to="grms.roadsegment"),
+                    "road",
+                    models.ForeignKey(on_delete=models.deletion.PROTECT, related_name="traffic_survey_summaries", to="grms.road"),
                 ),
                 (
                     "traffic_survey",
@@ -204,7 +200,7 @@ class Migration(migrations.Migration):
                 "verbose_name": "Traffic survey summary",
                 "verbose_name_plural": "Traffic survey summaries",
                 "db_table": "traffic_survey_summary",
-                "unique_together": {("traffic_survey", "road_segment", "vehicle_class")},
+                "unique_together": {("traffic_survey", "road", "vehicle_class")},
             },
         ),
         migrations.CreateModel(
@@ -216,8 +212,8 @@ class Migration(migrations.Migration):
                 ("resolved", models.BooleanField(default=False)),
                 ("created_at", models.DateTimeField(auto_now_add=True)),
                 (
-                    "road_segment",
-                    models.ForeignKey(on_delete=models.deletion.PROTECT, related_name="traffic_qc_issues", to="grms.roadsegment"),
+                    "road",
+                    models.ForeignKey(on_delete=models.deletion.PROTECT, related_name="traffic_qc_issues", to="grms.road"),
                 ),
                 (
                     "traffic_survey",
@@ -265,14 +261,6 @@ class Migration(migrations.Migration):
                 ),
                 ("created_at", models.DateTimeField(auto_now_add=True)),
                 (
-                    "road_segment",
-                    models.ForeignKey(
-                        on_delete=models.deletion.PROTECT,
-                        related_name="traffic_count_records",
-                        to="grms.roadsegment",
-                    ),
-                ),
-                (
                     "traffic_survey",
                     models.ForeignKey(
                         on_delete=models.deletion.CASCADE,
@@ -287,7 +275,6 @@ class Migration(migrations.Migration):
                 "db_table": "traffic_count_record",
                 "indexes": [
                     models.Index(fields=["traffic_survey", "count_date"], name="traffic_coun_traffic_fccf74_idx"),
-                    models.Index(fields=["road_segment", "count_date"], name="traffic_coun_road_se_5c31ba_idx"),
                 ],
             },
         ),
@@ -304,8 +291,8 @@ class Migration(migrations.Migration):
                 ("cycle_pcu", models.DecimalField(decimal_places=3, max_digits=12)),
                 ("qc_flag", models.TextField(blank=True, null=True)),
                 (
-                    "road_segment",
-                    models.ForeignKey(on_delete=models.deletion.PROTECT, related_name="traffic_cycle_summaries", to="grms.roadsegment"),
+                    "road",
+                    models.ForeignKey(on_delete=models.deletion.PROTECT, related_name="traffic_cycle_summaries", to="grms.road"),
                 ),
                 (
                     "traffic_survey",
@@ -316,7 +303,7 @@ class Migration(migrations.Migration):
                 "verbose_name": "Traffic cycle summary",
                 "verbose_name_plural": "Traffic cycle summaries",
                 "db_table": "traffic_cycle_summary",
-                "unique_together": {("traffic_survey", "road_segment", "vehicle_class", "cycle_number")},
+                "unique_together": {("traffic_survey", "road", "vehicle_class", "cycle_number")},
             },
         ),
     ]

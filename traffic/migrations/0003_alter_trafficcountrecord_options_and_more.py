@@ -20,21 +20,9 @@ class Migration(migrations.Migration):
                 "verbose_name_plural": "Traffic counts",
             },
         ),
-        migrations.RemoveIndex(
-            model_name="trafficcountrecord",
-            name="traffic_cou_traffic_709f2f_idx",
-        ),
-        migrations.RemoveIndex(
-            model_name="trafficcountrecord",
-            name="traffic_cou_road_se_c956ef_idx",
-        ),
         migrations.RemoveField(
             model_name="trafficcountrecord",
             name="count_value",
-        ),
-        migrations.RemoveField(
-            model_name="trafficcountrecord",
-            name="road_segment",
         ),
         migrations.RemoveField(
             model_name="trafficcountrecord",

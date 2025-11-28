@@ -14,59 +14,38 @@ def populate_road_fields(apps, schema_editor):
     TrafficQc = apps.get_model('traffic', 'TrafficQc')
     TrafficForPrioritization = apps.get_model('traffic', 'TrafficForPrioritization')
 
-    def road_from_segment(segment):
-        section = getattr(segment, 'section', None)
-        return getattr(section, 'road', None)
+    default_road = Road.objects.order_by('id').first()
 
     # Map surveys first so children can reuse survey.road
-    for survey in TrafficSurvey.objects.all().select_related('road_segment__section__road'):
-        road = road_from_segment(getattr(survey, 'road_segment', None))
-        if road is None:
-            # If a road was already set earlier, keep it
-            road = survey.road or Road.objects.order_by('id').first()
-        survey.road = road
+    for survey in TrafficSurvey.objects.all().select_related('road'):
+        survey.road = survey.road or default_road
         survey.save(update_fields=['road'])
 
     # Cycle summaries
-    for cycle in TrafficCycleSummary.objects.all().select_related('traffic_survey__road', 'road_segment__section__road'):
-        road = road_from_segment(getattr(cycle, 'road_segment', None))
-        if road is None:
-            road = getattr(cycle.traffic_survey, 'road', None)
-        if road is None:
-            road = Road.objects.order_by('id').first()
+    for cycle in TrafficCycleSummary.objects.all().select_related('traffic_survey__road'):
+        road = getattr(cycle.traffic_survey, 'road', None) or default_road
         cycle.road = road
         cycle.save(update_fields=['road'])
 
     # Survey summaries
-    for summary in TrafficSurveySummary.objects.all().select_related('traffic_survey__road', 'road_segment__section__road'):
-        road = road_from_segment(getattr(summary, 'road_segment', None))
-        if road is None:
-            road = getattr(summary.traffic_survey, 'road', None)
-        if road is None:
-            road = Road.objects.order_by('id').first()
+    for summary in TrafficSurveySummary.objects.all().select_related('traffic_survey__road'):
+        road = getattr(summary.traffic_survey, 'road', None) or default_road
         summary.road = road
         if summary.fiscal_year is None:
             summary.fiscal_year = getattr(summary.traffic_survey, 'survey_year', None) or 0
         summary.save(update_fields=['road', 'fiscal_year'])
 
     # QC issues
-    for qc in TrafficQc.objects.all().select_related('traffic_survey__road', 'road_segment__section__road'):
-        road = road_from_segment(getattr(qc, 'road_segment', None))
-        if road is None:
-            road = getattr(qc.traffic_survey, 'road', None)
-        if road is None:
-            road = Road.objects.order_by('id').first()
+    for qc in TrafficQc.objects.all().select_related('traffic_survey__road'):
+        road = getattr(qc.traffic_survey, 'road', None) or default_road
         qc.road = road
         qc.save(update_fields=['road'])
 
-    # Prioritization snapshot (already had road, but backfill from segment if needed)
-    for snap in TrafficForPrioritization.objects.all().select_related('road_segment__section__road'):
+    # Prioritization snapshot (already had road, but ensure populated)
+    for snap in TrafficForPrioritization.objects.all().select_related('road'):
         if snap.road_id:
             continue
-        road = road_from_segment(getattr(snap, 'road_segment', None))
-        if road is None:
-            road = Road.objects.order_by('id').first()
-        snap.road = road
+        snap.road = default_road
         snap.save(update_fields=['road'])
 
 
@@ -99,11 +78,6 @@ class Migration(migrations.Migration):
             new_name='pcu_final',
         ),
         migrations.AddField(
-            model_name='trafficcyclesummary',
-            name='road',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='traffic_cycle_summaries', to='grms.road', null=True, blank=True),
-        ),
-        migrations.AddField(
             model_name='trafficqc',
             name='qc_source',
             field=models.CharField(choices=[('SYSTEM', 'System'), ('USER', 'User')], default='USER', max_length=10),
@@ -112,16 +86,6 @@ class Migration(migrations.Migration):
             model_name='trafficqc',
             name='resolved_by',
             field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='resolved_traffic_qc', to=settings.AUTH_USER_MODEL),
-        ),
-        migrations.AddField(
-            model_name='trafficqc',
-            name='road',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='traffic_qc_issues', to='grms.road', null=True, blank=True),
-        ),
-        migrations.AddField(
-            model_name='trafficsurvey',
-            name='road',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='traffic_surveys', to='grms.road', null=True, blank=True),
         ),
         migrations.AddField(
             model_name='trafficsurvey',
@@ -133,11 +97,6 @@ class Migration(migrations.Migration):
             name='fiscal_year',
             field=models.IntegerField(null=True, blank=True),
         ),
-        migrations.AddField(
-            model_name='trafficsurveysummary',
-            name='road',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='traffic_survey_summaries', to='grms.road', null=True, blank=True),
-        ),
         migrations.AlterField(
             model_name='trafficforprioritization',
             name='is_active',
@@ -145,24 +104,8 @@ class Migration(migrations.Migration):
         ),
         migrations.RunPython(populate_road_fields, noop),
         migrations.RemoveField(
-            model_name='trafficcyclesummary',
-            name='road_segment',
-        ),
-        migrations.RemoveField(
-            model_name='trafficforprioritization',
-            name='road_segment',
-        ),
-        migrations.RemoveField(
             model_name='trafficsurvey',
             name='location_override',
-        ),
-        migrations.RemoveField(
-            model_name='trafficsurvey',
-            name='road_segment',
-        ),
-        migrations.RemoveField(
-            model_name='trafficsurveysummary',
-            name='road_segment',
         ),
         migrations.AlterField(
             model_name='trafficcyclesummary',
