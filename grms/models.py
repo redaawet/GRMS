@@ -12,6 +12,7 @@ from decimal import Decimal
 from typing import Iterable, Optional
 
 from django.core.exceptions import ValidationError
+from django.core.validators import RegexValidator
 from django.db import models
 
 from .gis_fields import LineStringField, PointField
@@ -274,6 +275,13 @@ class DistressActivity(models.Model):
 
 
 class Road(models.Model):
+    road_identifier = models.CharField(
+        "Road ID",
+        max_length=20,
+        unique=True,
+        validators=[RegexValidator(r"^RTR-\d+$", "Road ID must match RTR-<number> format.")],
+        help_text="Unique identifier such as RTR-1",
+    )
     road_name_from = models.CharField(max_length=150)
     road_name_to = models.CharField(max_length=150)
     design_standard = models.CharField(
@@ -362,7 +370,8 @@ class Road(models.Model):
         verbose_name_plural = "Roads"
 
     def __str__(self) -> str:  # pragma: no cover
-        return f"Road {self.id}: {self.road_name_from}–{self.road_name_to}"
+        identifier = getattr(self, "road_identifier", None) or f"Road {self.id}"
+        return f"{identifier}: {self.road_name_from}–{self.road_name_to}"
 
     def clean(self):  # pragma: no cover - simple validation
         errors = {}
