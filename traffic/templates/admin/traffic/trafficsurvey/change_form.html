@@ -1,0 +1,32 @@
+{% extends "admin/change_form.html" %}
+{% load static %}
+
+{% block extrahead %}
+    {{ block.super }}
+    {% if station_map_config %}
+        {{ station_map_config|json_script:"station-map-config" }}
+    {% endif %}
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/proj4@2.11.0/dist/proj4.js"></script>
+    <link rel="stylesheet" href="{% static 'traffic/traffic-survey.css' %}">
+    <script src="{% static 'traffic/traffic-survey-map.js' %}" defer></script>
+{% endblock %}
+
+{% block after_field_sets %}
+    {{ block.super }}
+    <div class="traffic-station-panel" id="traffic-station-panel">
+        <div class="traffic-station-panel__info">
+            <h3>Station location</h3>
+            <p class="help">Enter easting and northing (UTM Zone 37N) or click the map to populate them. The selected point will be saved as the station location.</p>
+            <p class="help">Marker visibility is emphasised to confirm the location before saving.</p>
+        </div>
+        <div class="traffic-station-panel__map" id="traffic-station-map">
+            <div class="traffic-station-panel__placeholder">
+                <h4>Station map preview</h4>
+                <p>Use the map to validate or pick the counting station location.</p>
+            </div>
+        </div>
+        <div class="traffic-station-panel__status" id="traffic-station-status"></div>
+    </div>
+{% endblock %}

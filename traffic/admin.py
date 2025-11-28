@@ -1,7 +1,11 @@
 from django.contrib import admin
+from django.urls import reverse
 
-from grms.admin import grms_admin_site
-from .forms import PcuBulkAddForm
+from grms.admin import grms_admin_site, _road_map_context_url
+from grms.models import Road
+from grms.services import map_services
+from grms.utils import point_to_lat_lng, wgs84_to_utm
+from .forms import PcuBulkAddForm, TrafficSurveyAdminForm
 from .models import (
     NightAdjustmentLookup,
     PcuLookup,
@@ -17,6 +21,8 @@ from .models import (
 
 @admin.register(TrafficSurvey, site=grms_admin_site)
 class TrafficSurveyAdmin(admin.ModelAdmin):
+    change_form_template = "admin/traffic/trafficsurvey/change_form.html"
+    form = TrafficSurveyAdminForm
     list_display = (
         "road",
         "survey_year",
@@ -27,11 +33,77 @@ class TrafficSurveyAdmin(admin.ModelAdmin):
     list_filter = ("survey_year", "cycle_number", "method", "qa_status")
     search_fields = ("observer", "road__id")
 
+    fieldsets = (
+        (
+            "Survey details",
+            {
+                "fields": (
+                    "road",
+                    ("survey_year", "cycle_number"),
+                    ("count_start_date", "count_end_date"),
+                    ("count_days_per_cycle", "count_hours_per_day"),
+                )
+            },
+        ),
+        (
+            "Station location",
+            {
+                "fields": (("station_easting", "station_northing"), "station_location"),
+                "description": "Enter UTM Zone 37N coordinates or click the map to populate them.",
+            },
+        ),
+        (
+            "Method & QA",
+            {
+                "fields": (
+                    "method",
+                    "observer",
+                    "weather_notes",
+                    "override_night_factor",
+                    "night_adjustment_factor",
+                    "qa_status",
+                )
+            },
+        ),
+    )
+
     def get_readonly_fields(self, request, obj=None):  # pragma: no cover - admin hook
         readonly = list(super().get_readonly_fields(request, obj))
         if obj and not obj.override_night_factor:
             readonly.append("night_adjustment_factor")
         return readonly
+
+    def changeform_view(self, request, object_id=None, form_url="", extra_context=None):
+        extra_context = extra_context or {}
+        instance = self.get_object(request, object_id)
+        extra_context["station_map_config"] = self._build_station_map_config(request, instance)
+        return super().changeform_view(request, object_id, form_url, extra_context)
+
+    def _build_station_map_config(self, request, survey):
+        road = getattr(survey, "road", None)
+        if not road:
+            road_id = request.GET.get("road") or request.GET.get("road__id__exact")
+            if road_id and road_id.isdigit():
+                road = Road.objects.filter(pk=int(road_id)).first()
+
+        map_context_url = _road_map_context_url(road.id) if road else reverse("road_map_context_default")
+
+        station_point = None
+        if survey and survey.station_location:
+            station_point = point_to_lat_lng(survey.station_location)
+            if station_point:
+                try:
+                    easting, northing = wgs84_to_utm(station_point["lat"], station_point["lng"], zone=37)
+                except ImportError:
+                    easting = northing = None
+                station_point["easting"] = easting
+                station_point["northing"] = northing
+
+        return {
+            "api": {"map_context": map_context_url},
+            "station": station_point,
+            "map_region": map_services.get_default_map_region(),
+        }
 
 
 @admin.register(TrafficCountRecord, site=grms_admin_site)
