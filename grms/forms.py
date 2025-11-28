@@ -19,6 +19,7 @@ class RoadBasicForm(forms.ModelForm):
     class Meta:
         model = models.Road
         fields = (
+            "road_identifier",
             "road_name_from",
             "road_name_to",
             "admin_zone",
