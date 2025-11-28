@@ -11,21 +11,21 @@ from .models import (
     TrafficQc,
     TrafficSurvey,
     TrafficSurveySummary,
+    VEHICLE_FIELD_MAP,
 )
-from .models import VEHICLE_FIELD_MAP
 
 
 @admin.register(TrafficSurvey, site=grms_admin_site)
 class TrafficSurveyAdmin(admin.ModelAdmin):
     list_display = (
-        "road_segment",
+        "road",
         "survey_year",
         "cycle_number",
         "method",
         "qa_status",
     )
     list_filter = ("survey_year", "cycle_number", "method", "qa_status")
-    search_fields = ("observer", "road_segment__id")
+    search_fields = ("observer", "road__id")
 
     def get_readonly_fields(self, request, obj=None):  # pragma: no cover - admin hook
         readonly = list(super().get_readonly_fields(request, obj))
@@ -105,8 +105,8 @@ class TrafficSurveySummaryAdmin(_ReadOnlyAdmin):
     list_display = (
         "traffic_survey",
         "vehicle_class",
-        "adt_class",
-        "pcu_class",
+        "adt_final",
+        "pcu_final",
         "confidence_score",
     )
 
@@ -115,21 +115,20 @@ class TrafficSurveySummaryAdmin(_ReadOnlyAdmin):
 class TrafficForPrioritizationAdmin(_ReadOnlyAdmin):
     readonly_fields = (
         "road",
-        "road_segment",
         "fiscal_year",
         "value_type",
-        "value",
+        "final_value",
         "source_survey",
         "prepared_at",
     )
-    list_display = ("road", "road_segment", "fiscal_year", "value_type", "value", "is_active")
+    list_display = ("road", "fiscal_year", "value_type", "final_value", "is_active")
 
 
 @admin.register(TrafficQc, site=grms_admin_site)
 class TrafficQcAdmin(admin.ModelAdmin):
     list_display = (
         "traffic_survey",
-        "road_segment",
+        "road",
         "issue_type",
         "resolved",
         "created_at",

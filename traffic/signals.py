@@ -6,6 +6,7 @@ from .models import (
     TrafficSurvey,
     recompute_cycle_summaries_for_survey,
     recompute_survey_summary_for_survey,
+    run_auto_qc_for_survey,
 )
 
 
@@ -14,6 +15,7 @@ def _recompute_on_count_save(sender, instance: TrafficCountRecord, **kwargs):
     survey = instance.traffic_survey
     if not survey:
         return
+    run_auto_qc_for_survey(survey)
     recompute_cycle_summaries_for_survey(survey)
     recompute_survey_summary_for_survey(survey)
 
@@ -22,5 +24,6 @@ def _recompute_on_count_save(sender, instance: TrafficCountRecord, **kwargs):
 def _recompute_on_survey_approval(sender, instance: TrafficSurvey, **kwargs):
     if instance.qa_status != "Approved":
         return
+    run_auto_qc_for_survey(instance)
     recompute_cycle_summaries_for_survey(instance)
     recompute_survey_summary_for_survey(instance)
