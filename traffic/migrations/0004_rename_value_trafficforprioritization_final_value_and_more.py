@@ -30,26 +30,6 @@ class Migration(migrations.Migration):
             old_name='pcu_class',
             new_name='pcu_final',
         ),
-        migrations.AlterUniqueTogether(
-            name='trafficcyclesummary',
-            unique_together={('traffic_survey', 'road', 'vehicle_class', 'cycle_number')},
-        ),
-        migrations.AlterUniqueTogether(
-            name='trafficforprioritization',
-            unique_together={('road', 'fiscal_year', 'value_type', 'is_active')},
-        ),
-        migrations.RemoveField(
-            model_name='trafficqc',
-            name='road_segment',
-        ),
-        migrations.AlterUniqueTogether(
-            name='trafficsurvey',
-            unique_together={('road', 'survey_year', 'cycle_number')},
-        ),
-        migrations.AlterUniqueTogether(
-            name='trafficsurveysummary',
-            unique_together={('traffic_survey', 'road', 'vehicle_class')},
-        ),
         migrations.AddField(
             model_name='trafficcyclesummary',
             name='road',
@@ -120,5 +100,21 @@ class Migration(migrations.Migration):
         migrations.RemoveField(
             model_name='trafficsurveysummary',
             name='road_segment',
+        ),
+        migrations.AlterUniqueTogether(
+            name='trafficcyclesummary',
+            unique_together={('traffic_survey', 'road', 'vehicle_class', 'cycle_number')},
+        ),
+        migrations.AlterUniqueTogether(
+            name='trafficforprioritization',
+            unique_together={('road', 'fiscal_year', 'value_type', 'is_active')},
+        ),
+        migrations.AlterUniqueTogether(
+            name='trafficsurvey',
+            unique_together={('road', 'survey_year', 'cycle_number')},
+        ),
+        migrations.AlterUniqueTogether(
+            name='trafficsurveysummary',
+            unique_together={('traffic_survey', 'road', 'vehicle_class')},
         ),
     ]
