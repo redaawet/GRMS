@@ -24,7 +24,7 @@
     <div class="wizard-card">
         <h2>Step 1 — Section Basic Information</h2>
         <p class="wizard-description">
-            Sections are stored under the parent road. Road ID <strong>{{ road.id }}</strong> is pre-selected and cannot be changed.
+            Sections are stored under the parent road. Road ID <strong>{{ road.road_identifier }}</strong> is pre-selected and cannot be changed.
         </p>
         <form method="post" novalidate>
             {% csrf_token %}
