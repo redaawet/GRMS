@@ -14,9 +14,13 @@ def populate_road_fields(apps, schema_editor):
     TrafficQc = apps.get_model('traffic', 'TrafficQc')
     TrafficForPrioritization = apps.get_model('traffic', 'TrafficForPrioritization')
 
+    def road_from_segment(segment):
+        section = getattr(segment, 'section', None)
+        return getattr(section, 'road', None)
+
     # Map surveys first so children can reuse survey.road
-    for survey in TrafficSurvey.objects.all().select_related('road_segment__road'):
-        road = getattr(getattr(survey, 'road_segment', None), 'road', None)
+    for survey in TrafficSurvey.objects.all().select_related('road_segment__section__road'):
+        road = road_from_segment(getattr(survey, 'road_segment', None))
         if road is None:
             # If a road was already set earlier, keep it
             road = survey.road or Road.objects.order_by('id').first()
@@ -24,8 +28,8 @@ def populate_road_fields(apps, schema_editor):
         survey.save(update_fields=['road'])
 
     # Cycle summaries
-    for cycle in TrafficCycleSummary.objects.all().select_related('traffic_survey__road'):
-        road = getattr(getattr(cycle, 'road_segment', None), 'road', None)
+    for cycle in TrafficCycleSummary.objects.all().select_related('traffic_survey__road', 'road_segment__section__road'):
+        road = road_from_segment(getattr(cycle, 'road_segment', None))
         if road is None:
             road = getattr(cycle.traffic_survey, 'road', None)
         if road is None:
@@ -34,8 +38,8 @@ def populate_road_fields(apps, schema_editor):
         cycle.save(update_fields=['road'])
 
     # Survey summaries
-    for summary in TrafficSurveySummary.objects.all().select_related('traffic_survey__road', 'road_segment__road'):
-        road = getattr(getattr(summary, 'road_segment', None), 'road', None)
+    for summary in TrafficSurveySummary.objects.all().select_related('traffic_survey__road', 'road_segment__section__road'):
+        road = road_from_segment(getattr(summary, 'road_segment', None))
         if road is None:
             road = getattr(summary.traffic_survey, 'road', None)
         if road is None:
@@ -46,8 +50,8 @@ def populate_road_fields(apps, schema_editor):
         summary.save(update_fields=['road', 'fiscal_year'])
 
     # QC issues
-    for qc in TrafficQc.objects.all().select_related('traffic_survey__road', 'road_segment__road'):
-        road = getattr(getattr(qc, 'road_segment', None), 'road', None)
+    for qc in TrafficQc.objects.all().select_related('traffic_survey__road', 'road_segment__section__road'):
+        road = road_from_segment(getattr(qc, 'road_segment', None))
         if road is None:
             road = getattr(qc.traffic_survey, 'road', None)
         if road is None:
@@ -56,10 +60,10 @@ def populate_road_fields(apps, schema_editor):
         qc.save(update_fields=['road'])
 
     # Prioritization snapshot (already had road, but backfill from segment if needed)
-    for snap in TrafficForPrioritization.objects.all().select_related('road_segment__road'):
+    for snap in TrafficForPrioritization.objects.all().select_related('road_segment__section__road'):
         if snap.road_id:
             continue
-        road = getattr(getattr(snap, 'road_segment', None), 'road', None)
+        road = road_from_segment(getattr(snap, 'road_segment', None))
         if road is None:
             road = Road.objects.order_by('id').first()
         snap.road = road
