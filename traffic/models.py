@@ -42,7 +42,7 @@ class TrafficSurvey(models.Model):
         related_name="traffic_surveys",
     )
 
-    station_location = PointField(srid=4326, help_text="GPS location of the counting station.")
+    station_location = PointField(srid=4326, help_text="GPS location of the counting station.", null=True, blank=True)
 
     survey_year = models.IntegerField(help_text="Year of survey (e.g. 2025).")
 

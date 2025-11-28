@@ -6,6 +6,70 @@ from django.db import migrations, models
 from grms.gis_fields import PointField
 
 
+def populate_road_fields(apps, schema_editor):
+    Road = apps.get_model('grms', 'Road')
+    TrafficSurvey = apps.get_model('traffic', 'TrafficSurvey')
+    TrafficCycleSummary = apps.get_model('traffic', 'TrafficCycleSummary')
+    TrafficSurveySummary = apps.get_model('traffic', 'TrafficSurveySummary')
+    TrafficQc = apps.get_model('traffic', 'TrafficQc')
+    TrafficForPrioritization = apps.get_model('traffic', 'TrafficForPrioritization')
+
+    # Map surveys first so children can reuse survey.road
+    for survey in TrafficSurvey.objects.all().select_related('road_segment__road'):
+        road = getattr(getattr(survey, 'road_segment', None), 'road', None)
+        if road is None:
+            # If a road was already set earlier, keep it
+            road = survey.road or Road.objects.order_by('id').first()
+        survey.road = road
+        survey.save(update_fields=['road'])
+
+    # Cycle summaries
+    for cycle in TrafficCycleSummary.objects.all().select_related('traffic_survey__road'):
+        road = getattr(getattr(cycle, 'road_segment', None), 'road', None)
+        if road is None:
+            road = getattr(cycle.traffic_survey, 'road', None)
+        if road is None:
+            road = Road.objects.order_by('id').first()
+        cycle.road = road
+        cycle.save(update_fields=['road'])
+
+    # Survey summaries
+    for summary in TrafficSurveySummary.objects.all().select_related('traffic_survey__road', 'road_segment__road'):
+        road = getattr(getattr(summary, 'road_segment', None), 'road', None)
+        if road is None:
+            road = getattr(summary.traffic_survey, 'road', None)
+        if road is None:
+            road = Road.objects.order_by('id').first()
+        summary.road = road
+        if summary.fiscal_year is None:
+            summary.fiscal_year = getattr(summary.traffic_survey, 'survey_year', None) or 0
+        summary.save(update_fields=['road', 'fiscal_year'])
+
+    # QC issues
+    for qc in TrafficQc.objects.all().select_related('traffic_survey__road', 'road_segment__road'):
+        road = getattr(getattr(qc, 'road_segment', None), 'road', None)
+        if road is None:
+            road = getattr(qc.traffic_survey, 'road', None)
+        if road is None:
+            road = Road.objects.order_by('id').first()
+        qc.road = road
+        qc.save(update_fields=['road'])
+
+    # Prioritization snapshot (already had road, but backfill from segment if needed)
+    for snap in TrafficForPrioritization.objects.all().select_related('road_segment__road'):
+        if snap.road_id:
+            continue
+        road = getattr(getattr(snap, 'road_segment', None), 'road', None)
+        if road is None:
+            road = Road.objects.order_by('id').first()
+        snap.road = road
+        snap.save(update_fields=['road'])
+
+
+def noop(apps, schema_editor):
+    pass
+
+
 class Migration(migrations.Migration):
 
     dependencies = [
@@ -33,8 +97,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='trafficcyclesummary',
             name='road',
-            field=models.ForeignKey(default=1, on_delete=django.db.models.deletion.PROTECT, related_name='traffic_cycle_summaries', to='grms.road'),
-            preserve_default=False,
+            field=models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='traffic_cycle_summaries', to='grms.road', null=True, blank=True),
         ),
         migrations.AddField(
             model_name='trafficqc',
@@ -49,38 +112,34 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='trafficqc',
             name='road',
-            field=models.ForeignKey(default=1, on_delete=django.db.models.deletion.PROTECT, related_name='traffic_qc_issues', to='grms.road'),
-            preserve_default=False,
+            field=models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='traffic_qc_issues', to='grms.road', null=True, blank=True),
         ),
         migrations.AddField(
             model_name='trafficsurvey',
             name='road',
-            field=models.ForeignKey(default=1, on_delete=django.db.models.deletion.PROTECT, related_name='traffic_surveys', to='grms.road'),
-            preserve_default=False,
+            field=models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='traffic_surveys', to='grms.road', null=True, blank=True),
         ),
         migrations.AddField(
             model_name='trafficsurvey',
             name='station_location',
-            field=PointField(default=None, help_text='GPS location of the counting station.'),
-            preserve_default=False,
+            field=PointField(help_text='GPS location of the counting station.', null=True, blank=True),
         ),
         migrations.AddField(
             model_name='trafficsurveysummary',
             name='fiscal_year',
-            field=models.IntegerField(default=0),
-            preserve_default=False,
+            field=models.IntegerField(null=True, blank=True),
         ),
         migrations.AddField(
             model_name='trafficsurveysummary',
             name='road',
-            field=models.ForeignKey(default=1, on_delete=django.db.models.deletion.PROTECT, related_name='traffic_survey_summaries', to='grms.road'),
-            preserve_default=False,
+            field=models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='traffic_survey_summaries', to='grms.road', null=True, blank=True),
         ),
         migrations.AlterField(
             model_name='trafficforprioritization',
             name='is_active',
             field=models.BooleanField(default=True, help_text='Only one active record per road+fiscal_year+value_type.'),
         ),
+        migrations.RunPython(populate_road_fields, noop),
         migrations.RemoveField(
             model_name='trafficcyclesummary',
             name='road_segment',
@@ -100,6 +159,31 @@ class Migration(migrations.Migration):
         migrations.RemoveField(
             model_name='trafficsurveysummary',
             name='road_segment',
+        ),
+        migrations.AlterField(
+            model_name='trafficcyclesummary',
+            name='road',
+            field=models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='traffic_cycle_summaries', to='grms.road'),
+        ),
+        migrations.AlterField(
+            model_name='trafficqc',
+            name='road',
+            field=models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='traffic_qc_issues', to='grms.road'),
+        ),
+        migrations.AlterField(
+            model_name='trafficsurvey',
+            name='road',
+            field=models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='traffic_surveys', to='grms.road'),
+        ),
+        migrations.AlterField(
+            model_name='trafficsurveysummary',
+            name='fiscal_year',
+            field=models.IntegerField(),
+        ),
+        migrations.AlterField(
+            model_name='trafficsurveysummary',
+            name='road',
+            field=models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='traffic_survey_summaries', to='grms.road'),
         ),
         migrations.AlterUniqueTogether(
             name='trafficcyclesummary',
