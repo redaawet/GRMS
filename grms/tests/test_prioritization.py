@@ -12,6 +12,7 @@ from rest_framework.test import APIClient, APITestCase
 
 from grms import models
 from grms.utils import make_point, utm_to_wgs84
+from traffic import models as traffic_models
 
 
 class RoadNetworkMixin:
@@ -115,7 +116,7 @@ class PrioritizationViewTests(RoadNetworkMixin, APITestCase):
             shoulder_condition_right=survey_values[4],
             inspection_date=date(2024, 1, 1),
         )
-        models.TrafficForPrioritization.objects.create(
+        traffic_models.TrafficForPrioritization.objects.create(
             road=road,
             road_segment=segment,
             fiscal_year=self.fiscal_year,
@@ -168,7 +169,7 @@ class PrioritizationViewTests(RoadNetworkMixin, APITestCase):
 
         surveys = models.RoadConditionSurvey.objects.order_by("road_segment__section__road__id")
         cs_values = [float(s.calculated_mci) for s in surveys]
-        pcu_values = [float(t.value) for t in models.TrafficForPrioritization.objects.all()]
+        pcu_values = [float(t.value) for t in traffic_models.TrafficForPrioritization.objects.all()]
         benefits = [float(b.total_benefit_score) for b in models.BenefitFactor.objects.all()]
 
         expected_high = self._expected_score(cs_values[0], pcu_values[0], benefits[0], weights, min(pcu_values), max(pcu_values))

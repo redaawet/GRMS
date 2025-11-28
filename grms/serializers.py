@@ -2,6 +2,7 @@
 
 from rest_framework import serializers
 
+from traffic import models as traffic_models
 from . import models, utils
 from .services import map_services
 
@@ -214,7 +215,7 @@ class OtherStructureConditionSurveySerializer(serializers.ModelSerializer):
 
 class TrafficCountRecordSerializer(serializers.ModelSerializer):
     class Meta:
-        model = models.TrafficCountRecord
+        model = traffic_models.TrafficCountRecord
         fields = "__all__"
 
 
@@ -222,7 +223,7 @@ class TrafficSurveySerializer(serializers.ModelSerializer):
     count_records = TrafficCountRecordSerializer(many=True, read_only=True)
 
     class Meta:
-        model = models.TrafficSurvey
+        model = traffic_models.TrafficSurvey
         fields = [
             "id",
             "road_segment",
@@ -233,6 +234,7 @@ class TrafficSurveySerializer(serializers.ModelSerializer):
             "count_days_per_cycle",
             "count_hours_per_day",
             "night_adjustment_factor",
+            "override_night_factor",
             "method",
             "observer",
             "location_override",
@@ -246,25 +248,25 @@ class TrafficSurveySerializer(serializers.ModelSerializer):
 
 class TrafficCycleSummarySerializer(serializers.ModelSerializer):
     class Meta:
-        model = models.TrafficCycleSummary
+        model = traffic_models.TrafficCycleSummary
         fields = "__all__"
 
 
 class TrafficSurveySummarySerializer(serializers.ModelSerializer):
     class Meta:
-        model = models.TrafficSurveySummary
+        model = traffic_models.TrafficSurveySummary
         fields = "__all__"
 
 
 class TrafficQCSerializer(serializers.ModelSerializer):
     class Meta:
-        model = models.TrafficQC
+        model = traffic_models.TrafficQc
         fields = "__all__"
 
 
 class TrafficForPrioritizationSerializer(serializers.ModelSerializer):
     class Meta:
-        model = models.TrafficForPrioritization
+        model = traffic_models.TrafficForPrioritization
         fields = "__all__"
 
 
