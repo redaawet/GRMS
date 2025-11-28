@@ -332,7 +332,7 @@ class RoadAdminForm(forms.ModelForm):
 class RoadAdmin(admin.ModelAdmin):
     form = RoadAdminForm
     list_display = (
-        "id",
+        "road_identifier",
         "road_name_from",
         "road_name_to",
         "admin_zone",
@@ -341,13 +341,20 @@ class RoadAdmin(admin.ModelAdmin):
         "total_length_km",
     )
     list_filter = ("admin_zone", "admin_woreda", "surface_type", "managing_authority", "design_standard")
-    search_fields = ("road_name_from", "road_name_to", "admin_woreda__name", "admin_zone__name")
+    search_fields = (
+        "road_identifier",
+        "road_name_from",
+        "road_name_to",
+        "admin_woreda__name",
+        "admin_zone__name",
+    )
     change_form_template = "admin/grms/road/change_form.html"
     fieldsets = (
         (
             "Administrative context",
             {
                 "fields": (
+                    "road_identifier",
                     ("road_name_from", "road_name_to"),
                     ("admin_zone", "admin_woreda"),
                     "managing_authority",
