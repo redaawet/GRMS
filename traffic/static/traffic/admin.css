@@ -1,0 +1,14 @@
+.field-cars,
+.field-light_goods,
+.field-minibuses,
+.field-medium_goods,
+.field-heavy_goods,
+.field-buses,
+.field-tractors,
+.field-motorcycles,
+.field-bicycles,
+.field-pedestrians {
+    display: inline-block;
+    min-width: 110px;
+    margin-right: 6px;
+}
