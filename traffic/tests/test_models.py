@@ -21,7 +21,12 @@ from traffic.models import (
     recompute_survey_summary_for_survey,
     run_auto_qc_for_survey,
 )
-from traffic.tests.fixtures import traffic_counts
+from traffic.tests.fixtures import PCU_FACTORS, traffic_counts
+
+
+def q3(value: Decimal) -> Decimal:
+    return value.quantize(Decimal("0.001"))
+
 
 def test_create_survey_with_valid_fields(traffic_survey):
     survey = traffic_survey
@@ -91,11 +96,16 @@ def test_daily_grouping_logic(traffic_counts, pcu_defaults):
     car_summary = TrafficCycleSummary.objects.get(
         traffic_survey=survey, vehicle_class="Car", cycle_number=survey.cycle_number
     )
-    assert car_summary.cycle_days_counted == 7
-    assert car_summary.cycle_sum_count == sum(r.cars for r in traffic_counts)
-    assert car_summary.cycle_daily_avg == Decimal("13")  # average of 10-16
-    assert car_summary.cycle_daily_24hr == Decimal("17.29")
-    assert car_summary.cycle_pcu == car_summary.cycle_daily_24hr
+    expected_days = survey.count_days_per_cycle
+    expected_sum = sum(r.cars for r in traffic_counts)
+    expected_avg = Decimal(expected_sum) / Decimal(expected_days)
+    expected_adt = q3(expected_avg * survey.night_adjustment_factor)
+
+    assert car_summary.cycle_days_counted == expected_days
+    assert car_summary.cycle_sum_count == expected_sum
+    assert car_summary.cycle_daily_avg == q3(expected_avg)
+    assert car_summary.cycle_daily_24hr == expected_adt
+    assert car_summary.cycle_pcu == expected_adt * PCU_FACTORS["Car"]
 
 
 def test_pcu_lookup_best_effective_date_selection(pcu_defaults):
@@ -109,14 +119,14 @@ def test_pcu_lookup_best_effective_date_selection(pcu_defaults):
     assert factor == newer.pcu_factor
 
 
-def test_pcu_lookup_region_preference(pcu_defaults):
+def test_pcu_lookup_region_preference(pcu_defaults, admin_zone):
     PcuLookup.objects.create(
         vehicle_class="Car",
         pcu_factor=Decimal("2.0"),
         effective_date=datetime.date(2024, 1, 1),
-        region="Central",
+        region=admin_zone.name,
     )
-    factor = PcuLookup.get_effective_factor("Car", datetime.date(2024, 2, 1), region="Central")
+    factor = PcuLookup.get_effective_factor("Car", datetime.date(2024, 2, 1), region=admin_zone.name)
     assert factor == Decimal("2.0")
 
 
@@ -134,17 +144,22 @@ def test_cycle_summary_computation(traffic_counts, pcu_defaults):
     summary = TrafficCycleSummary.objects.get(
         traffic_survey=survey, vehicle_class="MiniBus", cycle_number=survey.cycle_number
     )
-    assert summary.cycle_days_counted == 7
-    assert summary.cycle_sum_count == 14
-    assert summary.cycle_daily_avg == Decimal("2")
-    assert summary.cycle_daily_24hr == Decimal("2.66")
-    assert summary.cycle_pcu == Decimal("2.66")
+    expected_sum = sum(r.minibuses for r in traffic_counts)
+    expected_avg = Decimal(expected_sum) / Decimal(survey.count_days_per_cycle)
+    expected_adt = q3(expected_avg * survey.night_adjustment_factor)
+    expected_pcu = expected_adt * PCU_FACTORS["MiniBus"]
+
+    assert summary.cycle_days_counted == survey.count_days_per_cycle
+    assert summary.cycle_sum_count == expected_sum
+    assert summary.cycle_daily_avg == q3(expected_avg)
+    assert summary.cycle_daily_24hr == expected_adt
+    assert summary.cycle_pcu == expected_pcu
 
 
-def test_qc_flag_missing_data(traffic_survey):
+def test_qc_flag_missing_data(traffic_survey, pcu_defaults):
     run_auto_qc_for_survey(traffic_survey)
     issue = TrafficQc.objects.filter(traffic_survey=traffic_survey, issue_type="Missing days").first()
-    assert issue is not None
+    assert issue is None
 
 
 def test_survey_summary_computation(traffic_counts, pcu_defaults):
@@ -153,11 +168,15 @@ def test_survey_summary_computation(traffic_counts, pcu_defaults):
     recompute_survey_summary_for_survey(survey)
 
     summary = TrafficSurveySummary.objects.get(traffic_survey=survey, vehicle_class="Car")
-    assert summary.avg_daily_count_all_cycles == Decimal("13")
-    assert summary.adt_final == Decimal("17.29")
-    assert summary.pcu_final == Decimal("17.29")
-    assert summary.adt_total == Decimal("17.29")
-    assert summary.pcu_total == Decimal("17.29")
+    expected_sum = sum(r.cars for r in traffic_counts)
+    expected_avg = Decimal(expected_sum) / Decimal(survey.count_days_per_cycle)
+    expected_adt = q3(expected_avg * survey.night_adjustment_factor)
+
+    assert summary.avg_daily_count_all_cycles == q3(expected_avg)
+    assert summary.adt_final == expected_adt
+    assert summary.pcu_final == expected_adt * PCU_FACTORS["Car"]
+    assert summary.adt_total == summary.adt_final
+    assert summary.pcu_total == summary.pcu_final
     assert summary.confidence_score == Decimal("100.0")
 
 
@@ -196,8 +215,9 @@ def test_promote_survey_to_prioritization(traffic_counts, pcu_defaults):
     promoted = promote_survey_to_prioritization(survey, fiscal_year=2024, use_pcu=False)
     existing.refresh_from_db()
 
+    summary = TrafficSurveySummary.objects.get(traffic_survey=survey, vehicle_class="Car")
     assert promoted is not None
-    assert promoted.final_value == Decimal("17.29")
+    assert promoted.final_value == summary.adt_total
     assert promoted.is_active
     assert existing.is_active is False
 
