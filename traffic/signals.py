@@ -3,6 +3,7 @@ from django.dispatch import receiver
 
 from .models import (
     TrafficCountRecord,
+    TrafficQC,
     TrafficSurvey,
     recompute_cycle_summaries_for_survey,
     recompute_survey_summary_for_survey,

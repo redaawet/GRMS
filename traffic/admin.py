@@ -12,7 +12,7 @@ from .models import (
     TrafficCountRecord,
     TrafficCycleSummary,
     TrafficForPrioritization,
-    TrafficQc,
+    TrafficQC,
     TrafficSurvey,
     TrafficSurveySummary,
     VEHICLE_FIELD_MAP,
@@ -175,7 +175,6 @@ class TrafficCycleSummaryAdmin(_ReadOnlyAdmin):
 @admin.register(TrafficSurveySummary, site=grms_admin_site)
 class TrafficSurveySummaryAdmin(_ReadOnlyAdmin):
     list_display = (
-        "traffic_survey",
         "vehicle_class",
         "adt_final",
         "pcu_final",
@@ -189,14 +188,14 @@ class TrafficForPrioritizationAdmin(_ReadOnlyAdmin):
         "road",
         "fiscal_year",
         "value_type",
-        "final_value",
+        "value",
         "source_survey",
         "prepared_at",
     )
-    list_display = ("road", "fiscal_year", "value_type", "final_value", "is_active")
+    list_display = ("road", "fiscal_year", "value_type", "value", "is_active")
 
 
-@admin.register(TrafficQc, site=grms_admin_site)
+@admin.register(TrafficQC, site=grms_admin_site)
 class TrafficQcAdmin(admin.ModelAdmin):
     list_display = (
         "traffic_survey",
