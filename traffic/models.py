@@ -31,10 +31,9 @@ VEHICLE_FIELD_MAP = {
 
 
 class TrafficSurvey(models.Model):
-    """
-    Survey header metadata for a 7-day traffic count campaign on a road.
-    One record per road-year-cycle with a station location.
-    """
+    """Survey header metadata for a 7-day traffic count campaign on a road."""
+
+    traffic_survey_id = models.BigAutoField(primary_key=True)
 
     road = models.ForeignKey(
         Road,
@@ -55,7 +54,7 @@ class TrafficSurvey(models.Model):
 
     count_days_per_cycle = models.PositiveSmallIntegerField(
         default=7,
-        help_text="Number of days counted in this cycle (usually 7).",
+        help_text="Number of days counted in this cycle (must be 7).",
     )
 
     count_hours_per_day = models.PositiveSmallIntegerField(
@@ -66,7 +65,8 @@ class TrafficSurvey(models.Model):
     night_adjustment_factor = models.DecimalField(
         max_digits=6,
         decimal_places=3,
-        help_text="Night adjustment factor used for this survey (frozen).",
+        help_text="Night adjustment factor used for this survey (derived).",
+        default=Decimal("1.0"),
     )
 
     override_night_factor = models.BooleanField(
@@ -108,6 +108,20 @@ class TrafficSurvey(models.Model):
 
     def __str__(self) -> str:  # pragma: no cover - trivial
         return f"{self.road} – {self.survey_year} – Cycle {self.cycle_number}"
+
+    def clean(self):
+        super().clean()
+        if self.cycle_number not in (1, 2, 3):
+            raise models.ValidationError({"cycle_number": "Cycle number must be 1, 2, or 3."})
+
+        if self.count_start_date and self.count_end_date and self.count_start_date > self.count_end_date:
+            raise models.ValidationError({"count_start_date": "Start date must be before end date."})
+
+        if self.count_start_date and self.count_end_date:
+            days = (self.count_end_date - self.count_start_date).days + 1
+            if days != 7:
+                raise models.ValidationError({"count_days_per_cycle": "Count period must cover exactly 7 days."})
+            self.count_days_per_cycle = days
 
     def approve(self):
         unresolved = self.qc_issues.filter(resolved=False).exists()
@@ -170,6 +184,15 @@ class TrafficCountRecord(models.Model):
         db_table = "traffic_count_record"
         verbose_name = "Traffic count"
         verbose_name_plural = "Traffic counts"
+
+    def clean(self):
+        super().clean()
+        survey = self.traffic_survey
+        if not survey:
+            return
+        if survey.count_start_date and survey.count_end_date:
+            if not (survey.count_start_date <= self.count_date <= survey.count_end_date):
+                raise models.ValidationError({"count_date": "Count date must be within the survey window."})
 
 
 class PcuLookup(models.Model):
@@ -239,7 +262,7 @@ class NightAdjustmentLookup(models.Model):
         return obj.adjustment_factor if obj else Decimal("1.0")
 
 
-class TrafficQc(models.Model):
+class TrafficQC(models.Model):
     QC_SOURCE_CHOICES = (
         ("SYSTEM", "System"),
         ("USER", "User"),
@@ -321,11 +344,6 @@ class TrafficCycleSummary(models.Model):
 class TrafficSurveySummary(models.Model):
     survey_summary_id = models.BigAutoField(primary_key=True)
 
-    traffic_survey = models.ForeignKey(
-        TrafficSurvey,
-        on_delete=models.CASCADE,
-        related_name="survey_summaries",
-    )
     road = models.ForeignKey(
         Road,
         on_delete=models.PROTECT,
@@ -352,7 +370,7 @@ class TrafficSurveySummary(models.Model):
 
     class Meta:
         db_table = "traffic_survey_summary"
-        unique_together = ("traffic_survey", "road", "vehicle_class")
+        unique_together = ("road", "vehicle_class", "fiscal_year")
         verbose_name = "Traffic survey summary"
         verbose_name_plural = "Traffic survey summaries"
 
@@ -372,7 +390,7 @@ class TrafficForPrioritization(models.Model):
         max_length=10,
         choices=VALUE_TYPE_CHOICES,
     )
-    final_value = models.DecimalField(max_digits=14, decimal_places=3)
+    value = models.DecimalField(max_digits=14, decimal_places=3)
 
     source_survey = models.ForeignKey(
         TrafficSurvey,
@@ -389,9 +407,13 @@ class TrafficForPrioritization(models.Model):
 
     class Meta:
         db_table = "traffic_for_prioritization"
-        unique_together = ("road", "fiscal_year", "value_type", "is_active")
+        unique_together = ("road", "fiscal_year", "is_active")
         verbose_name = "Traffic value for prioritization"
         verbose_name_plural = "Traffic values for prioritization"
+
+
+# Backwards compatibility alias for legacy imports
+TrafficQc = TrafficQC
 
 
 def recompute_cycle_summaries_for_survey(survey: TrafficSurvey):
@@ -406,15 +428,17 @@ def recompute_cycle_summaries_for_survey(survey: TrafficSurvey):
         return
 
     night_factor = survey.night_adjustment_factor or Decimal("1.0")
+    effective_factor = Decimal("1.0") if survey.count_hours_per_day == 24 else night_factor
     cycle_days_counted = records_qs.values("count_date").distinct().count() or 1
 
     road = survey.road
     region_name = getattr(getattr(road, "admin_zone", None), "name", None) if road else None
 
     for vehicle_class, field_name in VEHICLE_FIELD_MAP.items():
-        cycle_sum = records_qs.aggregate(total=Sum(field_name)).get("total") or 0
-        cycle_daily_avg = Decimal(cycle_sum) / Decimal(cycle_days_counted)
-        cycle_daily_24hr = cycle_daily_avg * night_factor
+        raw_sum = records_qs.aggregate(total=Sum(field_name)).get("total") or 0
+        cycle_daily_avg = Decimal(raw_sum) / Decimal(cycle_days_counted)
+        cycle_daily_24hr = cycle_daily_avg * effective_factor
+        cycle_sum_count = cycle_daily_24hr * Decimal(cycle_days_counted)
 
         pcu_factor = PcuLookup.get_effective_factor(
             vehicle_class=vehicle_class,
@@ -431,7 +455,7 @@ def recompute_cycle_summaries_for_survey(survey: TrafficSurvey):
             cycle_number=survey.cycle_number,
             defaults=dict(
                 cycle_days_counted=cycle_days_counted,
-                cycle_sum_count=cycle_sum,
+                cycle_sum_count=cycle_sum_count,
                 cycle_daily_avg=cycle_daily_avg,
                 cycle_daily_24hr=cycle_daily_24hr,
                 cycle_pcu=cycle_pcu,
@@ -445,7 +469,7 @@ def compute_confidence_score_for_survey(survey: TrafficSurvey) -> Decimal:
     """
 
     base = Decimal("100.0")
-    unresolved_count = TrafficQc.objects.filter(
+    unresolved_count = TrafficQC.objects.filter(
         traffic_survey=survey,
         road=survey.road,
         resolved=False,
@@ -464,7 +488,7 @@ def recompute_survey_summary_for_survey(survey: TrafficSurvey):
 
     cycle_qs = (
         TrafficCycleSummary.objects
-        .filter(traffic_survey=survey, road=survey.road)
+        .filter(road=survey.road, traffic_survey__survey_year=survey.survey_year)
         .values("vehicle_class")
         .annotate(
             avg_daily_avg=Avg("cycle_daily_avg"),
@@ -483,11 +507,10 @@ def recompute_survey_summary_for_survey(survey: TrafficSurvey):
         pcu_class = row["avg_cycle_pcu"] or Decimal("0")
 
         TrafficSurveySummary.objects.update_or_create(
-            traffic_survey=survey,
             road=survey.road,
             vehicle_class=vehicle_class,
+            fiscal_year=survey.survey_year,
             defaults=dict(
-                fiscal_year=survey.survey_year,
                 avg_daily_count_all_cycles=avg_daily_count_all_cycles,
                 adt_final=adt_class,
                 pcu_final=pcu_class,
@@ -503,8 +526,8 @@ def recompute_survey_summary_for_survey(survey: TrafficSurvey):
     confidence = compute_confidence_score_for_survey(survey)
 
     TrafficSurveySummary.objects.filter(
-        traffic_survey=survey,
         road=survey.road,
+        fiscal_year=survey.survey_year,
     ).update(
         adt_total=adt_total,
         pcu_total=pcu_total,
@@ -522,8 +545,8 @@ def promote_survey_to_prioritization(survey: TrafficSurvey, fiscal_year: int, us
         return None
 
     summary_qs = TrafficSurveySummary.objects.filter(
-        traffic_survey=survey,
         road=survey.road,
+        fiscal_year=survey.survey_year,
     )
 
     if not summary_qs.exists():
@@ -536,7 +559,6 @@ def promote_survey_to_prioritization(survey: TrafficSurvey, fiscal_year: int, us
     TrafficForPrioritization.objects.filter(
         road=survey.road,
         fiscal_year=fiscal_year,
-        value_type=value_type,
         is_active=True,
     ).update(is_active=False)
 
@@ -544,7 +566,7 @@ def promote_survey_to_prioritization(survey: TrafficSurvey, fiscal_year: int, us
         road=survey.road,
         fiscal_year=fiscal_year,
         value_type=value_type,
-        final_value=numeric_value,
+        value=numeric_value,
         source_survey=survey,
         is_active=True,
     )
@@ -555,7 +577,7 @@ def run_auto_qc_for_survey(survey: TrafficSurvey):
     """Minimal auto-QC checks per requirements."""
 
     def _add_issue(issue_type: str, detail: str):
-        TrafficQc.objects.get_or_create(
+        TrafficQC.objects.get_or_create(
             traffic_survey=survey,
             road=survey.road,
             issue_type=issue_type,
@@ -575,3 +597,32 @@ def run_auto_qc_for_survey(survey: TrafficSurvey):
 
     if survey.count_hours_per_day not in (12, 24):
         _add_issue("Hour mismatch", "Count hours per day is unexpected for night factor lookup.")
+
+    # Missing cycles for the same road/year
+    cycles_present = set(
+        survey.__class__.objects.filter(road=survey.road, survey_year=survey.survey_year)
+        .values_list("cycle_number", flat=True)
+    )
+    missing_cycles = {1, 2, 3} - cycles_present
+    if missing_cycles:
+        _add_issue("Missing cycles", f"Missing cycles: {', '.join(map(str, sorted(missing_cycles)))}")
+
+    # Variability and spike checks based on total daily counts
+    day_totals = []
+    for day in records.values_list("count_date", flat=True).distinct():
+        day_records = records.filter(count_date=day)
+        total = 0
+        for field in VEHICLE_FIELD_MAP.values():
+            total += day_records.aggregate(sum_val=models.Sum(field)).get("sum_val") or 0
+        day_totals.append(total)
+
+    if day_totals:
+        mean_val = sum(day_totals) / len(day_totals)
+        if mean_val:
+            variance = sum((val - mean_val) ** 2 for val in day_totals) / len(day_totals)
+            cv = (variance ** 0.5) / mean_val
+            if cv > 0.6:
+                _add_issue("High variability", "Coefficient of variation exceeds 0.6 across days.")
+
+            if any(val > mean_val * 3 for val in day_totals):
+                _add_issue("Count spikes", "Detected day count greater than three times the mean.")
