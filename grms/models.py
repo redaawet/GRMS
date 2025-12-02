@@ -325,6 +325,7 @@ class Road(models.Model):
         AdminWoreda,
         on_delete=models.PROTECT,
         related_name="roads",
+        null=True,
         help_text="Administrative Woreda",
     )
     total_length_km = models.DecimalField(max_digits=6, decimal_places=2)
@@ -370,7 +371,6 @@ class Road(models.Model):
         RoadLinkTypeLookup,
         on_delete=models.PROTECT,
         related_name="roads",
-        null=True,
         blank=True,
         help_text="Functional road class used for connectivity/prioritization (Trunk, Link, Main access, Collector, Feeder).",
     )
@@ -1905,7 +1905,7 @@ class RoadSocioEconomic(models.Model):
 
     class Meta:
         verbose_name = "Road socio-economic input"
-        verbose_name_plural = "Road socio-economic inputs"
+        verbose_name_plural = "Road socio-economic"
         ordering = ["road__road_identifier"]
 
     def __str__(self) -> str:  # pragma: no cover - simple repr
