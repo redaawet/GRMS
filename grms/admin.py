@@ -117,7 +117,7 @@ class GRMSAdminSite(AdminSite):
             ),
         },
         {
-            "title": "Traffic Data – Derived Summaries",
+            "title": "Traffic Summaries",
             "models": (
                 traffic_models.TrafficCycleSummary._meta.verbose_name_plural,
                 traffic_models.TrafficSurveySummary._meta.verbose_name_plural,
@@ -1269,6 +1269,7 @@ class FurnitureConditionDetailedSurveyAdmin(admin.ModelAdmin):
 class RoadSocioEconomicAdmin(admin.ModelAdmin):
     list_display = (
         "road",
+        "population_served",
         "trading_centers",
         "villages",
         "markets",

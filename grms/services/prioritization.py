@@ -26,7 +26,7 @@ def _resolve_range_score(criterion: models.BenefitCriterion, value) -> Decimal:
         raise ValidationError({criterion.code: "Value must be numeric."})
 
     for scale in criterion.scales.all():
-        min_ok = scale.min_value is None or numeric_value >= scale.min_value
+        min_ok = numeric_value >= scale.min_value
         max_ok = scale.max_value is None or numeric_value <= scale.max_value
         if min_ok and max_ok:
             return Decimal(scale.score)
@@ -136,7 +136,7 @@ def compute_prioritization_result(fiscal_year: int) -> Iterable[models.Prioritiz
     """Compute prioritization rankings for all roads with socio-economic data."""
 
     candidates = models.Road.objects.filter(socioeconomic__isnull=False).select_related(
-        "admin_zone", "admin_woreda"
+        "admin_zone", "admin_woreda", "socioeconomic"
     )
 
     scoring: list[Tuple[models.Road, Decimal, int, Decimal, Decimal]] = []
