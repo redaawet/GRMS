@@ -775,7 +775,10 @@ def run_prioritization(request: Request) -> Response:
             else:
                 pcu_norm = 0.0
 
-            benefit = models.BenefitFactor.objects.filter(road=road).first()
+            benefit_qs = models.BenefitFactor.objects.filter(road=road)
+            if fiscal_year:
+                benefit_qs = benefit_qs.filter(fiscal_year=fiscal_year)
+            benefit = benefit_qs.order_by("-fiscal_year").first()
             has_ei = benefit and benefit.total_benefit_score is not None
             ei = float(benefit.total_benefit_score) if has_ei else 0.0
 

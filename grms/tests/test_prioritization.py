@@ -124,6 +124,7 @@ class PrioritizationViewTests(RoadNetworkMixin, APITestCase):
         )
         models.BenefitFactor.objects.create(
             road=road,
+            fiscal_year=self.fiscal_year,
             total_benefit_score=benefit_score,
         )
         return road
