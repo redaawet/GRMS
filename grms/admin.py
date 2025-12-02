@@ -1323,8 +1323,14 @@ class RoadSocioEconomicAdmin(admin.ModelAdmin):
 
 @admin.register(models.BenefitCategory, site=grms_admin_site)
 class BenefitCategoryAdmin(admin.ModelAdmin):
-    list_display = ("name", "weight_percent")
-    search_fields = ("name",)
+    list_display = ("code", "name", "weight_display")
+    search_fields = ("code", "name")
+
+    @staticmethod
+    def weight_display(obj):
+        return obj.weight
+
+    weight_display.short_description = "Weight"
 
 
 @admin.register(models.BenefitCriterion, site=grms_admin_site)
