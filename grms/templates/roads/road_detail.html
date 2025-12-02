@@ -34,7 +34,7 @@
         <dt>Design Standard</dt><dd>{{ road.design_standard }}</dd>
         <dt>Surface Type</dt><dd>{{ road.surface_type }}</dd>
         <dt>Total Length (km)</dt><dd>{{ road.total_length_km }}</dd>
-        <dt>Population Served</dt><dd>{{ road.population_served }}</dd>
+        <dt>Population Served</dt><dd>{{ socioeconomic.population_served|default:"—" }}</dd>
         <dt>Year of Update</dt><dd>{{ road.year_of_update }}</dd>
         <dt>Last MCI Update</dt><dd>{{ road.last_mci_update }}</dd>
         <dt>Remarks</dt><dd>{{ road.remarks|default:"—" }}</dd>

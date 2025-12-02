@@ -370,7 +370,6 @@ class RoadAdmin(admin.ModelAdmin):
                     "road_identifier",
                     ("road_name_from", "road_name_to"),
                     ("admin_zone", "admin_woreda"),
-                    "population_served",
                     "year_of_update",
                 )
             },
@@ -1265,6 +1264,7 @@ class FurnitureConditionDetailedSurveyAdmin(admin.ModelAdmin):
 class RoadSocioEconomicAdmin(admin.ModelAdmin):
     list_display = (
         "road",
+        "population_served",
         "trading_centers",
         "villages_connected",
         "markets_connected",
@@ -1274,7 +1274,7 @@ class RoadSocioEconomicAdmin(admin.ModelAdmin):
     list_filter = ("road__admin_zone", "road__admin_woreda")
     search_fields = ("road__road_identifier", "road__road_name_from", "road__road_name_to")
     fieldsets = (
-        ("Context", {"fields": ("road", "road_link_type", "notes")}),
+        ("Context", {"fields": ("road", "road_link_type", "population_served", "notes")}),
         (
             "Transport & Connectivity (BF1)",
             {

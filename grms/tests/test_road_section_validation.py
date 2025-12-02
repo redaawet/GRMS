@@ -21,10 +21,10 @@ class RoadSectionValidationTests(TestCase):
             total_length_km=Decimal("10.0"),
             surface_type="Earth",
             managing_authority="Federal",
-            population_served=1000,
             remarks="",
             geometry={"type": "LineString", "coordinates": [[40.0, 10.0], [40.0, 20.0]]},
         )
+        models.RoadSocioEconomic.objects.create(road=self.road, population_served=1000)
 
     def test_requires_parent_geometry(self):
         self.road.geometry = None
