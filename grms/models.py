@@ -59,12 +59,9 @@ class QAStatus(models.Model):
 class RoadLinkTypeLookup(models.Model):
     """Functional road classification lookup used for prioritisation."""
 
-    code = models.CharField(max_length=20, unique=True, help_text="Short code such as TRUNK or LINK")
     name = models.CharField(max_length=100)
-    score = models.DecimalField(
-        max_digits=6, decimal_places=2, help_text="Lookup-driven score for prioritisation"
-    )
-    notes = models.TextField(blank=True)
+    code = models.CharField(max_length=5, unique=True)
+    score = models.PositiveIntegerField()
 
     class Meta:
         verbose_name = "Road link type"
@@ -387,7 +384,6 @@ class Road(models.Model):
         ],
         help_text="Responsible authority",
     )
-    population_served = models.IntegerField(null=True, blank=True, help_text="Population served")
     year_of_update = models.DateField(null=True, blank=True, help_text="Date of last MCI update")
     last_mci_update = models.DateField(null=True, blank=True, help_text="Most recent MCI update date")
     remarks = models.TextField(blank=True, help_text="Additional notes or remarks")
@@ -1829,46 +1825,42 @@ class TrafficForPrioritization(models.Model):
 class BenefitCategory(models.Model):
     """High-level benefit factor categories (BF1/BF2/BF3)."""
 
-    code = models.CharField(max_length=10, unique=True)
-    name = models.CharField(max_length=150)
-    weight = models.DecimalField(max_digits=6, decimal_places=2, help_text="Overall category weight")
-    notes = models.TextField(blank=True)
+    name = models.CharField(max_length=100, unique=True)
+    weight_percent = models.DecimalField(max_digits=5, decimal_places=2, default=0)
 
     class Meta:
         verbose_name = "Benefit category"
         verbose_name_plural = "Benefit categories"
-        ordering = ["code"]
+        ordering = ["name"]
 
     def __str__(self) -> str:  # pragma: no cover - simple repr
-        return f"{self.code} - {self.name}"
+        return self.name
 
 
 class BenefitCriterion(models.Model):
     """Indicators within each benefit category (e.g. ADT, trading centres)."""
 
-    code = models.CharField(max_length=50, unique=True)
-    name = models.CharField(max_length=150)
     category = models.ForeignKey(BenefitCategory, on_delete=models.CASCADE, related_name="criteria")
-    weight = models.DecimalField(max_digits=6, decimal_places=3, help_text="Weight within the category")
-    description = models.TextField(blank=True)
+    name = models.CharField(max_length=150)
+    weight_percent = models.DecimalField(max_digits=5, decimal_places=2, default=0)
 
     class Meta:
         verbose_name = "Benefit criterion"
         verbose_name_plural = "Benefit criteria"
-        ordering = ["category__code", "code"]
+        ordering = ["category__name", "name"]
+        unique_together = ("category", "name")
 
     def __str__(self) -> str:  # pragma: no cover - simple repr
-        return f"{self.code} ({self.category.code})"
+        return f"{self.name} ({self.category.name})"
 
 
 class BenefitCriterionScale(models.Model):
     """Lookup rows mapping input values to scores for each criterion."""
 
     criterion = models.ForeignKey(BenefitCriterion, on_delete=models.CASCADE, related_name="scales")
-    min_value = models.DecimalField(max_digits=14, decimal_places=3, null=True, blank=True)
-    max_value = models.DecimalField(max_digits=14, decimal_places=3, null=True, blank=True)
-    score = models.DecimalField(max_digits=8, decimal_places=3)
-    notes = models.TextField(blank=True)
+    min_value = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    max_value = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    score = models.PositiveIntegerField()
 
     class Meta:
         verbose_name = "Benefit criterion scale"
@@ -1878,7 +1870,7 @@ class BenefitCriterionScale(models.Model):
         ]
 
     def __str__(self) -> str:  # pragma: no cover - simple repr
-        return f"{self.criterion.code} -> {self.score}"
+        return f"{self.criterion.name} -> {self.score}"
 
 
 class RoadSocioEconomic(models.Model):
@@ -1886,8 +1878,10 @@ class RoadSocioEconomic(models.Model):
 
     road = models.OneToOneField(Road, on_delete=models.CASCADE, related_name="socioeconomic")
 
-    trading_centers = models.IntegerField(default=1, null=True, blank=True)
-    villages_connected = models.IntegerField(default=1, null=True, blank=True)
+    population_served = models.PositiveIntegerField(default=0)
+
+    trading_centers = models.PositiveIntegerField(default=0)
+    villages = models.PositiveIntegerField(default=0)
     road_link_type = models.ForeignKey(
         RoadLinkTypeLookup,
         on_delete=models.PROTECT,
@@ -1895,15 +1889,15 @@ class RoadSocioEconomic(models.Model):
         blank=True,
         related_name="socioeconomic_records",
     )
-    adt_override = models.DecimalField(max_digits=14, decimal_places=3, null=True, blank=True)
+    adt_override = models.PositiveIntegerField(null=True, blank=True)
 
-    farmland_percentage = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True)
-    cooperative_centers = models.IntegerField(default=1)
-    markets_connected = models.IntegerField(default=1)
+    farmland_percent = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+    cooperative_centers = models.PositiveIntegerField(default=0)
+    markets = models.PositiveIntegerField(default=0)
 
-    health_centers = models.IntegerField(default=1)
-    education_centers = models.IntegerField(default=1)
-    development_projects = models.IntegerField(default=1)
+    health_centers = models.PositiveIntegerField(default=0)
+    education_centers = models.PositiveIntegerField(default=0)
+    development_projects = models.PositiveIntegerField(default=0)
 
     notes = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -1916,6 +1910,27 @@ class RoadSocioEconomic(models.Model):
 
     def __str__(self) -> str:  # pragma: no cover - simple repr
         return f"Socio-economic inputs for {self.road_id}"
+
+    def clean(self):
+        errors: dict[str, str] = {}
+
+        if self.population_served is None:
+            errors["population_served"] = "Population served is required."
+
+        if self.farmland_percent is not None and not (Decimal("0") <= self.farmland_percent <= Decimal("100")):
+            errors["farmland_percent"] = "Farmland percent must be between 0 and 100."
+
+        if self.road_link_type_id is None:
+            errors["road_link_type"] = "Road link type is required."
+
+        from traffic.models import TrafficSurveySummary  # avoid circular import
+
+        latest_summary = TrafficSurveySummary.latest_for(self.road) if self.road_id else None
+        if latest_summary and self.adt_override is not None:
+            errors["adt_override"] = "ADT override not allowed when survey data exists."
+
+        if errors:
+            raise ValidationError(errors)
 
 
 # ---------------------------------------------------------------------------
