@@ -152,6 +152,8 @@ def unseed_lookups(apps, schema_editor):
 
 class Migration(migrations.Migration):
 
+    atomic = False
+
     dependencies = [
         ("grms", "0028_seed_benefit_and_link_types"),
     ]
