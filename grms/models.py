@@ -56,6 +56,28 @@ class QAStatus(models.Model):
         return self.status
 
 
+class RoadLinkTypeLookup(models.Model):
+    """Functional road classification lookup used for prioritisation."""
+
+    code = models.CharField(max_length=20, unique=True, help_text="Short code such as TRUNK or LINK")
+    name = models.CharField(max_length=100)
+    priority_weight = models.DecimalField(
+        max_digits=6, decimal_places=2, help_text="Weight used when computing BF1 scores"
+    )
+    description = models.TextField(blank=True)
+    effective_date = models.DateField()
+    expiry_date = models.DateField(null=True, blank=True)
+    notes = models.TextField(blank=True)
+
+    class Meta:
+        verbose_name = "Road link type"
+        verbose_name_plural = "Road link types"
+        ordering = ["name"]
+
+    def __str__(self) -> str:  # pragma: no cover - simple repr
+        return f"{self.name} ({self.code})"
+
+
 class AdminZone(models.Model):
     """Administrative zone lookup for the Tigray region."""
 
@@ -349,6 +371,14 @@ class Road(models.Model):
         max_length=10,
         choices=[("Earth", "Earth"), ("Gravel", "Gravel"), ("Paved", "Paved")],
         help_text="Primary surface type",
+    )
+    link_type = models.ForeignKey(
+        RoadLinkTypeLookup,
+        on_delete=models.PROTECT,
+        related_name="roads",
+        null=True,
+        blank=True,
+        help_text="Functional road class used for connectivity/prioritization (Trunk, Link, Main access, Collector, Feeder).",
     )
     managing_authority = models.CharField(
         max_length=20,
@@ -1799,6 +1829,102 @@ class TrafficForPrioritization(models.Model):
         return f"Traffic {self.road_id} {self.fiscal_year} {self.value_type}"
 
 
+class BenefitCategory(models.Model):
+    """High-level benefit factor categories (BF1/BF2/BF3)."""
+
+    code = models.CharField(max_length=10, unique=True)
+    name = models.CharField(max_length=150)
+    weight = models.DecimalField(max_digits=6, decimal_places=2, help_text="Overall category weight")
+    notes = models.TextField(blank=True)
+
+    class Meta:
+        verbose_name = "Benefit category"
+        verbose_name_plural = "Benefit categories"
+        ordering = ["code"]
+
+    def __str__(self) -> str:  # pragma: no cover - simple repr
+        return f"{self.code} - {self.name}"
+
+
+class BenefitCriterion(models.Model):
+    """Indicators within each benefit category (e.g. ADT, trading centres)."""
+
+    code = models.CharField(max_length=50, unique=True)
+    name = models.CharField(max_length=150)
+    category = models.ForeignKey(BenefitCategory, on_delete=models.CASCADE, related_name="criteria")
+    indicator_weight = models.DecimalField(max_digits=6, decimal_places=3, help_text="Weight within the category")
+    description = models.TextField(blank=True)
+
+    class Meta:
+        verbose_name = "Benefit criterion"
+        verbose_name_plural = "Benefit criteria"
+        ordering = ["category__code", "code"]
+
+    def __str__(self) -> str:  # pragma: no cover - simple repr
+        return f"{self.code} ({self.category.code})"
+
+
+class BenefitCriterionScale(models.Model):
+    """Lookup rows mapping input values to scores for each criterion."""
+
+    criterion = models.ForeignKey(BenefitCriterion, on_delete=models.CASCADE, related_name="scales")
+    min_value = models.DecimalField(max_digits=14, decimal_places=3, null=True, blank=True)
+    max_value = models.DecimalField(max_digits=14, decimal_places=3, null=True, blank=True)
+    exact_match_code = models.CharField(max_length=50, null=True, blank=True)
+    score = models.DecimalField(max_digits=8, decimal_places=3)
+    notes = models.TextField(blank=True)
+
+    class Meta:
+        verbose_name = "Benefit criterion scale"
+        verbose_name_plural = "Benefit criterion scales"
+        indexes = [
+            models.Index(fields=["criterion", "min_value", "max_value", "exact_match_code"]),
+        ]
+
+    def __str__(self) -> str:  # pragma: no cover - simple repr
+        return f"{self.criterion.code} -> {self.score}"
+
+
+class RoadSocioEconomic(models.Model):
+    """Manual socio-economic inputs per road and fiscal year."""
+
+    road = models.ForeignKey(Road, on_delete=models.CASCADE, related_name="socioeconomic_inputs")
+    fiscal_year = models.PositiveIntegerField()
+
+    trading_centers_count = models.IntegerField(default=1, null=True, blank=True)
+    villages_connected_count = models.IntegerField(default=1, null=True, blank=True)
+    adt_value = models.DecimalField(max_digits=14, decimal_places=3, null=True, blank=True)
+    link_type_override = models.ForeignKey(
+        RoadLinkTypeLookup,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="socioeconomic_overrides",
+    )
+
+    farmland_percentage = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True)
+    cooperative_centers_count = models.IntegerField(default=1)
+    markets_connected_count = models.IntegerField(default=1)
+
+    health_centers_count = models.IntegerField(default=1)
+    educational_institutions_count = models.IntegerField(default=1)
+    development_projects_count = models.IntegerField(default=1)
+
+    population_served_override = models.IntegerField(null=True, blank=True)
+    notes = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Road socio-economic input"
+        verbose_name_plural = "Road socio-economic inputs"
+        unique_together = ("road", "fiscal_year")
+        ordering = ["-fiscal_year", "road__road_identifier"]
+
+    def __str__(self) -> str:  # pragma: no cover - simple repr
+        return f"Socio-economic inputs for {self.road_id} ({self.fiscal_year})"
+
+
 # ---------------------------------------------------------------------------
 # Intervention planning & prioritisation
 # ---------------------------------------------------------------------------
@@ -1859,22 +1985,22 @@ class RoadSectionIntervention(models.Model):
 
 class BenefitFactor(models.Model):
     road = models.ForeignKey(Road, on_delete=models.CASCADE, related_name="benefit_factors")
-    traffic_vehicles_per_day = models.IntegerField(null=True, blank=True)
-    trading_centers_count = models.IntegerField(null=True, blank=True)
-    villages_connected_count = models.IntegerField(null=True, blank=True)
-    farmland_percentage = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
-    health_centers_count = models.IntegerField(null=True, blank=True)
-    educational_institutions_count = models.IntegerField(null=True, blank=True)
-    total_benefit_score = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
-    last_calculated = models.DateField(null=True, blank=True)
+    fiscal_year = models.PositiveIntegerField()
+    bf1_transport_score = models.DecimalField(max_digits=10, decimal_places=4, null=True, blank=True)
+    bf2_agriculture_score = models.DecimalField(max_digits=10, decimal_places=4, null=True, blank=True)
+    bf3_social_score = models.DecimalField(max_digits=10, decimal_places=4, null=True, blank=True)
+    total_benefit_score = models.DecimalField(max_digits=12, decimal_places=4, null=True, blank=True)
+    calculated_at = models.DateTimeField(null=True, blank=True)
     notes = models.TextField(blank=True)
 
     class Meta:
         verbose_name = "Benefit factor"
         verbose_name_plural = "Benefit factors"
+        unique_together = ("road", "fiscal_year")
+        ordering = ["-fiscal_year", "road__road_identifier"]
 
     def __str__(self) -> str:  # pragma: no cover
-        return f"Benefit factors for road {self.road_id}"
+        return f"Benefit factors for road {self.road_id} ({self.fiscal_year})"
 
 
 class PrioritizationResult(models.Model):
@@ -1882,9 +2008,9 @@ class PrioritizationResult(models.Model):
     section = models.ForeignKey(RoadSection, on_delete=models.CASCADE, null=True, blank=True)
     fiscal_year = models.PositiveIntegerField()
     population_served = models.IntegerField(null=True, blank=True)
-    benefit_score = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    benefit_score = models.DecimalField(max_digits=12, decimal_places=4, null=True, blank=True)
     improvement_cost = models.DecimalField(max_digits=15, decimal_places=2)
-    ranking_index = models.DecimalField(max_digits=10, decimal_places=4)
+    ranking_index = models.DecimalField(max_digits=15, decimal_places=6)
     priority_rank = models.PositiveIntegerField(help_text="Rank order (1 = highest priority)")
     recommended_budget = models.DecimalField(max_digits=15, decimal_places=2, null=True, blank=True)
     approved_budget = models.DecimalField(max_digits=15, decimal_places=2, null=True, blank=True)
