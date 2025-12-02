@@ -374,6 +374,14 @@ class TrafficSurveySummary(models.Model):
         verbose_name = "Traffic survey summary"
         verbose_name_plural = "Traffic survey summaries"
 
+    @classmethod
+    def latest_for(cls, road):
+        return (
+            cls.objects.filter(road=road)
+            .order_by("-computed_at", "-survey_summary_id")
+            .first()
+        )
+
 
 class TrafficSurveyOverall(models.Model):
     overall_id = models.BigAutoField(primary_key=True)

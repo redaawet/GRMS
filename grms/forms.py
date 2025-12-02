@@ -26,7 +26,6 @@ class RoadBasicForm(forms.ModelForm):
             "admin_woreda",
             "managing_authority",
             "design_standard",
-            "population_served",
             "year_of_update",
             "last_mci_update",
             "surface_type",
