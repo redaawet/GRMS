@@ -131,7 +131,7 @@ def compute_prioritization_result(fiscal_year: int) -> Iterable[models.Prioritiz
     """Compute prioritization rankings for all roads with socio-economic data."""
 
     candidates = models.Road.objects.filter(socioeconomic__isnull=False).select_related(
-        "admin_zone", "admin_woreda"
+        "admin_zone", "admin_woreda", "socioeconomic"
     )
 
     scoring: list[Tuple[models.Road, Decimal, int, Decimal, Decimal]] = []
