@@ -4,6 +4,31 @@ import django.db.models.deletion
 from django.db import migrations, models
 
 
+def copy_benefitfactor_inputs_to_socioeconomic(apps, schema_editor):
+    BenefitFactor = apps.get_model("grms", "BenefitFactor")
+    RoadSocioEconomic = apps.get_model("grms", "RoadSocioEconomic")
+
+    for benefit in BenefitFactor.objects.all():
+        RoadSocioEconomic.objects.update_or_create(
+            road_id=benefit.road_id,
+            fiscal_year=getattr(benefit, "fiscal_year", 0),
+            defaults={
+                "trading_centers_count": getattr(
+                    benefit, "trading_centers_count", None
+                ),
+                "villages_connected_count": getattr(
+                    benefit, "villages_connected_count", None
+                ),
+                "adt_value": getattr(benefit, "traffic_vehicles_per_day", None),
+                "farmland_percentage": getattr(benefit, "farmland_percentage", None),
+                "health_centers_count": getattr(benefit, "health_centers_count", None),
+                "educational_institutions_count": getattr(
+                    benefit, "educational_institutions_count", None
+                ),
+            },
+        )
+
+
 class Migration(migrations.Migration):
 
     dependencies = [
@@ -194,34 +219,6 @@ class Migration(migrations.Migration):
                 to="grms.roadlinktypelookup",
             ),
         ),
-        migrations.RemoveField(
-            model_name="benefitfactor",
-            name="educational_institutions_count",
-        ),
-        migrations.RemoveField(
-            model_name="benefitfactor",
-            name="farmland_percentage",
-        ),
-        migrations.RemoveField(
-            model_name="benefitfactor",
-            name="health_centers_count",
-        ),
-        migrations.RemoveField(
-            model_name="benefitfactor",
-            name="last_calculated",
-        ),
-        migrations.RemoveField(
-            model_name="benefitfactor",
-            name="trading_centers_count",
-        ),
-        migrations.RemoveField(
-            model_name="benefitfactor",
-            name="traffic_vehicles_per_day",
-        ),
-        migrations.RemoveField(
-            model_name="benefitfactor",
-            name="villages_connected_count",
-        ),
         migrations.CreateModel(
             name="BenefitCriterionScale",
             fields=[
@@ -347,5 +344,37 @@ class Migration(migrations.Migration):
                 "ordering": ["-fiscal_year", "road__road_identifier"],
                 "unique_together": {("road", "fiscal_year")},
             },
+        ),
+        migrations.RunPython(
+            code=copy_benefitfactor_inputs_to_socioeconomic,
+            reverse_code=migrations.RunPython.noop,
+        ),
+        migrations.RemoveField(
+            model_name="benefitfactor",
+            name="educational_institutions_count",
+        ),
+        migrations.RemoveField(
+            model_name="benefitfactor",
+            name="farmland_percentage",
+        ),
+        migrations.RemoveField(
+            model_name="benefitfactor",
+            name="health_centers_count",
+        ),
+        migrations.RemoveField(
+            model_name="benefitfactor",
+            name="last_calculated",
+        ),
+        migrations.RemoveField(
+            model_name="benefitfactor",
+            name="trading_centers_count",
+        ),
+        migrations.RemoveField(
+            model_name="benefitfactor",
+            name="traffic_vehicles_per_day",
+        ),
+        migrations.RemoveField(
+            model_name="benefitfactor",
+            name="villages_connected_count",
         ),
     ]
