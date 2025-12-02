@@ -176,11 +176,16 @@ class TrafficCycleSummaryAdmin(_ReadOnlyAdmin):
 @admin.register(TrafficSurveySummary, site=grms_admin_site)
 class TrafficSurveySummaryAdmin(_ReadOnlyAdmin):
     list_display = (
+        "road",
+        "fiscal_year",
         "vehicle_class",
         "adt_final",
         "pcu_final",
         "confidence_score",
     )
+
+    list_filter = ("fiscal_year", "road", "vehicle_class")
+    search_fields = ("road__name", "road__id")
 
 
 @admin.register(TrafficSurveyOverall, site=grms_admin_site)
