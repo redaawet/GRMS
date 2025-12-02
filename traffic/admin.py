@@ -164,25 +164,18 @@ class _ReadOnlyAdmin(admin.ModelAdmin):
 
 @admin.register(TrafficCycleSummary, site=grms_admin_site)
 class TrafficCycleSummaryAdmin(_ReadOnlyAdmin):
-    list_display = (
-        "traffic_survey",
-        "vehicle_class",
-        "cycle_number",
-        "cycle_daily_24hr",
-        "cycle_pcu",
-    )
+    """
+    Simplified admin so all fields are displayed automatically.
+    """
+    pass
 
 
 @admin.register(TrafficSurveySummary, site=grms_admin_site)
 class TrafficSurveySummaryAdmin(_ReadOnlyAdmin):
-    list_display = (
-        "road",
-        "fiscal_year",
-        "vehicle_class",
-        "adt_final",
-        "pcu_final",
-        "confidence_score",
-    )
+    """
+    Simplified admin so all fields are displayed automatically.
+    """
+    pass
 
     list_filter = ("fiscal_year", "road", "vehicle_class")
     search_fields = ("road__name", "road__id")
