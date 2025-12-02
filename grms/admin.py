@@ -120,7 +120,7 @@ class GRMSAdminSite(AdminSite):
             "models": (
                 traffic_models.TrafficCycleSummary._meta.verbose_name_plural,
                 traffic_models.TrafficSurveySummary._meta.verbose_name_plural,
-                traffic_models.TrafficForPrioritization._meta.verbose_name_plural,
+                traffic_models.TrafficSurveyOverall._meta.verbose_name_plural,
             ),
         },
         {
