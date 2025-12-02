@@ -1,77 +1,66 @@
-"""Prioritization helpers for computing benefit factors and rankings.
-
-This module keeps scoring logic configurable via lookup models and avoids
-hard-coded thresholds in application code.
-"""
+"""Prioritization scoring logic aligned with SRAD specification."""
 
 from __future__ import annotations
 
 from decimal import Decimal
 from typing import Dict, Iterable, Optional, Tuple
 
+from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.db.models import Sum
 from django.utils import timezone
 
 from grms import models
+from traffic import models as traffic_models
 
 
 def resolve_score(criterion: models.BenefitCriterion, value) -> Decimal:
     """Find the score for a criterion using range-based lookup rows."""
 
     if value is None:
-        return Decimal("0")
+        raise ValidationError({criterion.name: "Value is required for scoring."})
 
     try:
         numeric_value = Decimal(str(value))
     except Exception:
-        return Decimal("0")
+        raise ValidationError({criterion.name: "Value must be numeric."})
 
     for scale in criterion.scales.all():
-        min_ok = scale.min_value is None or numeric_value >= scale.min_value
+        min_ok = numeric_value >= scale.min_value
         max_ok = scale.max_value is None or numeric_value <= scale.max_value
         if min_ok and max_ok:
             return Decimal(scale.score)
 
-    return Decimal("0")
+    raise ValidationError({criterion.name: "Value does not match any scoring range."})
 
 
-def get_final_adt(road: models.Road, fiscal_year: int) -> Decimal:
+def get_final_adt(road: models.Road) -> Decimal:
     """Apply the mandatory ADT selection rule."""
 
-    survey_adt = (
-        models.TrafficForPrioritization.objects.filter(
-            road=road,
-            fiscal_year=fiscal_year,
-            value_type="ADT",
-            road_segment__isnull=True,
-        )
-        .order_by("-prepared_at")
-        .first()
-    )
+    computed = traffic_models.TrafficSurveySummary.latest_for(road)
+    if computed:
+        return Decimal(computed.adt_total)
 
-    if survey_adt:
-        return Decimal(survey_adt.value)
+    socioeconomic = models.RoadSocioEconomic.objects.get(road=road)
+    if socioeconomic.adt_override:
+        return Decimal(socioeconomic.adt_override)
 
-    socio = models.RoadSocioEconomic.objects.filter(road=road).first()
-    return Decimal(socio.adt_override) if socio and socio.adt_override is not None else Decimal("0")
+    raise ValidationError("ADT missing: no survey & no override.")
 
 
-def _criterion_inputs(
-    road: models.Road, socioeconomic: models.RoadSocioEconomic, fiscal_year: int
-) -> Dict[str, object]:
-    link_type = socioeconomic.road_link_type or road.link_type
+def _criterion_inputs(road: models.Road, socioeconomic: models.RoadSocioEconomic) -> Dict[str, object]:
+    link_type = socioeconomic.road_link_type
     return {
-        "ADT": get_final_adt(road, fiscal_year),
-        "TC": socioeconomic.trading_centers,
-        "VC": socioeconomic.villages_connected,
-        "LT": link_type.score if link_type else None,
-        "FARMLAND": socioeconomic.farmland_percentage,
-        "COOP": socioeconomic.cooperative_centers,
-        "MARKET": socioeconomic.markets_connected,
-        "HEALTH": socioeconomic.health_centers,
-        "EDU": socioeconomic.education_centers,
-        "DEV": socioeconomic.development_projects,
+        "ADT": get_final_adt(road),
+        "Trading Centers": socioeconomic.trading_centers,
+        "Villages": socioeconomic.villages,
+        "Road Link Type": link_type.score,
+        "Farmland %": socioeconomic.farmland_percent,
+        "Cooperative Centers": socioeconomic.cooperative_centers,
+        "Markets": socioeconomic.markets,
+        "Health Centers": socioeconomic.health_centers,
+        "Education Centers": socioeconomic.education_centers,
+        "Development Projects": socioeconomic.development_projects,
     }
 
 
@@ -86,25 +75,24 @@ def compute_benefit_factor(
     if socioeconomic is None:
         return None
 
-    inputs = _criterion_inputs(road, socioeconomic, fiscal_year)
-    category_totals: Dict[str, Decimal] = {}
+    socioeconomic.full_clean(exclude=["road"])
 
-    for criterion in models.BenefitCriterion.objects.select_related("category"):
-        raw_value = inputs.get(criterion.code.upper())
-        score = resolve_score(criterion, raw_value)
-        weighted_score = score * Decimal(criterion.weight)
-        category_code = criterion.category.code
-        category_totals[category_code] = category_totals.get(category_code, Decimal("0")) + weighted_score
+    inputs = _criterion_inputs(road, socioeconomic)
+    category_scores: Dict[str, Decimal] = {"BF1": Decimal("0"), "BF2": Decimal("0"), "BF3": Decimal("0")}
 
-    weighted_categories: Dict[str, Decimal] = {}
-    for category in models.BenefitCategory.objects.all():
-        subtotal = category_totals.get(category.code, Decimal("0"))
-        weighted_categories[category.code] = subtotal * Decimal(category.weight)
+    criteria = models.BenefitCriterion.objects.select_related("category")
+    for criterion in criteria:
+        if criterion.name == "Road Link Type":
+            score = Decimal(inputs["Road Link Type"])
+        else:
+            score = resolve_score(criterion, inputs[criterion.name])
 
-    bf1 = weighted_categories.get("BF1", Decimal("0"))
-    bf2 = weighted_categories.get("BF2", Decimal("0"))
-    bf3 = weighted_categories.get("BF3", Decimal("0"))
-    total = bf1 + bf2 + bf3
+        category_scores[criterion.category.name] += score
+
+    bf1 = category_scores.get("BF1", Decimal("0"))
+    bf2 = category_scores.get("BF2", Decimal("0"))
+    bf3 = category_scores.get("BF3", Decimal("0"))
+    total = (bf1 * Decimal("0.40")) + (bf2 * Decimal("0.30")) + (bf3 * Decimal("0.30"))
 
     benefit_factor, _ = models.BenefitFactor.objects.update_or_create(
         road=road,
@@ -152,7 +140,7 @@ def compute_prioritization_result(fiscal_year: int) -> Iterable[models.Prioritiz
         if benefit is None or benefit.total_benefit_score is None:
             continue
 
-        population = road.socioeconomic.population_served or 0
+        population = road.socioeconomic.population_served
         improvement_cost = _derive_improvement_cost(road, fiscal_year)
         if improvement_cost is None or improvement_cost == 0:
             continue

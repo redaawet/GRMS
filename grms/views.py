@@ -792,26 +792,21 @@ def run_prioritization(request: Request) -> Response:
                 + weights["w5"] * tlm_norm
             )
 
-            models.PrioritizationResult.objects.filter(
-                road=road,
-                fiscal_year=fiscal_year or 0,
-            ).delete()
+        models.PrioritizationResult.objects.filter(
+            road=road,
+            fiscal_year=fiscal_year or 0,
+        ).delete()
 
-            socio = getattr(road, "socioeconomic", None)
-
-            if socio is None:
-                continue
-
-            result = models.PrioritizationResult.objects.create(
-                road=road,
-                fiscal_year=fiscal_year or 0,
-                population_served=socio.population_served,
-                benefit_score=Decimal(f"{ei:.2f}") if has_ei else None,
-                improvement_cost=Decimal("0"),
-                ranking_index=Decimal(f"{priority_score:.4f}"),
-                priority_rank=0,
-            )
-            created_results.append(result)
+        result = models.PrioritizationResult.objects.create(
+            road=road,
+            fiscal_year=fiscal_year or 0,
+            population_served=road.socioeconomic.population_served if hasattr(road, "socioeconomic") else None,
+            benefit_score=Decimal(f"{ei:.2f}") if has_ei else None,
+            improvement_cost=Decimal("0"),
+            ranking_index=Decimal(f"{priority_score:.4f}"),
+            priority_rank=0,
+        )
+        created_results.append(result)
 
         created_results.sort(key=lambda item: item.ranking_index, reverse=True)
         for rank, result in enumerate(created_results, start=1):
