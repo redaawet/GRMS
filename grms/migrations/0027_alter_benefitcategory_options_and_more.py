@@ -25,6 +25,11 @@ def migrate_socio_fields(apps, schema_editor):
         socio.save()
 
 
+def ensure_population_defaults(apps, schema_editor):
+    Socio = apps.get_model("grms", "RoadSocioEconomic")
+    Socio.objects.filter(population_served__isnull=True).update(population_served=0)
+
+
 def noop_reverse(apps, schema_editor):
     # Data rollback not required
     pass
@@ -75,15 +80,16 @@ class Migration(migrations.Migration):
         ),
         migrations.AddField(
             model_name="roadsocioeconomic",
-            name="population_served",
-            field=models.PositiveIntegerField(default=0),
-        ),
-        migrations.AddField(
-            model_name="roadsocioeconomic",
             name="villages",
             field=models.PositiveIntegerField(default=0),
         ),
+        migrations.RunPython(ensure_population_defaults, noop_reverse),
         migrations.RunPython(migrate_socio_fields, noop_reverse),
+        migrations.AlterField(
+            model_name="roadsocioeconomic",
+            name="population_served",
+            field=models.PositiveIntegerField(default=0),
+        ),
         migrations.RemoveField(
             model_name="benefitcategory",
             name="code",

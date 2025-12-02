@@ -19,25 +19,25 @@ BENEFIT_DEFINITION = {
             "ADT": {
                 "weight": Decimal("12"),
                 "scales": [
-                {"min": Decimal("0"), "max": Decimal("24.99"), "score": 5},
-                {"min": Decimal("25"), "max": Decimal("50"), "score": 8},
-                {"min": Decimal("50.01"), "max": None, "score": 12},
+                    {"min": None, "max": Decimal("24.99"), "score": 5},
+                    {"min": Decimal("25"), "max": Decimal("50"), "score": 8},
+                    {"min": Decimal("50.01"), "max": None, "score": 12},
                 ],
             },
             "Trading Centers": {
                 "weight": Decimal("8"),
                 "scales": [
-                {"min": Decimal("0"), "max": Decimal("24.99"), "score": 5},
-                {"min": Decimal("25"), "max": Decimal("50"), "score": 8},
-                {"min": Decimal("50.01"), "max": None, "score": 12},
+                    {"min": None, "max": Decimal("24.99"), "score": 5},
+                    {"min": Decimal("25"), "max": Decimal("50"), "score": 8},
+                    {"min": Decimal("50.01"), "max": None, "score": 12},
                 ],
             },
             "Villages": {
                 "weight": Decimal("8"),
                 "scales": [
-                {"min": Decimal("0"), "max": Decimal("24.99"), "score": 5},
-                {"min": Decimal("25"), "max": Decimal("50"), "score": 8},
-                {"min": Decimal("50.01"), "max": None, "score": 12},
+                    {"min": None, "max": Decimal("24.99"), "score": 5},
+                    {"min": Decimal("25"), "max": Decimal("50"), "score": 8},
+                    {"min": Decimal("50.01"), "max": None, "score": 12},
                 ],
             },
             "Road Link Type": {"weight": Decimal("12"), "scales": []},
@@ -49,25 +49,25 @@ BENEFIT_DEFINITION = {
             "Farmland %": {
                 "weight": Decimal("10"),
                 "scales": [
-                {"min": Decimal("0"), "max": Decimal("24.99"), "score": 5},
-                {"min": Decimal("25"), "max": Decimal("50"), "score": 8},
-                {"min": Decimal("50.01"), "max": None, "score": 12},
+                    {"min": None, "max": Decimal("24.99"), "score": 5},
+                    {"min": Decimal("25"), "max": Decimal("50"), "score": 8},
+                    {"min": Decimal("50.01"), "max": None, "score": 12},
                 ],
             },
             "Cooperative Centers": {
                 "weight": Decimal("10"),
                 "scales": [
-                {"min": Decimal("0"), "max": Decimal("24.99"), "score": 5},
-                {"min": Decimal("25"), "max": Decimal("50"), "score": 8},
-                {"min": Decimal("50.01"), "max": None, "score": 12},
+                    {"min": None, "max": Decimal("24.99"), "score": 5},
+                    {"min": Decimal("25"), "max": Decimal("50"), "score": 8},
+                    {"min": Decimal("50.01"), "max": None, "score": 12},
                 ],
             },
             "Markets": {
                 "weight": Decimal("10"),
                 "scales": [
-                {"min": Decimal("0"), "max": Decimal("24.99"), "score": 5},
-                {"min": Decimal("25"), "max": Decimal("50"), "score": 8},
-                {"min": Decimal("50.01"), "max": None, "score": 12},
+                    {"min": None, "max": Decimal("24.99"), "score": 5},
+                    {"min": Decimal("25"), "max": Decimal("50"), "score": 8},
+                    {"min": Decimal("50.01"), "max": None, "score": 12},
                 ],
             },
         },
@@ -78,25 +78,25 @@ BENEFIT_DEFINITION = {
             "Health Centers": {
                 "weight": Decimal("12"),
                 "scales": [
-                {"min": Decimal("0"), "max": Decimal("24.99"), "score": 5},
-                {"min": Decimal("25"), "max": Decimal("50"), "score": 8},
-                {"min": Decimal("50.01"), "max": None, "score": 12},
+                    {"min": None, "max": Decimal("24.99"), "score": 5},
+                    {"min": Decimal("25"), "max": Decimal("50"), "score": 8},
+                    {"min": Decimal("50.01"), "max": None, "score": 12},
                 ],
             },
             "Education Centers": {
                 "weight": Decimal("12"),
                 "scales": [
-                {"min": Decimal("0"), "max": Decimal("24.99"), "score": 5},
-                {"min": Decimal("25"), "max": Decimal("50"), "score": 8},
-                {"min": Decimal("50.01"), "max": None, "score": 12},
+                    {"min": None, "max": Decimal("24.99"), "score": 5},
+                    {"min": Decimal("25"), "max": Decimal("50"), "score": 8},
+                    {"min": Decimal("50.01"), "max": None, "score": 12},
                 ],
             },
             "Development Projects": {
                 "weight": Decimal("6"),
                 "scales": [
-                {"min": Decimal("0"), "max": Decimal("24.99"), "score": 5},
-                {"min": Decimal("25"), "max": Decimal("50"), "score": 8},
-                {"min": Decimal("50.01"), "max": None, "score": 12},
+                    {"min": None, "max": Decimal("24.99"), "score": 5},
+                    {"min": Decimal("25"), "max": Decimal("50"), "score": 8},
+                    {"min": Decimal("50.01"), "max": None, "score": 12},
                 ],
             },
         },
@@ -115,26 +115,30 @@ def seed_benefit_lookups(apps, schema_editor):
     Criterion = apps.get_model("grms", "BenefitCriterion")
     Scale = apps.get_model("grms", "BenefitCriterionScale")
 
+    category_names = set(BENEFIT_DEFINITION.keys())
+    criterion_names = {name for entry in BENEFIT_DEFINITION.values() for name in entry["criteria"].keys()}
+
+    Scale.objects.filter(criterion__name__in=criterion_names).delete()
+    Criterion.objects.filter(name__in=criterion_names).delete()
+    Category.objects.filter(name__in=category_names).delete()
+
     for name, details in BENEFIT_DEFINITION.items():
-        category, _ = Category.objects.update_or_create(
-            name=name, defaults={"weight_percent": details["weight"]}
-        )
+        category = Category.objects.create(name=name, weight_percent=details["weight"])
         for criterion_name, entry in details["criteria"].items():
-            criterion, _ = Criterion.objects.update_or_create(
+            criterion = Criterion.objects.create(
                 category=category,
                 name=criterion_name,
-                defaults={"weight_percent": entry.get("weight", Decimal("0"))},
+                weight_percent=entry.get("weight", Decimal("0")),
             )
             scales = entry.get("scales", [])
-            if criterion_name == "Road Link Type":
-                Scale.objects.filter(criterion=criterion).delete()
+            if not scales:
                 continue
             for scale_def in scales:
-                Scale.objects.update_or_create(
+                Scale.objects.create(
                     criterion=criterion,
-                    min_value=scale_def["min"],
+                    min_value=scale_def["min"] or Decimal("0"),
                     max_value=scale_def["max"],
-                    defaults={"score": scale_def["score"]},
+                    score=scale_def["score"],
                 )
 
 
