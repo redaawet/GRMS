@@ -42,8 +42,19 @@ class Migration(migrations.Migration):
             ),
         ),
         migrations.RunPython(copy_population_to_socioeconomic, copy_population_to_road),
-        migrations.RemoveField(
-            model_name="road",
-            name="population_served",
+        migrations.SeparateDatabaseAndState(
+            # The column may already be missing on some databases; drop it only if present
+            database_operations=[
+                migrations.RunSQL(
+                    sql="ALTER TABLE grms_road DROP COLUMN IF EXISTS population_served;",
+                    reverse_sql=migrations.RunSQL.noop,
+                )
+            ],
+            state_operations=[
+                migrations.RemoveField(
+                    model_name="road",
+                    name="population_served",
+                ),
+            ],
         ),
     ]
