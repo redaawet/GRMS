@@ -190,14 +190,11 @@ class TrafficSurveySummaryAdmin(_ReadOnlyAdmin):
 
 @admin.register(TrafficSurveyOverall, site=grms_admin_site)
 class TrafficSurveyOverallAdmin(_ReadOnlyAdmin):
-    list_display = (
-        "road",
-        "fiscal_year",
-        "adt_total",
-        "pcu_total",
-        "confidence_score",
-        "computed_at",
-    )
+    """
+    Temporary simplified admin class so that all fields are displayed automatically.
+    This fixes the 'no rows displayed' issue caused by list_display mismatches.
+    """
+    pass
 
 
 @admin.register(TrafficForPrioritization, site=grms_admin_site)
