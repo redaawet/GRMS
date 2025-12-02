@@ -325,6 +325,19 @@ class DistressActivitySerializer(serializers.ModelSerializer):
 
 
 class PrioritizationResultSerializer(serializers.ModelSerializer):
+    lt_code = serializers.SerializerMethodField()
+    lt_type = serializers.SerializerMethodField()
+    lt_score = serializers.SerializerMethodField()
+
+    def get_lt_code(self, obj):
+        return getattr(obj.road.socioeconomic.road_link_type, "code", None) if hasattr(obj.road, "socioeconomic") else None
+
+    def get_lt_type(self, obj):
+        return getattr(obj.road.socioeconomic.road_link_type, "name", None) if hasattr(obj.road, "socioeconomic") else None
+
+    def get_lt_score(self, obj):
+        return getattr(obj.road.socioeconomic.road_link_type, "score", None) if hasattr(obj.road, "socioeconomic") else None
+
     class Meta:
         model = models.PrioritizationResult
         fields = "__all__"
