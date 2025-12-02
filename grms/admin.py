@@ -75,6 +75,7 @@ class GRMSAdminSite(AdminSite):
             "title": "Inventories",
             "models": (
                 models.Road._meta.verbose_name_plural,
+                models.RoadSocioEconomic._meta.verbose_name,
                 models.RoadSection._meta.verbose_name_plural,
                 models.RoadSegment._meta.verbose_name_plural,
                 models.StructureInventory._meta.verbose_name_plural,
@@ -129,9 +130,17 @@ class GRMSAdminSite(AdminSite):
                 models.AnnualWorkPlan._meta.verbose_name_plural,
                 models.StructureIntervention._meta.verbose_name_plural,
                 models.RoadSectionIntervention._meta.verbose_name_plural,
-                models.RoadSocioEconomic._meta.verbose_name_plural,
                 models.BenefitFactor._meta.verbose_name_plural,
                 models.PrioritizationResult._meta.verbose_name_plural,
+            ),
+        },
+        {
+            "title": "Prioritization lookups",
+            "models": (
+                models.RoadLinkTypeLookup._meta.verbose_name_plural,
+                models.BenefitCategory._meta.verbose_name_plural,
+                models.BenefitCriterion._meta.verbose_name_plural,
+                models.BenefitCriterionScale._meta.verbose_name_plural,
             ),
         },
         {
@@ -147,10 +156,6 @@ class GRMSAdminSite(AdminSite):
                 models.DistressActivity._meta.verbose_name_plural,
                 models.AdminZone._meta.verbose_name_plural,
                 models.AdminWoreda._meta.verbose_name_plural,
-                models.RoadLinkTypeLookup._meta.verbose_name_plural,
-                models.BenefitCategory._meta.verbose_name_plural,
-                models.BenefitCriterion._meta.verbose_name_plural,
-                models.BenefitCriterionScale._meta.verbose_name_plural,
             ),
         },
     )
@@ -370,7 +375,6 @@ class RoadAdmin(admin.ModelAdmin):
                     "road_identifier",
                     ("road_name_from", "road_name_to"),
                     ("admin_zone", "admin_woreda"),
-                    "population_served",
                     "year_of_update",
                 )
             },
@@ -1266,22 +1270,22 @@ class RoadSocioEconomicAdmin(admin.ModelAdmin):
     list_display = (
         "road",
         "trading_centers",
-        "villages_connected",
-        "markets_connected",
+        "villages",
+        "markets",
         "health_centers",
         "education_centers",
     )
     list_filter = ("road__admin_zone", "road__admin_woreda")
     search_fields = ("road__road_identifier", "road__road_name_from", "road__road_name_to")
     fieldsets = (
-        ("Context", {"fields": ("road", "road_link_type", "notes")}),
+        ("Context", {"fields": ("road", "population_served", "road_link_type", "notes")}),
         (
             "Transport & Connectivity (BF1)",
             {
                 "fields": (
-                    "trading_centers",
-                    "villages_connected",
                     "adt_override",
+                    "trading_centers",
+                    "villages",
                 )
             },
         ),
@@ -1289,9 +1293,9 @@ class RoadSocioEconomicAdmin(admin.ModelAdmin):
             "Agriculture & Market Access (BF2)",
             {
                 "fields": (
-                    "farmland_percentage",
+                    "farmland_percent",
                     "cooperative_centers",
-                    "markets_connected",
+                    "markets",
                 )
             },
         ),
@@ -1310,9 +1314,7 @@ class RoadSocioEconomicAdmin(admin.ModelAdmin):
     def get_readonly_fields(self, request, obj=None):
         readonly = list(super().get_readonly_fields(request, obj))
         if obj:
-            has_survey = models.TrafficForPrioritization.objects.filter(
-                road=obj.road, road_segment__isnull=True, value_type="ADT"
-            ).exists()
+            has_survey = models.TrafficSurveySummary.objects.filter(road=obj.road).exists()
             if has_survey:
                 readonly.append("adt_override")
         return readonly
@@ -1326,8 +1328,8 @@ class BenefitCategoryAdmin(admin.ModelAdmin):
 
 @admin.register(models.BenefitCriterion, site=grms_admin_site)
 class BenefitCriterionAdmin(admin.ModelAdmin):
-    list_display = ("code", "name", "category", "weight")
-    list_filter = ("category",)
+    list_display = ("code", "name", "category", "weight", "scoring_method")
+    list_filter = ("category", "scoring_method")
     search_fields = ("code", "name")
 
 
@@ -1338,9 +1340,10 @@ class BenefitCriterionScaleAdmin(admin.ModelAdmin):
         "min_value",
         "max_value",
         "score",
+        "description",
     )
     list_filter = ("criterion",)
-    search_fields = ("criterion__code", "criterion__name")
+    search_fields = ("criterion__name",)
 
 
 @admin.register(models.BenefitFactor, site=grms_admin_site)

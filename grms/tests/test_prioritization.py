@@ -34,7 +34,6 @@ class RoadNetworkMixin:
             total_length_km=Decimal("10.0"),
             surface_type="Earth",
             managing_authority="Federal",
-            population_served=1000,
             remarks="",
         )
 
@@ -49,6 +48,14 @@ class RoadNetworkMixin:
             )
 
         road = models.Road.objects.create(**road_kwargs)
+        link_type, _ = models.RoadLinkTypeLookup.objects.get_or_create(
+            code="TRUNK", defaults={"name": "Trunk Road", "score": 12}
+        )
+        models.RoadSocioEconomic.objects.create(
+            road=road,
+            population_served=1000,
+            road_link_type=link_type,
+        )
         section_start_lat, section_start_lng = utm_to_wgs84(500000, 1000000, zone=37)
         section_end_lat, section_end_lng = utm_to_wgs84(500000, 1010000, zone=37)
 
