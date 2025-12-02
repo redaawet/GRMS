@@ -16,7 +16,7 @@ from django.utils.html import format_html
 from . import models
 from traffic import models as traffic_models
 from .gis_fields import LineStringField, PointField
-from .services import map_services
+from .services import map_services, prioritization
 from .utils import make_point, point_to_lat_lng, utm_to_wgs84, wgs84_to_utm
 
 try:  # pragma: no cover - depends on spatial libs
@@ -129,6 +129,7 @@ class GRMSAdminSite(AdminSite):
                 models.AnnualWorkPlan._meta.verbose_name_plural,
                 models.StructureIntervention._meta.verbose_name_plural,
                 models.RoadSectionIntervention._meta.verbose_name_plural,
+                models.RoadSocioEconomic._meta.verbose_name_plural,
                 models.BenefitFactor._meta.verbose_name_plural,
                 models.PrioritizationResult._meta.verbose_name_plural,
             ),
@@ -146,6 +147,10 @@ class GRMSAdminSite(AdminSite):
                 models.DistressActivity._meta.verbose_name_plural,
                 models.AdminZone._meta.verbose_name_plural,
                 models.AdminWoreda._meta.verbose_name_plural,
+                models.RoadLinkTypeLookup._meta.verbose_name_plural,
+                models.BenefitCategory._meta.verbose_name_plural,
+                models.BenefitCriterion._meta.verbose_name_plural,
+                models.BenefitCriterionScale._meta.verbose_name_plural,
             ),
         },
     )
@@ -337,10 +342,18 @@ class RoadAdmin(admin.ModelAdmin):
         "road_name_to",
         "admin_zone",
         "admin_woreda",
+        "link_type",
         "surface_type",
         "total_length_km",
     )
-    list_filter = ("admin_zone", "admin_woreda", "surface_type", "managing_authority", "design_standard")
+    list_filter = (
+        "admin_zone",
+        "admin_woreda",
+        "surface_type",
+        "managing_authority",
+        "design_standard",
+        "link_type",
+    )
     search_fields = (
         "road_identifier",
         "road_name_from",
@@ -357,10 +370,19 @@ class RoadAdmin(admin.ModelAdmin):
                     "road_identifier",
                     ("road_name_from", "road_name_to"),
                     ("admin_zone", "admin_woreda"),
-                    "managing_authority",
-                    "design_standard",
                     "population_served",
                     "year_of_update",
+                )
+            },
+        ),
+        (
+            "Classification",
+            {
+                "fields": (
+                    "managing_authority",
+                    "design_standard",
+                    "link_type",
+                    "surface_type",
                 )
             },
         ),
@@ -368,7 +390,6 @@ class RoadAdmin(admin.ModelAdmin):
             "Physical characteristics",
             {
                 "fields": (
-                    "surface_type",
                     "total_length_km",
                     "remarks",
                 )
@@ -422,6 +443,18 @@ class RoadSectionAdminForm(forms.ModelForm):
         )
 
 grms_admin_site.register(models.Road, RoadAdmin)
+
+
+@admin.register(models.RoadLinkTypeLookup, site=grms_admin_site)
+class RoadLinkTypeLookupAdmin(admin.ModelAdmin):
+    list_display = ("name", "code", "priority_weight", "effective_date", "expiry_date")
+    search_fields = ("name", "code")
+    list_filter = ("effective_date",)
+    fieldsets = (
+        ("Road link type", {"fields": ("name", "code", "priority_weight", "description")}),
+        ("Validity", {"fields": (("effective_date", "expiry_date"),)}),
+        ("Notes", {"fields": ("notes",)}),
+    )
 
 
 @admin.register(models.AdminZone, site=grms_admin_site)
@@ -1230,6 +1263,131 @@ class FurnitureConditionDetailedSurveyAdmin(admin.ModelAdmin):
     )
 
 
+@admin.register(models.RoadSocioEconomic, site=grms_admin_site)
+class RoadSocioEconomicAdmin(admin.ModelAdmin):
+    list_display = (
+        "road",
+        "fiscal_year",
+        "trading_centers_count",
+        "villages_connected_count",
+        "markets_connected_count",
+        "health_centers_count",
+        "educational_institutions_count",
+    )
+    list_filter = ("fiscal_year", "road__admin_zone", "road__admin_woreda")
+    search_fields = ("road__road_identifier", "road__road_name_from", "road__road_name_to")
+    fieldsets = (
+        ("Context", {"fields": ("road", "fiscal_year", "population_served_override", "notes")}),
+        (
+            "Transport & Connectivity (BF1)",
+            {
+                "fields": (
+                    "trading_centers_count",
+                    "villages_connected_count",
+                    "adt_value",
+                    "link_type_override",
+                )
+            },
+        ),
+        (
+            "Agriculture & Market Access (BF2)",
+            {
+                "fields": (
+                    "farmland_percentage",
+                    "cooperative_centers_count",
+                    "markets_connected_count",
+                )
+            },
+        ),
+        (
+            "Social Services & Development (BF3)",
+            {
+                "fields": (
+                    "health_centers_count",
+                    "educational_institutions_count",
+                    "development_projects_count",
+                )
+            },
+        ),
+    )
+
+
+@admin.register(models.BenefitCategory, site=grms_admin_site)
+class BenefitCategoryAdmin(admin.ModelAdmin):
+    list_display = ("code", "name", "weight")
+    search_fields = ("code", "name")
+
+
+@admin.register(models.BenefitCriterion, site=grms_admin_site)
+class BenefitCriterionAdmin(admin.ModelAdmin):
+    list_display = ("code", "name", "category", "indicator_weight")
+    list_filter = ("category",)
+    search_fields = ("code", "name")
+
+
+@admin.register(models.BenefitCriterionScale, site=grms_admin_site)
+class BenefitCriterionScaleAdmin(admin.ModelAdmin):
+    list_display = (
+        "criterion",
+        "min_value",
+        "max_value",
+        "exact_match_code",
+        "score",
+    )
+    list_filter = ("criterion",)
+    search_fields = ("criterion__code", "criterion__name", "exact_match_code")
+
+
+@admin.register(models.BenefitFactor, site=grms_admin_site)
+class BenefitFactorAdmin(admin.ModelAdmin):
+    list_display = (
+        "road",
+        "fiscal_year",
+        "bf1_transport_score",
+        "bf2_agriculture_score",
+        "bf3_social_score",
+        "total_benefit_score",
+    )
+    list_filter = ("fiscal_year", "road__admin_zone", "road__admin_woreda")
+    readonly_fields = (
+        "road",
+        "fiscal_year",
+        "bf1_transport_score",
+        "bf2_agriculture_score",
+        "bf3_social_score",
+        "total_benefit_score",
+        "calculated_at",
+    )
+    fieldsets = (
+        ("Context", {"fields": ("road", "fiscal_year", "calculated_at", "notes")}),
+        (
+            "Benefit factors",
+            {
+                "fields": (
+                    "bf1_transport_score",
+                    "bf2_agriculture_score",
+                    "bf3_social_score",
+                    "total_benefit_score",
+                )
+            },
+        ),
+    )
+
+
+@admin.register(models.PrioritizationResult, site=grms_admin_site)
+class PrioritizationResultAdmin(admin.ModelAdmin):
+    list_display = (
+        "road",
+        "fiscal_year",
+        "priority_rank",
+        "ranking_index",
+        "benefit_score",
+        "improvement_cost",
+    )
+    list_filter = ("fiscal_year", "road__admin_zone", "road__admin_woreda")
+    search_fields = ("road__road_identifier", "road__road_name_from", "road__road_name_to")
+    readonly_fields = ("ranking_index", "priority_rank", "benefit_score")
+
 # Register supporting models without custom admins
 for model in [
     models.QAStatus,
@@ -1246,7 +1404,5 @@ for model in [
     models.GabionWallDetail,
     models.StructureIntervention,
     models.RoadSectionIntervention,
-    models.BenefitFactor,
-    models.PrioritizationResult,
 ]:
     grms_admin_site.register(model)
