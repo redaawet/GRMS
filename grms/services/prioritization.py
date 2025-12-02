@@ -16,27 +16,10 @@ from django.utils import timezone
 from grms import models
 
 
-def map_indicator_to_score(criterion: models.BenefitCriterion, value) -> Decimal:
-    """Resolve a criterion score using the configured scale rows.
-
-    Args:
-        criterion: Benefit criterion definition.
-        value: Numeric measurement or categorical code.
-
-    Returns:
-        Score defined in :class:`BenefitCriterionScale` or ``0`` when no match is
-        found or the value is empty.
-    """
+def resolve_score(criterion: models.BenefitCriterion, value) -> Decimal:
+    """Find the score for a criterion using range-based lookup rows."""
 
     if value is None:
-        return Decimal("0")
-
-    # Handle categorical matching first.
-    if isinstance(value, str):
-        code = value.strip().lower()
-        for scale in criterion.scales.all():
-            if scale.exact_match_code and scale.exact_match_code.lower() == code:
-                return Decimal(scale.score)
         return Decimal("0")
 
     try:
@@ -45,8 +28,6 @@ def map_indicator_to_score(criterion: models.BenefitCriterion, value) -> Decimal
         return Decimal("0")
 
     for scale in criterion.scales.all():
-        if scale.exact_match_code:
-            continue
         min_ok = scale.min_value is None or numeric_value >= scale.min_value
         max_ok = scale.max_value is None or numeric_value <= scale.max_value
         if min_ok and max_ok:
@@ -55,74 +36,70 @@ def map_indicator_to_score(criterion: models.BenefitCriterion, value) -> Decimal
     return Decimal("0")
 
 
-def _lookup_adt(road: models.Road, fiscal_year: int) -> Decimal:
-    fallback = models.TrafficForPrioritization.objects.filter(
-        road=road, fiscal_year=fiscal_year, value_type="ADT"
-    ).order_by("-prepared_at").values_list("value", flat=True).first()
-    if fallback is None:
-        return Decimal("0")
-    return Decimal(fallback)
+def get_final_adt(road: models.Road, fiscal_year: int) -> Decimal:
+    """Apply the mandatory ADT selection rule."""
 
+    survey_adt = (
+        models.TrafficForPrioritization.objects.filter(
+            road=road,
+            fiscal_year=fiscal_year,
+            value_type="ADT",
+            road_segment__isnull=True,
+        )
+        .order_by("-prepared_at")
+        .first()
+    )
 
-def _population_served(road: models.Road, socioeconomic: models.RoadSocioEconomic) -> int:
-    if socioeconomic.population_served_override is not None:
-        return socioeconomic.population_served_override
-    return socioeconomic.road.population_served or 0
+    if survey_adt:
+        return Decimal(survey_adt.value)
+
+    socio = models.RoadSocioEconomic.objects.filter(road=road).first()
+    return Decimal(socio.adt_override) if socio and socio.adt_override is not None else Decimal("0")
 
 
 def _criterion_inputs(
     road: models.Road, socioeconomic: models.RoadSocioEconomic, fiscal_year: int
 ) -> Dict[str, object]:
-    link_type = socioeconomic.link_type_override or road.link_type
-    adt_value = socioeconomic.adt_value if socioeconomic.adt_value is not None else _lookup_adt(road, fiscal_year)
+    link_type = socioeconomic.road_link_type or road.link_type
     return {
-        "BF1_ADT": adt_value,
-        "BF1_TRADING": socioeconomic.trading_centers_count,
-        "BF1_VILLAGES": socioeconomic.villages_connected_count,
-        "BF1_LINKTYPE": link_type.code if link_type else None,
-        "BF2_FARMLAND": socioeconomic.farmland_percentage,
-        "BF2_COOPS": socioeconomic.cooperative_centers_count,
-        "BF2_MARKETS": socioeconomic.markets_connected_count,
-        "BF3_HEALTH": socioeconomic.health_centers_count,
-        "BF3_EDU": socioeconomic.educational_institutions_count,
-        "BF3_DEVPROJ": socioeconomic.development_projects_count,
+        "ADT": get_final_adt(road, fiscal_year),
+        "TC": socioeconomic.trading_centers,
+        "VC": socioeconomic.villages_connected,
+        "LT": link_type.score if link_type else None,
+        "FARMLAND": socioeconomic.farmland_percentage,
+        "COOP": socioeconomic.cooperative_centers,
+        "MARKET": socioeconomic.markets_connected,
+        "HEALTH": socioeconomic.health_centers,
+        "EDU": socioeconomic.education_centers,
+        "DEV": socioeconomic.development_projects,
     }
 
 
-def compute_benefit_factors_for_road(
+def compute_benefit_factor(
     road: models.Road, fiscal_year: int
 ) -> Optional[models.BenefitFactor]:
-    """Compute benefit factor scores for a road and fiscal year.
+    """Compute benefit factor scores using socio-economic inputs and lookups."""
 
-    Socio-economic inputs and lookup tables drive all scoring. The function
-    updates or creates :class:`BenefitFactor` records but does not expose the
-    values via road fields.
-    """
-
-    socioeconomic = (
-        models.RoadSocioEconomic.objects.select_related("road", "link_type_override")
-        .filter(road=road, fiscal_year=fiscal_year)
-        .first()
-    )
+    socioeconomic = models.RoadSocioEconomic.objects.select_related(
+        "road_link_type", "road"
+    ).filter(road=road).first()
     if socioeconomic is None:
         return None
 
     inputs = _criterion_inputs(road, socioeconomic, fiscal_year)
     category_totals: Dict[str, Decimal] = {}
-    category_weights: Dict[str, Decimal] = {}
 
     for criterion in models.BenefitCriterion.objects.select_related("category"):
-        raw_value = inputs.get(criterion.code)
-        score = map_indicator_to_score(criterion, raw_value)
-        weighted_score = score * Decimal(criterion.indicator_weight)
-        code = criterion.category.code
-        category_totals[code] = category_totals.get(code, Decimal("0")) + weighted_score
-        category_weights.setdefault(code, Decimal(criterion.category.weight))
+        raw_value = inputs.get(criterion.code.upper())
+        score = resolve_score(criterion, raw_value)
+        weighted_score = score * Decimal(criterion.weight)
+        category_code = criterion.category.code
+        category_totals[category_code] = category_totals.get(category_code, Decimal("0")) + weighted_score
 
     weighted_categories: Dict[str, Decimal] = {}
-    for code, subtotal in category_totals.items():
-        weight = category_weights.get(code, Decimal("0"))
-        weighted_categories[code] = subtotal * weight
+    for category in models.BenefitCategory.objects.all():
+        subtotal = category_totals.get(category.code, Decimal("0"))
+        weighted_categories[category.code] = subtotal * Decimal(category.weight)
 
     bf1 = weighted_categories.get("BF1", Decimal("0"))
     bf2 = weighted_categories.get("BF2", Decimal("0"))
@@ -162,26 +139,20 @@ def _derive_improvement_cost(road: models.Road, fiscal_year: int) -> Optional[De
     return None
 
 
-def compute_prioritization_for_year(fiscal_year: int) -> Iterable[models.PrioritizationResult]:
+def compute_prioritization_result(fiscal_year: int) -> Iterable[models.PrioritizationResult]:
     """Compute prioritization rankings for all roads with socio-economic data."""
 
-    candidates = (
-        models.Road.objects.filter(socioeconomic_inputs__fiscal_year=fiscal_year)
-        .select_related("admin_zone", "admin_woreda")
-        .distinct()
+    candidates = models.Road.objects.filter(socioeconomic__isnull=False).select_related(
+        "admin_zone", "admin_woreda"
     )
 
     scoring: list[Tuple[models.Road, Decimal, int, Decimal, Decimal]] = []
     for road in candidates:
-        benefit = compute_benefit_factors_for_road(road, fiscal_year)
+        benefit = compute_benefit_factor(road, fiscal_year)
         if benefit is None or benefit.total_benefit_score is None:
             continue
 
-        socioeconomic = models.RoadSocioEconomic.objects.filter(road=road, fiscal_year=fiscal_year).first()
-        if socioeconomic is None:
-            continue
-
-        population = _population_served(road, socioeconomic)
+        population = road.population_served or 0
         improvement_cost = _derive_improvement_cost(road, fiscal_year)
         if improvement_cost is None or improvement_cost == 0:
             continue
@@ -209,3 +180,8 @@ def compute_prioritization_for_year(fiscal_year: int) -> Iterable[models.Priorit
             results.append(result)
 
     return results
+
+
+# Backwards compatibility for existing callers
+def compute_prioritization_for_year(fiscal_year: int) -> Iterable[models.PrioritizationResult]:
+    return compute_prioritization_result(fiscal_year)

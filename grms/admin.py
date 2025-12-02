@@ -447,12 +447,10 @@ grms_admin_site.register(models.Road, RoadAdmin)
 
 @admin.register(models.RoadLinkTypeLookup, site=grms_admin_site)
 class RoadLinkTypeLookupAdmin(admin.ModelAdmin):
-    list_display = ("name", "code", "priority_weight", "effective_date", "expiry_date")
+    list_display = ("name", "code", "score")
     search_fields = ("name", "code")
-    list_filter = ("effective_date",)
     fieldsets = (
-        ("Road link type", {"fields": ("name", "code", "priority_weight", "description")}),
-        ("Validity", {"fields": (("effective_date", "expiry_date"),)}),
+        ("Road link type", {"fields": ("name", "code", "score")}),
         ("Notes", {"fields": ("notes",)}),
     )
 
@@ -1267,25 +1265,23 @@ class FurnitureConditionDetailedSurveyAdmin(admin.ModelAdmin):
 class RoadSocioEconomicAdmin(admin.ModelAdmin):
     list_display = (
         "road",
-        "fiscal_year",
-        "trading_centers_count",
-        "villages_connected_count",
-        "markets_connected_count",
-        "health_centers_count",
-        "educational_institutions_count",
+        "trading_centers",
+        "villages_connected",
+        "markets_connected",
+        "health_centers",
+        "education_centers",
     )
-    list_filter = ("fiscal_year", "road__admin_zone", "road__admin_woreda")
+    list_filter = ("road__admin_zone", "road__admin_woreda")
     search_fields = ("road__road_identifier", "road__road_name_from", "road__road_name_to")
     fieldsets = (
-        ("Context", {"fields": ("road", "fiscal_year", "population_served_override", "notes")}),
+        ("Context", {"fields": ("road", "road_link_type", "notes")}),
         (
             "Transport & Connectivity (BF1)",
             {
                 "fields": (
-                    "trading_centers_count",
-                    "villages_connected_count",
-                    "adt_value",
-                    "link_type_override",
+                    "trading_centers",
+                    "villages_connected",
+                    "adt_override",
                 )
             },
         ),
@@ -1294,8 +1290,8 @@ class RoadSocioEconomicAdmin(admin.ModelAdmin):
             {
                 "fields": (
                     "farmland_percentage",
-                    "cooperative_centers_count",
-                    "markets_connected_count",
+                    "cooperative_centers",
+                    "markets_connected",
                 )
             },
         ),
@@ -1303,13 +1299,23 @@ class RoadSocioEconomicAdmin(admin.ModelAdmin):
             "Social Services & Development (BF3)",
             {
                 "fields": (
-                    "health_centers_count",
-                    "educational_institutions_count",
-                    "development_projects_count",
+                    "health_centers",
+                    "education_centers",
+                    "development_projects",
                 )
             },
         ),
     )
+
+    def get_readonly_fields(self, request, obj=None):
+        readonly = list(super().get_readonly_fields(request, obj))
+        if obj:
+            has_survey = models.TrafficForPrioritization.objects.filter(
+                road=obj.road, road_segment__isnull=True, value_type="ADT"
+            ).exists()
+            if has_survey:
+                readonly.append("adt_override")
+        return readonly
 
 
 @admin.register(models.BenefitCategory, site=grms_admin_site)
@@ -1320,7 +1326,7 @@ class BenefitCategoryAdmin(admin.ModelAdmin):
 
 @admin.register(models.BenefitCriterion, site=grms_admin_site)
 class BenefitCriterionAdmin(admin.ModelAdmin):
-    list_display = ("code", "name", "category", "indicator_weight")
+    list_display = ("code", "name", "category", "weight")
     list_filter = ("category",)
     search_fields = ("code", "name")
 
@@ -1331,11 +1337,10 @@ class BenefitCriterionScaleAdmin(admin.ModelAdmin):
         "criterion",
         "min_value",
         "max_value",
-        "exact_match_code",
         "score",
     )
     list_filter = ("criterion",)
-    search_fields = ("criterion__code", "criterion__name", "exact_match_code")
+    search_fields = ("criterion__code", "criterion__name")
 
 
 @admin.register(models.BenefitFactor, site=grms_admin_site)
@@ -1357,6 +1362,7 @@ class BenefitFactorAdmin(admin.ModelAdmin):
         "bf3_social_score",
         "total_benefit_score",
         "calculated_at",
+        "notes",
     )
     fieldsets = (
         ("Context", {"fields": ("road", "fiscal_year", "calculated_at", "notes")}),
@@ -1373,6 +1379,12 @@ class BenefitFactorAdmin(admin.ModelAdmin):
         ),
     )
 
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False if obj else super().has_change_permission(request, obj)
+
 
 @admin.register(models.PrioritizationResult, site=grms_admin_site)
 class PrioritizationResultAdmin(admin.ModelAdmin):
@@ -1386,7 +1398,26 @@ class PrioritizationResultAdmin(admin.ModelAdmin):
     )
     list_filter = ("fiscal_year", "road__admin_zone", "road__admin_woreda")
     search_fields = ("road__road_identifier", "road__road_name_from", "road__road_name_to")
-    readonly_fields = ("ranking_index", "priority_rank", "benefit_score")
+    readonly_fields = (
+        "road",
+        "section",
+        "fiscal_year",
+        "population_served",
+        "benefit_score",
+        "improvement_cost",
+        "ranking_index",
+        "priority_rank",
+        "recommended_budget",
+        "approved_budget",
+        "calculation_date",
+        "notes",
+    )
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False if obj else super().has_change_permission(request, obj)
 
 # Register supporting models without custom admins
 for model in [
