@@ -375,6 +375,22 @@ class TrafficSurveySummary(models.Model):
         verbose_name_plural = "Traffic survey summaries"
 
 
+class TrafficSurveyOverall(models.Model):
+    overall_id = models.BigAutoField(primary_key=True)
+    road = models.ForeignKey(Road, on_delete=models.CASCADE)
+    fiscal_year = models.IntegerField()
+    adt_total = models.DecimalField(max_digits=14, decimal_places=3)
+    pcu_total = models.DecimalField(max_digits=14, decimal_places=3)
+    confidence_score = models.DecimalField(max_digits=5, decimal_places=2)
+    computed_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "traffic_survey_overall"
+        unique_together = ("road", "fiscal_year")
+        verbose_name = "Traffic survey overall"
+        verbose_name_plural = "Traffic survey overall"
+
+
 class TrafficForPrioritization(models.Model):
     prep_id = models.BigAutoField(primary_key=True)
 

@@ -1,3 +1,4 @@
+from django.core.management import call_command
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 
@@ -5,6 +6,7 @@ from .models import (
     TrafficCountRecord,
     TrafficQC,
     TrafficSurvey,
+    TrafficSurveySummary,
     recompute_cycle_summaries_for_survey,
     recompute_survey_summary_for_survey,
     run_auto_qc_for_survey,
@@ -28,3 +30,8 @@ def _recompute_on_survey_approval(sender, instance: TrafficSurvey, **kwargs):
     run_auto_qc_for_survey(instance)
     recompute_cycle_summaries_for_survey(instance)
     recompute_survey_summary_for_survey(instance)
+
+
+@receiver(post_save, sender=TrafficSurveySummary)
+def recompute_overall(sender, instance: TrafficSurveySummary, **kwargs):  # pragma: no cover - signal side effect
+    call_command("compute_traffic_overall")
