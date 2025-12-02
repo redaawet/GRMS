@@ -143,7 +143,7 @@ def compute_prioritization_result(fiscal_year: int) -> Iterable[models.Prioritiz
     """Compute prioritization rankings for all roads with socio-economic data."""
 
     candidates = models.Road.objects.filter(socioeconomic__isnull=False).select_related(
-        "admin_zone", "admin_woreda"
+        "admin_zone", "admin_woreda", "socioeconomic"
     )
 
     scoring: list[Tuple[models.Road, Decimal, int, Decimal, Decimal]] = []
@@ -152,7 +152,7 @@ def compute_prioritization_result(fiscal_year: int) -> Iterable[models.Prioritiz
         if benefit is None or benefit.total_benefit_score is None:
             continue
 
-        population = road.population_served or 0
+        population = road.socioeconomic.population_served or 0
         improvement_cost = _derive_improvement_cost(road, fiscal_year)
         if improvement_cost is None or improvement_cost == 0:
             continue

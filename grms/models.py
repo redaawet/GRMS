@@ -387,7 +387,6 @@ class Road(models.Model):
         ],
         help_text="Responsible authority",
     )
-    population_served = models.IntegerField(null=True, blank=True, help_text="Population served")
     year_of_update = models.DateField(null=True, blank=True, help_text="Date of last MCI update")
     last_mci_update = models.DateField(null=True, blank=True, help_text="Most recent MCI update date")
     remarks = models.TextField(blank=True, help_text="Additional notes or remarks")
@@ -1886,6 +1885,11 @@ class RoadSocioEconomic(models.Model):
 
     road = models.OneToOneField(Road, on_delete=models.CASCADE, related_name="socioeconomic")
 
+    population_served = models.IntegerField(
+        null=True,
+        blank=True,
+        help_text="Population served by this road",
+    )
     trading_centers = models.IntegerField(default=1, null=True, blank=True)
     villages_connected = models.IntegerField(default=1, null=True, blank=True)
     road_link_type = models.ForeignKey(

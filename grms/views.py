@@ -363,7 +363,8 @@ def road_detail(request: Request, road_id: int):
     """Simple road detail page shown after completing the wizard."""
 
     road = get_object_or_404(
-        models.Road.objects.select_related("admin_zone", "admin_woreda"), pk=road_id
+        models.Road.objects.select_related("admin_zone", "admin_woreda", "socioeconomic"),
+        pk=road_id,
     )
 
     progress_steps = [
@@ -387,6 +388,7 @@ def road_detail(request: Request, road_id: int):
         "roads/road_detail.html",
         {
             "road": road,
+            "socioeconomic": getattr(road, "socioeconomic", None),
             "progress_steps": progress_steps,
             "map_config": json.dumps(
                 {
@@ -756,7 +758,7 @@ def run_prioritization(request: Request) -> Response:
 
     created_results: List[models.PrioritizationResult] = []
     with transaction.atomic():
-        for road in models.Road.objects.all():
+        for road in models.Road.objects.select_related("socioeconomic"):
             latest_survey = (
                 models.RoadConditionSurvey.objects.filter(road_segment__section__road=road)
                 .order_by("-inspection_date")
@@ -795,10 +797,15 @@ def run_prioritization(request: Request) -> Response:
                 fiscal_year=fiscal_year or 0,
             ).delete()
 
+            socio = getattr(road, "socioeconomic", None)
+
+            if socio is None:
+                continue
+
             result = models.PrioritizationResult.objects.create(
                 road=road,
                 fiscal_year=fiscal_year or 0,
-                population_served=road.population_served,
+                population_served=socio.population_served,
                 benefit_score=Decimal(f"{ei:.2f}") if has_ei else None,
                 improvement_cost=Decimal("0"),
                 ranking_index=Decimal(f"{priority_score:.4f}"),
