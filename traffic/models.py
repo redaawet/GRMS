@@ -388,7 +388,7 @@ class TrafficSurveyOverall(models.Model):
         db_table = "traffic_survey_overall"
         unique_together = ("road", "fiscal_year")
         verbose_name = "Traffic survey overall"
-        verbose_name_plural = "Traffic survey overall"
+        verbose_name_plural = "Road traffic summaries"
 
 
 class TrafficForPrioritization(models.Model):
