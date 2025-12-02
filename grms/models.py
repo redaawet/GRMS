@@ -328,6 +328,7 @@ class Road(models.Model):
         AdminWoreda,
         on_delete=models.PROTECT,
         related_name="roads",
+        null=True,
         help_text="Administrative Woreda",
     )
     total_length_km = models.DecimalField(max_digits=6, decimal_places=2)
@@ -373,7 +374,6 @@ class Road(models.Model):
         RoadLinkTypeLookup,
         on_delete=models.PROTECT,
         related_name="roads",
-        null=True,
         blank=True,
         help_text="Functional road class used for connectivity/prioritization (Trunk, Link, Main access, Collector, Feeder).",
     )
