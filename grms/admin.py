@@ -117,7 +117,7 @@ class GRMSAdminSite(AdminSite):
             ),
         },
         {
-            "title": "Traffic Data – Derived Summaries",
+            "title": "Traffic Summaries",
             "models": (
                 traffic_models.TrafficCycleSummary._meta.verbose_name_plural,
                 traffic_models.TrafficSurveySummary._meta.verbose_name_plural,
@@ -130,7 +130,6 @@ class GRMSAdminSite(AdminSite):
                 models.AnnualWorkPlan._meta.verbose_name_plural,
                 models.StructureIntervention._meta.verbose_name_plural,
                 models.RoadSectionIntervention._meta.verbose_name_plural,
-                models.RoadSocioEconomic._meta.verbose_name_plural,
                 models.BenefitFactor._meta.verbose_name_plural,
                 models.PrioritizationResult._meta.verbose_name_plural,
             ),
@@ -1265,6 +1264,7 @@ class FurnitureConditionDetailedSurveyAdmin(admin.ModelAdmin):
 class RoadSocioEconomicAdmin(admin.ModelAdmin):
     list_display = (
         "road",
+        "population_served",
         "trading_centers",
         "villages",
         "markets",

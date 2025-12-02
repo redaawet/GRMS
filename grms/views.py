@@ -363,7 +363,8 @@ def road_detail(request: Request, road_id: int):
     """Simple road detail page shown after completing the wizard."""
 
     road = get_object_or_404(
-        models.Road.objects.select_related("admin_zone", "admin_woreda"), pk=road_id
+        models.Road.objects.select_related("admin_zone", "admin_woreda", "socioeconomic"),
+        pk=road_id,
     )
 
     progress_steps = [
@@ -387,6 +388,7 @@ def road_detail(request: Request, road_id: int):
         "roads/road_detail.html",
         {
             "road": road,
+            "socioeconomic": getattr(road, "socioeconomic", None),
             "progress_steps": progress_steps,
             "map_config": json.dumps(
                 {
@@ -756,7 +758,7 @@ def run_prioritization(request: Request) -> Response:
 
     created_results: List[models.PrioritizationResult] = []
     with transaction.atomic():
-        for road in models.Road.objects.all():
+        for road in models.Road.objects.select_related("socioeconomic"):
             latest_survey = (
                 models.RoadConditionSurvey.objects.filter(road_segment__section__road=road)
                 .order_by("-inspection_date")

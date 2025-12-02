@@ -24,6 +24,7 @@ class RoadSectionValidationTests(TestCase):
             remarks="",
             geometry={"type": "LineString", "coordinates": [[40.0, 10.0], [40.0, 20.0]]},
         )
+        models.RoadSocioEconomic.objects.create(road=self.road, population_served=1000)
 
     def test_requires_parent_geometry(self):
         self.road.geometry = None
