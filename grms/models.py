@@ -1911,7 +1911,7 @@ class RoadSocioEconomic(models.Model):
 
     class Meta:
         verbose_name = "Road socio-economic input"
-        verbose_name_plural = "Road socio-economic inputs"
+        verbose_name_plural = "Road socio-economic"
         ordering = ["road__road_identifier"]
 
     def __str__(self) -> str:  # pragma: no cover - simple repr

@@ -75,6 +75,7 @@ class GRMSAdminSite(AdminSite):
             "title": "Inventories",
             "models": (
                 models.Road._meta.verbose_name_plural,
+                models.RoadSocioEconomic._meta.verbose_name_plural,
                 models.RoadSection._meta.verbose_name_plural,
                 models.RoadSegment._meta.verbose_name_plural,
                 models.StructureInventory._meta.verbose_name_plural,
@@ -116,7 +117,7 @@ class GRMSAdminSite(AdminSite):
             ),
         },
         {
-            "title": "Traffic Data – Derived Summaries",
+            "title": "Traffic Summaries",
             "models": (
                 traffic_models.TrafficCycleSummary._meta.verbose_name_plural,
                 traffic_models.TrafficSurveySummary._meta.verbose_name_plural,
@@ -129,7 +130,6 @@ class GRMSAdminSite(AdminSite):
                 models.AnnualWorkPlan._meta.verbose_name_plural,
                 models.StructureIntervention._meta.verbose_name_plural,
                 models.RoadSectionIntervention._meta.verbose_name_plural,
-                models.RoadSocioEconomic._meta.verbose_name_plural,
                 models.BenefitFactor._meta.verbose_name_plural,
                 models.PrioritizationResult._meta.verbose_name_plural,
             ),
