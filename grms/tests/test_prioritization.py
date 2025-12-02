@@ -49,7 +49,7 @@ class RoadNetworkMixin:
 
         road = models.Road.objects.create(**road_kwargs)
         link_type, _ = models.RoadLinkTypeLookup.objects.get_or_create(
-            code="A", defaults={"name": "Trunk Road", "score": 12}
+            code="TRUNK", defaults={"name": "Trunk Road", "score": 12}
         )
         models.RoadSocioEconomic.objects.create(
             road=road,

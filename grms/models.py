@@ -60,7 +60,7 @@ class RoadLinkTypeLookup(models.Model):
     """Functional road classification lookup used for prioritisation."""
 
     name = models.CharField(max_length=100)
-    code = models.CharField(max_length=5, unique=True)
+    code = models.CharField(max_length=10, unique=True)
     score = models.PositiveIntegerField()
 
     class Meta:
@@ -1825,8 +1825,9 @@ class TrafficForPrioritization(models.Model):
 class BenefitCategory(models.Model):
     """High-level benefit factor categories (BF1/BF2/BF3)."""
 
+    code = models.CharField(max_length=10, unique=True)
     name = models.CharField(max_length=100, unique=True)
-    weight_percent = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+    weight = models.DecimalField(max_digits=4, decimal_places=2)
 
     class Meta:
         verbose_name = "Benefit category"
@@ -1840,15 +1841,21 @@ class BenefitCategory(models.Model):
 class BenefitCriterion(models.Model):
     """Indicators within each benefit category (e.g. ADT, trading centres)."""
 
+    class ScoringMethod(models.TextChoices):
+        RANGE = "RANGE", "Range"
+        LOOKUP = "LOOKUP", "Lookup"
+
     category = models.ForeignKey(BenefitCategory, on_delete=models.CASCADE, related_name="criteria")
+    code = models.CharField(max_length=50)
     name = models.CharField(max_length=150)
-    weight_percent = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+    weight = models.DecimalField(max_digits=4, decimal_places=2)
+    scoring_method = models.CharField(max_length=10, choices=ScoringMethod.choices)
 
     class Meta:
         verbose_name = "Benefit criterion"
         verbose_name_plural = "Benefit criteria"
-        ordering = ["category__name", "name"]
-        unique_together = ("category", "name")
+        ordering = ["category__code", "code"]
+        unique_together = ("category", "code")
 
     def __str__(self) -> str:  # pragma: no cover - simple repr
         return f"{self.name} ({self.category.name})"
@@ -1858,9 +1865,10 @@ class BenefitCriterionScale(models.Model):
     """Lookup rows mapping input values to scores for each criterion."""
 
     criterion = models.ForeignKey(BenefitCriterion, on_delete=models.CASCADE, related_name="scales")
-    min_value = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    min_value = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     max_value = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     score = models.PositiveIntegerField()
+    description = models.CharField(max_length=200, blank=True)
 
     class Meta:
         verbose_name = "Benefit criterion scale"
@@ -1871,6 +1879,32 @@ class BenefitCriterionScale(models.Model):
 
     def __str__(self) -> str:  # pragma: no cover - simple repr
         return f"{self.criterion.name} -> {self.score}"
+
+    def clean(self):
+        errors: dict[str, str] = {}
+
+        if self.criterion.scoring_method != BenefitCriterion.ScoringMethod.RANGE:
+            errors["criterion"] = "Scales can only be defined for range-based criteria."
+
+        if self.min_value is None and self.max_value is None:
+            errors["min_value"] = "At least one boundary must be provided."
+
+        if self.min_value is not None and self.max_value is not None and self.min_value > self.max_value:
+            errors["max_value"] = "Minimum value cannot exceed the maximum value."
+
+        if self.criterion_id:
+            overlapping = BenefitCriterionScale.objects.filter(criterion=self.criterion).exclude(pk=self.pk)
+            for scale in overlapping:
+                min_a = self.min_value if self.min_value is not None else Decimal("-Infinity")
+                max_a = self.max_value if self.max_value is not None else Decimal("Infinity")
+                min_b = scale.min_value if scale.min_value is not None else Decimal("-Infinity")
+                max_b = scale.max_value if scale.max_value is not None else Decimal("Infinity")
+                if min_a <= max_b and min_b <= max_a:
+                    errors["min_value"] = "Ranges cannot overlap for the same criterion."
+                    break
+
+        if errors:
+            raise ValidationError(errors)
 
 
 class RoadSocioEconomic(models.Model):
@@ -1916,9 +1950,25 @@ class RoadSocioEconomic(models.Model):
 
         if self.population_served is None:
             errors["population_served"] = "Population served is required."
+        if self.population_served is not None and self.population_served < 0:
+            errors["population_served"] = "Population served must be zero or greater."
 
-        if self.farmland_percent is not None and not (Decimal("0") <= self.farmland_percent <= Decimal("100")):
-            errors["farmland_percent"] = "Farmland percent must be between 0 and 100."
+        numeric_fields = {
+            "trading_centers": self.trading_centers,
+            "villages": self.villages,
+            "cooperative_centers": self.cooperative_centers,
+            "markets": self.markets,
+            "health_centers": self.health_centers,
+            "education_centers": self.education_centers,
+            "development_projects": self.development_projects,
+        }
+        for field, value in numeric_fields.items():
+            if value is not None and value < 0:
+                errors[field] = "Value must be zero or greater."
+
+        if self.farmland_percent is not None:
+            if not (Decimal("0") <= self.farmland_percent <= Decimal("100")):
+                errors["farmland_percent"] = "Farmland percent must be between 0 and 100."
 
         if self.road_link_type_id is None:
             errors["road_link_type"] = "Road link type is required."

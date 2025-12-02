@@ -135,6 +135,15 @@ class GRMSAdminSite(AdminSite):
             ),
         },
         {
+            "title": "Prioritization lookups",
+            "models": (
+                models.RoadLinkTypeLookup._meta.verbose_name_plural,
+                models.BenefitCategory._meta.verbose_name_plural,
+                models.BenefitCriterion._meta.verbose_name_plural,
+                models.BenefitCriterionScale._meta.verbose_name_plural,
+            ),
+        },
+        {
             "title": "Reference data",
             "models": (
                 models.ConditionRating._meta.verbose_name_plural,
@@ -147,10 +156,6 @@ class GRMSAdminSite(AdminSite):
                 models.DistressActivity._meta.verbose_name_plural,
                 models.AdminZone._meta.verbose_name_plural,
                 models.AdminWoreda._meta.verbose_name_plural,
-                models.RoadLinkTypeLookup._meta.verbose_name_plural,
-                models.BenefitCategory._meta.verbose_name_plural,
-                models.BenefitCriterion._meta.verbose_name_plural,
-                models.BenefitCriterionScale._meta.verbose_name_plural,
             ),
         },
     )
@@ -1324,9 +1329,9 @@ class BenefitCategoryAdmin(admin.ModelAdmin):
 
 @admin.register(models.BenefitCriterion, site=grms_admin_site)
 class BenefitCriterionAdmin(admin.ModelAdmin):
-    list_display = ("name", "category", "weight_percent")
-    list_filter = ("category",)
-    search_fields = ("name",)
+    list_display = ("code", "name", "category", "weight", "scoring_method")
+    list_filter = ("category", "scoring_method")
+    search_fields = ("code", "name")
 
 
 @admin.register(models.BenefitCriterionScale, site=grms_admin_site)
@@ -1336,6 +1341,7 @@ class BenefitCriterionScaleAdmin(admin.ModelAdmin):
         "min_value",
         "max_value",
         "score",
+        "description",
     )
     list_filter = ("criterion",)
     search_fields = ("criterion__name",)

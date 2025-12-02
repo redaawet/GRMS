@@ -4,7 +4,6 @@ from .prioritization import (
     compute_prioritization_for_year,
     compute_prioritization_result,
     get_final_adt,
-    resolve_score,
 )
 
 __all__ = [
@@ -14,5 +13,4 @@ __all__ = [
     "compute_prioritization_for_year",
     "compute_prioritization_result",
     "get_final_adt",
-    "resolve_score",
 ]
