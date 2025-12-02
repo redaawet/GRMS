@@ -89,10 +89,6 @@ class Migration(migrations.Migration):
                 "verbose_name_plural": "Benefit factors",
             },
         ),
-        migrations.AlterUniqueTogether(
-            name="benefitfactor",
-            unique_together={("road", "fiscal_year")},
-        ),
         migrations.AddField(
             model_name="benefitfactor",
             name="bf1_transport_score",
@@ -124,6 +120,10 @@ class Migration(migrations.Migration):
             name="fiscal_year",
             field=models.PositiveIntegerField(default=0),
             preserve_default=False,
+        ),
+        migrations.AlterUniqueTogether(
+            name="benefitfactor",
+            unique_together={("road", "fiscal_year")},
         ),
         migrations.AlterField(
             model_name="benefitfactor",
