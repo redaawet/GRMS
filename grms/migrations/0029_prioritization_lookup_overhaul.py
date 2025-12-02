@@ -93,12 +93,25 @@ def seed_lookups(apps, schema_editor):
     Scale = apps.get_model("grms", "BenefitCriterionScale")
     LinkType = apps.get_model("grms", "RoadLinkTypeLookup")
 
+    # Normalize any pre-existing duplicates so update_or_create can run safely.
+    seen_names = set()
+    seen_codes = set()
+    for link in LinkType.objects.all().order_by("id"):
+        name_key = (link.name or "").strip().lower()
+        code_key = (link.code or "").strip().lower()
+        if name_key in seen_names or code_key in seen_codes:
+            link.delete()
+            continue
+        seen_names.add(name_key)
+        if code_key:
+            seen_codes.add(code_key)
+
     Scale.objects.all().delete()
     Criterion.objects.all().delete()
     Category.objects.all().delete()
 
     for definition in ROAD_LINK_TYPES:
-        LinkType.objects.update_or_create(name=definition["name"], defaults=definition)
+        LinkType.objects.update_or_create(code=definition["code"], defaults=definition)
 
     categories = {}
     for entry in CATEGORY_DEFINITION:
