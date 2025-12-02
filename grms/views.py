@@ -130,32 +130,32 @@ class OtherStructureConditionSurveyViewSet(viewsets.ModelViewSet):
 
 
 class TrafficSurveyViewSet(viewsets.ModelViewSet):
-    queryset = traffic_models.TrafficSurvey.objects.select_related("road_segment", "road_segment__section").all()
+    queryset = traffic_models.TrafficSurvey.objects.select_related("road").all()
     serializer_class = serializers.TrafficSurveySerializer
 
 
 class TrafficCountRecordViewSet(viewsets.ModelViewSet):
-    queryset = traffic_models.TrafficCountRecord.objects.select_related("traffic_survey", "traffic_survey__road_segment").all()
+    queryset = traffic_models.TrafficCountRecord.objects.select_related("traffic_survey", "traffic_survey__road").all()
     serializer_class = serializers.TrafficCountRecordSerializer
 
 
 class TrafficCycleSummaryViewSet(viewsets.ModelViewSet):
-    queryset = traffic_models.TrafficCycleSummary.objects.select_related("traffic_survey", "road_segment").all()
+    queryset = traffic_models.TrafficCycleSummary.objects.select_related("traffic_survey", "road").all()
     serializer_class = serializers.TrafficCycleSummarySerializer
 
 
 class TrafficSurveySummaryViewSet(viewsets.ModelViewSet):
-    queryset = traffic_models.TrafficSurveySummary.objects.select_related("traffic_survey", "road_segment").all()
+    queryset = traffic_models.TrafficSurveySummary.objects.select_related("road").all()
     serializer_class = serializers.TrafficSurveySummarySerializer
 
 
 class TrafficQCViewSet(viewsets.ModelViewSet):
-    queryset = traffic_models.TrafficQc.objects.select_related("traffic_survey", "road_segment").all()
+    queryset = traffic_models.TrafficQc.objects.select_related("traffic_survey", "road").all()
     serializer_class = serializers.TrafficQCSerializer
 
 
 class TrafficForPrioritizationViewSet(viewsets.ModelViewSet):
-    queryset = traffic_models.TrafficForPrioritization.objects.select_related("road", "road_segment").all()
+    queryset = traffic_models.TrafficForPrioritization.objects.select_related("road").all()
     serializer_class = serializers.TrafficForPrioritizationSerializer
 
 

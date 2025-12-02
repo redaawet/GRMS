@@ -12,6 +12,7 @@ from .models import (
     TrafficCountRecord,
     TrafficCycleSummary,
     TrafficForPrioritization,
+    TrafficSurveyOverall,
     TrafficQC,
     TrafficSurvey,
     TrafficSurveySummary,
@@ -179,6 +180,18 @@ class TrafficSurveySummaryAdmin(_ReadOnlyAdmin):
         "adt_final",
         "pcu_final",
         "confidence_score",
+    )
+
+
+@admin.register(TrafficSurveyOverall, site=grms_admin_site)
+class TrafficSurveyOverallAdmin(_ReadOnlyAdmin):
+    list_display = (
+        "road",
+        "fiscal_year",
+        "adt_total",
+        "pcu_total",
+        "confidence_score",
+        "computed_at",
     )
 
 

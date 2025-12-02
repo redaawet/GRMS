@@ -226,7 +226,7 @@ class TrafficSurveySerializer(serializers.ModelSerializer):
         model = traffic_models.TrafficSurvey
         fields = [
             "id",
-            "road_segment",
+            "road",
             "survey_year",
             "cycle_number",
             "count_start_date",
@@ -237,7 +237,7 @@ class TrafficSurveySerializer(serializers.ModelSerializer):
             "override_night_factor",
             "method",
             "observer",
-            "location_override",
+            "station_location",
             "weather_notes",
             "qa_status",
             "created_at",

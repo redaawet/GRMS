@@ -118,7 +118,6 @@ class PrioritizationViewTests(RoadNetworkMixin, APITestCase):
         )
         traffic_models.TrafficForPrioritization.objects.create(
             road=road,
-            road_segment=segment,
             fiscal_year=self.fiscal_year,
             value_type="PCU",
             value=pcu_value,
