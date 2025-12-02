@@ -70,6 +70,18 @@ class GRMSAdminSiteTests(TestCase):
         other_section = next(section for section in sections if section["title"] == "Other models")
         self.assertTrue(any(model["object_name"] == "RoadSection" for model in other_section["models"]))
 
+    def test_section_builder_excludes_traffic_prioritization_values(self):
+        request = self.factory.get("/admin/")
+        request.user = self.user
+
+        sections = grms_admin_site._build_sections(request)
+
+        model_names = [model["name"] for section in sections for model in section["models"]]
+        object_names = [model["object_name"] for section in sections for model in section["models"]]
+
+        self.assertNotIn("Traffic values for prioritization", model_names)
+        self.assertNotIn("TrafficForPrioritization", object_names)
+
     def test_section_builder_includes_models_with_duplicate_names_across_apps(self):
         request = self.factory.get("/admin/")
         request.user = self.user

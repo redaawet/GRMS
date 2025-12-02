@@ -70,12 +70,17 @@ class GRMSAdminSite(AdminSite):
     index_template = "admin/grms_index.html"
     site_url = "/"
 
+    EXCLUDED_MODEL_NAMES = {
+        "traffic values for prioritization",
+        "trafficforprioritization",
+    }
+
     SECTION_DEFINITIONS: Sequence[Dict[str, object]] = (
         {
             "title": "Inventories",
             "models": (
                 models.Road._meta.verbose_name_plural,
-                models.RoadSocioEconomic._meta.verbose_name,
+                "Road socio-economic",
                 models.RoadSection._meta.verbose_name_plural,
                 models.RoadSegment._meta.verbose_name_plural,
                 models.StructureInventory._meta.verbose_name_plural,
@@ -166,6 +171,11 @@ class GRMSAdminSite(AdminSite):
         for app in app_list:
             app_label = app.get("app_label")
             for model in app["models"]:
+                if any(
+                    self._normalise(model.get(key, "")) in self.EXCLUDED_MODEL_NAMES
+                    for key in ("name", "object_name")
+                ):
+                    continue
                 model.setdefault("app_label", app_label)
                 for key in (model["object_name"], model["name"]):
                     normalised = self._normalise(key)
@@ -175,6 +185,11 @@ class GRMSAdminSite(AdminSite):
     def _all_models(self, app_list: List[Dict[str, object]]):
         for app in app_list:
             for model in app["models"]:
+                if any(
+                    self._normalise(model.get(key, "")) in self.EXCLUDED_MODEL_NAMES
+                    for key in ("name", "object_name")
+                ):
+                    continue
                 yield model
 
     def _build_sections(self, request) -> List[Dict[str, object]]:
