@@ -5,6 +5,41 @@ from decimal import Decimal
 from django.db import migrations, models
 
 
+def normalize_link_type_codes(apps, schema_editor):
+    """Shrink existing road link type codes so they fit within 5 characters.
+
+    Historic data used longer textual codes (e.g., full names) which would
+    violate the new ``max_length=5`` constraint. We normalise them here to
+    ensure the subsequent ``AlterField`` succeeds without raising
+    ``DataError``.
+    """
+
+    Lookup = apps.get_model("grms", "RoadLinkTypeLookup")
+
+    used_codes = set()
+    for link_type in Lookup.objects.all().order_by("id"):
+        raw_code = (link_type.code or "").strip()
+
+        # Start from the provided code (if any) or a fallback derived from the
+        # primary key, then truncate to five characters.
+        base = raw_code or f"LT{link_type.pk}"
+        candidate = base[:5] or f"LT{link_type.pk}"[:5]
+
+        # Resolve collisions by appending a numeric suffix while respecting
+        # the five-character limit.
+        suffix = 1
+        while candidate in used_codes:
+            trimmed_base = candidate[:4] if len(candidate) >= 4 else (candidate + "X" * (4 - len(candidate)))
+            candidate = f"{trimmed_base}{suffix}"[:5]
+            suffix += 1
+
+        if link_type.code != candidate:
+            link_type.code = candidate
+            link_type.save(update_fields=["code"])
+
+        used_codes.add(candidate)
+
+
 def migrate_socio_fields(apps, schema_editor):
     Road = apps.get_model("grms", "Road")
     Socio = apps.get_model("grms", "RoadSocioEconomic")
@@ -136,6 +171,7 @@ class Migration(migrations.Migration):
             model_name="roadsocioeconomic",
             name="villages_connected",
         ),
+        migrations.RunPython(normalize_link_type_codes, noop_reverse),
         migrations.AlterField(
             model_name="benefitcategory",
             name="name",
