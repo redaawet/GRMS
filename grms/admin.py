@@ -112,21 +112,27 @@ class GRMSAdminSite(AdminSite):
             ),
         },
         {
-            "title": "Traffic Data – Surveys",
+            "title": "Traffic Data",
             "models": (
-                traffic_models.TrafficSurvey._meta.verbose_name_plural,
+                "TrafficSurvey",
+                "TrafficSurveySummary",
+                "TrafficSurveyOverall",
+                "TrafficForPrioritization",
+            ),
+        },
+        {
+            "title": "Traffic Data – Details",
+            "models": (
                 traffic_models.TrafficCountRecord._meta.verbose_name_plural,
-                traffic_models.PcuLookup._meta.verbose_name_plural,
-                traffic_models.NightAdjustmentLookup._meta.verbose_name_plural,
+                traffic_models.TrafficCycleSummary._meta.verbose_name_plural,
                 traffic_models.TrafficQc._meta.verbose_name_plural,
             ),
         },
         {
-            "title": "Traffic Summaries",
+            "title": "Traffic Data – Lookups",
             "models": (
-                traffic_models.TrafficCycleSummary._meta.verbose_name_plural,
-                traffic_models.TrafficSurveySummary._meta.verbose_name_plural,
-                traffic_models.TrafficSurveyOverall._meta.verbose_name_plural,
+                traffic_models.PcuLookup._meta.verbose_name_plural,
+                traffic_models.NightAdjustmentLookup._meta.verbose_name_plural,
             ),
         },
         {
