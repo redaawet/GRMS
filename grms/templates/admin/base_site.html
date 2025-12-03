@@ -13,67 +13,6 @@
   </div>
 {% endblock %}
 
-{% block nav-sidebar %}
-  <nav class="dashboard-sidebar" aria-label="{% trans 'Admin navigation' %}">
-    <div class="sidebar-brand">{% trans 'Gravel Road Management System' %}</div>
-    <a class="sidebar-home" href="{% url 'admin:index' %}">{% trans 'Dashboard' %}</a>
-
-    <div class="sidebar-filter">
-      <label class="visually-hidden" for="sidebar-filter-input">{% trans 'Filter models' %}</label>
-      <input
-        id="sidebar-filter-input"
-        type="search"
-        placeholder="{% trans 'Filter models' %}"
-        aria-label="{% trans 'Filter models' %}"
-      />
-    </div>
-
-    <div class="sidebar-sections" id="sidebar-section-container">
-      {% if sections %}
-        {% for section in sections %}
-          <section class="sidebar-section" data-sidebar-section>
-            <h3>{{ section.title }}</h3>
-            <ul>
-              {% for model in section.models %}
-                <li data-sidebar-model>
-                  {% if model.admin_url %}
-                    <a href="{{ model.admin_url }}">{{ model.name }}</a>
-                  {% else %}
-                    {{ model.name }}
-                  {% endif %}
-                </li>
-              {% endfor %}
-            </ul>
-          </section>
-        {% endfor %}
-      {% elif available_apps %}
-        {% for app in available_apps %}
-          <section class="sidebar-section" data-sidebar-section>
-            <h3>{{ app.name }}</h3>
-            <ul>
-              {% for model in app.models %}
-                <li data-sidebar-model>
-                  {% if model.admin_url %}
-                    <a href="{{ model.admin_url }}">{{ model.name }}</a>
-                  {% else %}
-                    {{ model.name }}
-                  {% endif %}
-                </li>
-              {% endfor %}
-            </ul>
-          </section>
-        {% endfor %}
-      {% else %}
-        <p class="sidebar-empty">{% trans 'No models are registered with this admin site yet.' %}</p>
-      {% endif %}
-    </div>
-
-    <p class="sidebar-empty" id="sidebar-no-matches" hidden>
-      {% trans 'No models match that filter. Try a different keyword.' %}
-    </p>
-  </nav>
-{% endblock %}
-
 {% block breadcrumbs %}
   {{ block.super }}
   <div class="grms-back-link"><a href="{% url 'admin:index' %}">← {% trans 'Back to Dashboard' %}</a></div>
@@ -107,67 +46,7 @@
       color: var(--body-fg);
     }
 
-    /* Custom sidebar navigation that should only apply to the grouped dashboard (index) */
-    body.model-index {
-      --grms-sidebar-width: 240px;
-    }
-
-    body.model-index #nav-sidebar {
-      display: block;
-      width: var(--grms-sidebar-width);
-      padding: 0.75rem;
-      background: #f7f7f7;
-      border-right: 1px solid var(--hairline-color);
-    }
-
-    body:not(.model-index) #nav-sidebar {
-      display: none;
-    }
-
-    body.model-index .dashboard-sidebar {
-      position: sticky;
-      top: 0;
-      display: flex;
-      flex-direction: column;
-      gap: 0.75rem;
-    }
-
-    body.model-index .sidebar-brand {
-      font-weight: 800;
-      font-size: 1rem;
-      letter-spacing: 0.01em;
-      text-transform: uppercase;
-    }
-
-    body.model-index .sidebar-header {
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.02em;
-      color: var(--body-quiet-color);
-      font-size: 0.85rem;
-    }
-
-    body.model-index .sidebar-filter {
-      margin-top: 0.5rem;
-    }
-
-    body.model-index .sidebar-filter input {
-      width: 100%;
-      max-width: 100%;
-      padding: 0.4rem 0.5rem;
-      border-radius: 4px;
-      border: 1px solid var(--hairline-color);
-    }
-
-    body.model-index .sidebar-home {
-      padding: 0.4rem 0.6rem;
-      border-radius: 4px;
-      background: var(--accent);
-      color: #fff;
-      text-decoration: none;
-      font-weight: 600;
-    }
-
+    /* Keep the dashboard link styled consistently across pages */
     .visually-hidden {
       position: absolute;
       width: 1px;
@@ -179,49 +58,15 @@
       border: 0;
     }
 
-    body.model-index .sidebar-section h3 {
-      margin: 0.25rem 0;
-      font-size: 0.95rem;
-      color: var(--body-fg);
+    /* Restore default changelist layout spacing */
+    body.change-list #toolbar {
+      display: flex;
+      align-items: center;
+      margin-bottom: 1rem;
     }
 
-    body.model-index .sidebar-section ul {
-      list-style: none;
-      margin: 0;
-      padding-left: 0;
-    }
-
-    body.model-index .sidebar-section li {
-      margin: 0.1rem 0;
-    }
-
-    body.model-index .sidebar-section a {
-      text-decoration: none;
-      color: var(--link-fg);
-    }
-
-    body.model-index .sidebar-section a:hover,
-    body.model-index .sidebar-section a:focus-visible {
-      text-decoration: underline;
-    }
-
-    body.model-index .sidebar-empty {
-      color: var(--body-quiet-color);
-      font-style: italic;
-    }
-
-    .main {
-      margin-left: 0;
-      padding: 1.25rem 1.5rem 2rem;
-    }
-
-    body.model-index .main {
-      margin-left: var(--grms-sidebar-width);
-    }
-
-    /* Hide the default toggle button on the dashboard because the sidebar is always visible there */
-    body.model-index .toggle-nav-sidebar {
-      display: none !important;
+    body.change-list #changelist-form {
+      clear: both;
     }
 
     /* Restore default changelist layout spacing */
@@ -254,45 +99,4 @@
     }
   </style>
 
-{% endblock %}
-
-{% block extrahead %}
-  {{ block.super }}
-  <script>
-    window.addEventListener("DOMContentLoaded", function () {
-      var input = document.getElementById("sidebar-filter-input");
-      var noMatch = document.getElementById("sidebar-no-matches");
-      if (!input) {
-        return;
-      }
-      var sections = Array.prototype.slice.call(
-        document.querySelectorAll("[data-sidebar-section]")
-      );
-      input.addEventListener("input", function (event) {
-        var term = event.target.value.trim().toLowerCase();
-        var visibleSections = 0;
-        sections.forEach(function (section) {
-          var items = Array.prototype.slice.call(
-            section.querySelectorAll("[data-sidebar-model]")
-          );
-          var visibleCount = 0;
-          items.forEach(function (item) {
-            var match = !term || item.textContent.toLowerCase().indexOf(term) !== -1;
-            item.style.display = match ? "" : "none";
-            if (match) {
-              visibleCount += 1;
-            }
-          });
-          var showSection = visibleCount > 0;
-          section.style.display = showSection ? "" : "none";
-          if (showSection) {
-            visibleSections += 1;
-          }
-        });
-        if (noMatch) {
-          noMatch.hidden = visibleSections !== 0;
-        }
-      });
-    });
-  </script>
 {% endblock %}
