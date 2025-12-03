@@ -1,6 +1,8 @@
 {% extends "admin/base_site.html" %}
 {% load admin_list admin_urls i18n static %}
 
+{% block nav-sidebar %}{% endblock %}
+
 {% block extrastyle %}
   {{ block.super }}
   <link rel="stylesheet" href="{% static 'admin/css/changelists.css' %}">
