@@ -1,6 +1,8 @@
 {% extends "admin/custom_base_site.html" %}
 {% load i18n %}
 
+{% block bodyclass %}model-index {{ block.super }}{% endblock %}
+
 {% block nav-sidebar %}{% endblock %}
 
 {% block content %}
