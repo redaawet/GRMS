@@ -185,6 +185,12 @@ class TrafficCountRecord(models.Model):
         verbose_name = "Traffic count"
         verbose_name_plural = "Traffic counts"
 
+    def __str__(self) -> str:  # pragma: no cover - trivial
+        block = ""
+        if self.time_block_from and self.time_block_to:
+            block = f" ({self.time_block_from}–{self.time_block_to})"
+        return f"{self.traffic_survey} – {self.count_date}{block}"
+
     def clean(self):
         super().clean()
         survey = self.traffic_survey
@@ -215,6 +221,9 @@ class PcuLookup(models.Model):
         ]
         verbose_name = "PCU lookup"
         verbose_name_plural = "PCU lookup entries"
+
+    def __str__(self) -> str:  # pragma: no cover - trivial
+        return f"{self.vehicle_class} – {self.pcu_factor} ({self.effective_date})"
 
     @classmethod
     def get_effective_factor(cls, vehicle_class: str, date, region: Optional[str] = None) -> Decimal:
@@ -251,6 +260,9 @@ class NightAdjustmentLookup(models.Model):
         ]
         verbose_name = "Night adjustment lookup"
         verbose_name_plural = "Night adjustment lookup entries"
+
+    def __str__(self) -> str:  # pragma: no cover - trivial
+        return f"{self.hours_counted}-hour counts starting {self.effective_date}"
 
     @classmethod
     def get_factor(cls, hours_counted: int, date) -> Decimal:
@@ -299,6 +311,9 @@ class TrafficQC(models.Model):
         verbose_name = "Traffic QC issue"
         verbose_name_plural = "Traffic QC issues"
 
+    def __str__(self) -> str:  # pragma: no cover - trivial
+        return f"{self.road} – {self.issue_type}"
+
 
 class TrafficCycleSummary(models.Model):
     cycle_summary_id = models.BigAutoField(primary_key=True)
@@ -340,6 +355,9 @@ class TrafficCycleSummary(models.Model):
         verbose_name = "Traffic cycle summary"
         verbose_name_plural = "Traffic cycle summaries"
 
+    def __str__(self) -> str:  # pragma: no cover - trivial
+        return f"{self.road} – {self.vehicle_class} – Cycle {self.cycle_number}"
+
 
 class TrafficSurveySummary(models.Model):
     survey_summary_id = models.BigAutoField(primary_key=True)
@@ -374,6 +392,9 @@ class TrafficSurveySummary(models.Model):
         verbose_name = "Traffic survey summary"
         verbose_name_plural = "Traffic survey summaries"
 
+    def __str__(self) -> str:  # pragma: no cover - trivial
+        return f"{self.road} – {self.vehicle_class} – {self.fiscal_year}"
+
     @classmethod
     def latest_for(cls, road):
         return (
@@ -396,7 +417,10 @@ class TrafficSurveyOverall(models.Model):
         db_table = "traffic_survey_overall"
         unique_together = ("road", "fiscal_year")
         verbose_name = "Traffic survey overall"
-        verbose_name_plural = "Road traffic summaries"
+        verbose_name_plural = "Traffic surveys overall"
+
+    def __str__(self) -> str:  # pragma: no cover - trivial
+        return f"{self.road} – {self.fiscal_year} (Overall)"
 
 
 class TrafficForPrioritization(models.Model):
@@ -434,6 +458,9 @@ class TrafficForPrioritization(models.Model):
         unique_together = ("road", "fiscal_year", "is_active")
         verbose_name = "Traffic value for prioritization"
         verbose_name_plural = "Traffic values for prioritization"
+
+    def __str__(self) -> str:  # pragma: no cover - trivial
+        return f"{self.road} – {self.fiscal_year} – {self.value_type}"
 
 
 # Backwards compatibility alias for legacy imports

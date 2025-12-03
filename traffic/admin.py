@@ -24,15 +24,9 @@ from .models import (
 class TrafficSurveyAdmin(admin.ModelAdmin):
     change_form_template = "admin/traffic/trafficsurvey/change_form.html"
     form = TrafficSurveyAdminForm
-    list_display = (
-        "road",
-        "survey_year",
-        "cycle_number",
-        "method",
-        "qa_status",
-    )
-    list_filter = ("survey_year", "cycle_number", "method", "qa_status")
-    search_fields = ("observer", "road__id")
+    list_display = ("road", "survey_year", "cycle_number", "method", "qa_status")
+    list_filter = ("road", "survey_year", "cycle_number", "method", "qa_status")
+    search_fields = ("road__name", "observer")
 
     fieldsets = (
         (
@@ -167,7 +161,16 @@ class TrafficCycleSummaryAdmin(_ReadOnlyAdmin):
     """
     Simplified admin so all fields are displayed automatically.
     """
-    pass
+    list_display = (
+        "road",
+        "traffic_survey",
+        "vehicle_class",
+        "cycle_number",
+        "cycle_daily_24hr",
+        "cycle_pcu",
+    )
+    list_filter = ("road", "vehicle_class", "cycle_number")
+    search_fields = ("road__name",)
 
 
 @admin.register(TrafficSurveySummary, site=grms_admin_site)
@@ -175,10 +178,16 @@ class TrafficSurveySummaryAdmin(_ReadOnlyAdmin):
     """
     Simplified admin so all fields are displayed automatically.
     """
-    pass
-
-    list_filter = ("fiscal_year", "road", "vehicle_class")
-    search_fields = ("road__name", "road__id")
+    list_display = (
+        "road",
+        "vehicle_class",
+        "fiscal_year",
+        "adt_final",
+        "pcu_final",
+        "confidence_score",
+    )
+    list_filter = ("road", "vehicle_class", "fiscal_year")
+    search_fields = ("road__name",)
 
 
 @admin.register(TrafficSurveyOverall, site=grms_admin_site)
@@ -187,7 +196,9 @@ class TrafficSurveyOverallAdmin(_ReadOnlyAdmin):
     Temporary simplified admin class so that all fields are displayed automatically.
     This fixes the 'no rows displayed' issue caused by list_display mismatches.
     """
-    pass
+    list_display = ("road", "fiscal_year", "adt_total", "pcu_total", "confidence_score")
+    list_filter = ("fiscal_year", "road")
+    search_fields = ("road__name",)
 
 
 @admin.register(TrafficForPrioritization, site=grms_admin_site)
@@ -200,7 +211,17 @@ class TrafficForPrioritizationAdmin(_ReadOnlyAdmin):
         "source_survey",
         "prepared_at",
     )
-    list_display = ("road", "fiscal_year", "value_type", "value", "is_active")
+    list_display = ("road", "value", "weight", "updated_at")
+    list_filter = ("road",)
+    search_fields = ("road__name",)
+
+    def weight(self, obj):  # pragma: no cover - admin hook
+        return getattr(obj, "weight", None) or getattr(obj, "value_type", None)
+
+    def updated_at(self, obj):  # pragma: no cover - admin hook
+        return getattr(obj, "updated_at", None) or obj.prepared_at
+
+    updated_at.admin_order_field = "prepared_at"
 
 
 @admin.register(TrafficQC, site=grms_admin_site)
