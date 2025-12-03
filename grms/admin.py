@@ -75,101 +75,77 @@ class GRMSAdminSite(AdminSite):
         "trafficforprioritization",
     }
 
-    SECTION_DEFINITIONS: Sequence[Dict[str, object]] = (
-        {
-            "title": "Inventories",
-            "models": (
-                models.Road._meta.verbose_name_plural,
-                "Road socio-economic",
-                models.RoadSection._meta.verbose_name_plural,
-                models.RoadSegment._meta.verbose_name_plural,
-                models.StructureInventory._meta.verbose_name_plural,
-                models.FurnitureInventory._meta.verbose_name_plural,
-                models.BridgeDetail._meta.verbose_name_plural,
-                models.CulvertDetail._meta.verbose_name_plural,
-                models.FordDetail._meta.verbose_name_plural,
-                models.RetainingWallDetail._meta.verbose_name_plural,
-                models.GabionWallDetail._meta.verbose_name_plural,
-            ),
-        },
-        {
-            "title": "Surveys – Condition",
-            "models": (
-                models.RoadConditionSurvey._meta.verbose_name_plural,
-                models.StructureConditionSurvey._meta.verbose_name_plural,
-                models.BridgeConditionSurvey._meta.verbose_name_plural,
-                models.CulvertConditionSurvey._meta.verbose_name_plural,
-                models.OtherStructureConditionSurvey._meta.verbose_name_plural,
-                models.FurnitureConditionSurvey._meta.verbose_name_plural,
-            ),
-        },
-        {
-            "title": "Surveys – Severity & extent",
-            "models": (
-                models.RoadConditionDetailedSurvey._meta.verbose_name_plural,
-                models.StructureConditionDetailedSurvey._meta.verbose_name_plural,
-                models.FurnitureConditionDetailedSurvey._meta.verbose_name_plural,
-            ),
-        },
-        {
-            "title": "Traffic Data",
-            "models": (
-                "TrafficSurvey",
-                "TrafficSurveySummary",
-                "TrafficSurveyOverall",
-                "TrafficForPrioritization",
-            ),
-        },
-        {
-            "title": "Traffic Data – Details",
-            "models": (
-                traffic_models.TrafficCountRecord._meta.verbose_name_plural,
-                traffic_models.TrafficCycleSummary._meta.verbose_name_plural,
-                traffic_models.TrafficQc._meta.verbose_name_plural,
-            ),
-        },
-        {
-            "title": "Traffic Data – Lookups",
-            "models": (
-                traffic_models.PcuLookup._meta.verbose_name_plural,
-                traffic_models.NightAdjustmentLookup._meta.verbose_name_plural,
-            ),
-        },
-        {
-            "title": "Maintenance & planning",
-            "models": (
-                models.AnnualWorkPlan._meta.verbose_name_plural,
-                models.StructureIntervention._meta.verbose_name_plural,
-                models.RoadSectionIntervention._meta.verbose_name_plural,
-                models.BenefitFactor._meta.verbose_name_plural,
-                models.PrioritizationResult._meta.verbose_name_plural,
-            ),
-        },
-        {
-            "title": "Prioritization lookups",
-            "models": (
-                models.RoadLinkTypeLookup._meta.verbose_name_plural,
-                models.BenefitCategory._meta.verbose_name_plural,
-                models.BenefitCriterion._meta.verbose_name_plural,
-                models.BenefitCriterionScale._meta.verbose_name_plural,
-            ),
-        },
-        {
-            "title": "Reference data",
-            "models": (
-                models.ConditionRating._meta.verbose_name_plural,
-                models.QAStatus._meta.verbose_name_plural,
-                models.ActivityLookup._meta.verbose_name_plural,
-                models.InterventionLookup._meta.verbose_name_plural,
-                models.UnitCost._meta.verbose_name_plural,
-                models.DistressType._meta.verbose_name_plural,
-                models.DistressCondition._meta.verbose_name_plural,
-                models.DistressActivity._meta.verbose_name_plural,
-                models.AdminZone._meta.verbose_name_plural,
-                models.AdminWoreda._meta.verbose_name_plural,
-            ),
-        },
-    )
+    MENU_GROUPS: Dict[str, Sequence[tuple[str, str]]] = {
+        "Inventories": (
+            ("Road", "Roads"),
+            ("RoadSocioEconomic", "Road socio-economic"),
+            ("RoadSection", "Road sections"),
+            ("RoadSegment", "Road segments"),
+            ("StructureInventory", "Structure inventories"),
+            ("FurnitureInventory", "Furniture inventories"),
+            ("BridgeDetail", "Bridge details"),
+            ("CulvertDetail", "Culvert details"),
+            ("FordDetail", "Ford details"),
+            ("RetainingWallDetail", "Retaining wall details"),
+            ("GabionWallDetail", "Gabion wall details"),
+        ),
+        "Surveys – Condition": (
+            ("RoadConditionSurvey", "Road condition surveys"),
+            ("StructureConditionSurvey", "Structure condition surveys"),
+            ("BridgeConditionSurvey", "Bridge condition surveys"),
+            ("CulvertConditionSurvey", "Culvert condition surveys"),
+            ("OtherStructureConditionSurvey", "Other structure condition surveys"),
+            ("FurnitureConditionSurvey", "Furniture condition surveys"),
+        ),
+        "Surveys – Severity & extent": (
+            ("RoadConditionDetailedSurvey", "Road condition detailed surveys"),
+            ("StructureConditionDetailedSurvey", "Structure condition detailed surveys"),
+            ("FurnitureConditionDetailedSurvey", "Furniture condition detailed surveys"),
+        ),
+        "Traffic Data": (
+            ("TrafficSurvey", "Traffic surveys"),
+            ("TrafficSurveySummary", "Traffic survey summaries"),
+            ("TrafficSurveyOverall", "Traffic surveys overall"),
+        ),
+        "Traffic Data – Details": (
+            ("TrafficCountRecord", "Traffic counts"),
+            ("TrafficCycleSummary", "Traffic cycle summaries"),
+            ("TrafficQC", "Traffic QC issues"),
+        ),
+        "Traffic Data – Lookups": (
+            ("PcuLookup", "PCU lookup entries"),
+            ("NightAdjustmentLookup", "Night adjustment lookup entries"),
+        ),
+        "Maintenance & planning": (
+            ("AnnualWorkPlan", "Annual work plans"),
+            ("StructureIntervention", "Structure interventions"),
+            ("RoadSectionIntervention", "Road section interventions"),
+            ("BenefitFactor", "Benefit factors"),
+            ("PrioritizationResult", "Prioritization results"),
+        ),
+        "Prioritization lookups": (
+            ("RoadLinkTypeLookup", "Road link types"),
+            ("BenefitCategory", "Benefit categories"),
+            ("BenefitCriterion", "Benefit criteria"),
+            ("BenefitCriterionScale", "Benefit criterion scales"),
+        ),
+        "Reference data": (
+            ("ConditionRating", "Condition ratings"),
+            ("QAStatus", "QA statuses"),
+            ("ActivityLookup", "Activity lookups"),
+            ("InterventionLookup", "Intervention lookups"),
+            ("UnitCost", "Unit costs"),
+            ("DistressType", "Distress types"),
+            ("DistressCondition", "Distress conditions"),
+            ("DistressActivity", "Distress activities"),
+            ("AdminZone", "Administrative zones"),
+            ("AdminWoreda", "Administrative woredas"),
+        ),
+        "Other models": (
+            ("Group", "Groups"),
+            ("User", "Users"),
+        ),
+    }
 
     @staticmethod
     def _normalise(name: str) -> str:
@@ -187,44 +163,50 @@ class GRMSAdminSite(AdminSite):
                     for key in ("name", "object_name")
                 ):
                     continue
-                model.setdefault("app_label", app_label)
-                for key in (model["object_name"], model["name"]):
-                    normalised = self._normalise(key)
-                    lookup.setdefault(normalised, []).append(model)
+                model_copy = dict(model)
+                model_copy.setdefault("app_label", app_label)
+                normalised = self._normalise(
+                    model_copy.get("object_name") or model_copy.get("name", "")
+                )
+                lookup.setdefault(normalised, []).append(model_copy)
         return lookup
-
-    def _all_models(self, app_list: List[Dict[str, object]]):
-        for app in app_list:
-            for model in app["models"]:
-                if any(
-                    self._normalise(model.get(key, "")) in self.EXCLUDED_MODEL_NAMES
-                    for key in ("name", "object_name")
-                ):
-                    continue
-                yield model
 
     def _build_sections(self, request) -> List[Dict[str, object]]:
         app_list = self.get_app_list(request)
         lookup = self._build_model_lookup(app_list)
         assigned: set[tuple[str | None, str]] = set()
         sections: List[Dict[str, object]] = []
-        for definition in self.SECTION_DEFINITIONS:
-            models: List[Dict[str, object]] = []
-            for target in definition.get("models", ()):  # type: ignore[arg-type]
-                for model in lookup.get(self._normalise(target), []):
+
+        for title, models in self.MENU_GROUPS.items():
+            grouped_models: List[Dict[str, object]] = []
+            for object_name, display_name in models:
+                for model in lookup.get(self._normalise(object_name), []):
                     identifier = (model.get("app_label"), model["object_name"])
-                    if identifier not in assigned:
-                        models.append(model)
-                        assigned.add(identifier)
-            if models:
-                sections.append({"title": definition["title"], "models": models})
-        leftovers = [
-            model
-            for model in sorted(self._all_models(app_list), key=lambda item: item["name"])
-            if (model.get("app_label"), model["object_name"]) not in assigned
-        ]
+                    if identifier in assigned:
+                        continue
+                    model_entry = dict(model)
+                    model_entry["name"] = display_name
+                    grouped_models.append(model_entry)
+                    assigned.add(identifier)
+            if grouped_models:
+                sections.append({"title": title, "models": grouped_models})
+
+        leftovers: List[Dict[str, object]] = []
+        other_section = next(
+            (section for section in sections if section["title"] == "Other models"),
+            None,
+        )
+        for models in lookup.values():
+            for model in models:
+                identifier = (model.get("app_label"), model["object_name"])
+                if identifier not in assigned:
+                    leftovers.append(model)
+                    assigned.add(identifier)
         if leftovers:
-            sections.append({"title": "Other models", "models": leftovers})
+            if other_section:
+                other_section["models"].extend(leftovers)
+            else:
+                sections.append({"title": "Other models", "models": leftovers})
         return sections
 
     def each_context(self, request):
