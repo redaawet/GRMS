@@ -12,6 +12,9 @@ class Migration(migrations.Migration):
     operations = [
         migrations.AlterModelOptions(
             name='trafficsurveyoverall',
-            options={'verbose_name': 'Traffic survey overall', 'verbose_name_plural': 'Traffic surveys overall'},
+            options={
+                'verbose_name': 'Traffic survey overall',
+                'verbose_name_plural': 'Road traffic summaries',
+            },
         ),
     ]
