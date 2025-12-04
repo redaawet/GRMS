@@ -15,7 +15,7 @@ from django.utils.html import format_html
 
 from . import models
 from .menu import MENU_GROUPS
-from traffic import models as traffic_models
+from traffic.models import TrafficSurveyOverall
 from .gis_fields import LineStringField, PointField
 from .services import map_services, prioritization
 from .utils import make_point, point_to_lat_lng, utm_to_wgs84, wgs84_to_utm
@@ -256,7 +256,7 @@ class GRMSAdminSite(AdminSite):
             "roads": models.Road.objects.count(),
             "sections": models.RoadSection.objects.count(),
             "segments": models.RoadSegment.objects.count(),
-            "latest_traffic_year": models.TrafficSurveySummary.objects.order_by(
+            "latest_traffic_year": TrafficSurveyOverall.objects.order_by(
                 "-fiscal_year"
             )
             .values_list("fiscal_year", flat=True)

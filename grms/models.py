@@ -372,6 +372,7 @@ class Road(models.Model):
         on_delete=models.PROTECT,
         related_name="roads",
         blank=True,
+        null=True,
         help_text="Functional road class used for connectivity/prioritization (Trunk, Link, Main access, Collector, Feeder).",
     )
     managing_authority = models.CharField(
