@@ -26,9 +26,12 @@ class Migration(migrations.Migration):
             name='link_type',
             field=models.ForeignKey(blank=True, null=True, help_text='Functional road class used for connectivity/prioritization (Trunk, Link, Main access, Collector, Feeder).', on_delete=django.db.models.deletion.PROTECT, related_name='roads', to='grms.roadlinktypelookup'),
         ),
-        migrations.AlterField(
-            model_name='roadsocioeconomic',
-            name='population_served',
-            field=models.PositiveIntegerField(default=0),
+        migrations.RunSQL(
+            "ALTER TABLE grms_roadsocioeconomic DROP CONSTRAINT IF EXISTS grms_roadsocioeconomic_population_served_65d455e0_check;",
+            migrations.RunSQL.noop,
+        ),
+        migrations.RunSQL(
+            sql="-- no-op: population_served constraint already exists",
+            reverse_sql="-- no-op",
         ),
     ]
