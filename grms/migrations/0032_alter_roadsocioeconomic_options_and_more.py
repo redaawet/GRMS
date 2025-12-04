@@ -24,8 +24,7 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name='road',
             name='link_type',
-            field=models.ForeignKey(blank=True, default=django.utils.timezone.now, help_text='Functional road class used for connectivity/prioritization (Trunk, Link, Main access, Collector, Feeder).', on_delete=django.db.models.deletion.PROTECT, related_name='roads', to='grms.roadlinktypelookup'),
-            preserve_default=False,
+            field=models.ForeignKey(blank=True, null=True, help_text='Functional road class used for connectivity/prioritization (Trunk, Link, Main access, Collector, Feeder).', on_delete=django.db.models.deletion.PROTECT, related_name='roads', to='grms.roadlinktypelookup'),
         ),
         migrations.AlterField(
             model_name='roadsocioeconomic',
