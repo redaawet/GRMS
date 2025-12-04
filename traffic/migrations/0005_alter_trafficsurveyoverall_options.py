@@ -6,7 +6,7 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("traffic", "0004_create_traffic_survey_overall_clean"),
+        ("traffic", "0004_road_level_traffic_overall"),
     ]
 
     operations = [
