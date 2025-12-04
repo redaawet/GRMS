@@ -31,7 +31,7 @@ class Migration(migrations.Migration):
             migrations.RunSQL.noop,
         ),
         migrations.RunSQL(
-            sql="-- no-op: population_served constraint already exists",
-            reverse_sql="-- no-op",
+            sql="SELECT 1;",
+            reverse_sql="SELECT 1;",
         ),
     ]
