@@ -25,15 +25,17 @@ MENU_GROUPS = {
         "Structure condition detailed surveys",
         "Furniture condition detailed surveys",
     ),
-    "Traffic Data": (
+    "Traffic Data – Surveys": (
         "TrafficSurvey",
+        "Traffic count records",
+        "Traffic cycle summaries",
+    ),
+    "Traffic Data – Derived Summaries": (
         "TrafficSurveySummary",
         "TrafficSurveyOverall",
         "TrafficForPrioritization",
     ),
     "Traffic Data – Details": (
-        "Traffic count records",
-        "Traffic cycle summaries",
         "Traffic QCs",
     ),
     "Traffic Data – Lookups": (
@@ -46,8 +48,6 @@ MENU_GROUPS = {
         "Road section interventions",
         "Benefit factors",
         "Prioritization results",
-    ),
-    "Prioritization lookups": (
         "Road link type lookups",
         "Benefit categories",
         "Benefit criteria",

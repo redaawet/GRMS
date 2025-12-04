@@ -250,21 +250,33 @@ class GRMSAdminSite(AdminSite):
     def index(self, request, extra_context=None):  # pragma: no cover - thin wrapper
         extra_context = extra_context or {}
         app_list = self.get_app_list(request)
-        extra_context["sections"] = self._build_sections(request)
-        extra_context["menu_groups"] = self._build_menu_groups(request, app_list)
-        extra_context["admin_kpis"] = {
-            "roads": models.Road.objects.count(),
-            "sections": models.RoadSection.objects.count(),
-            "segments": models.RoadSegment.objects.count(),
-            "latest_traffic_year": TrafficSurveyOverall.objects.order_by(
-                "-fiscal_year"
-            )
+        latest_year = (
+            TrafficSurveyOverall.objects.order_by("-fiscal_year")
             .values_list("fiscal_year", flat=True)
-            .first(),
-            "planned_interventions": models.RoadSectionIntervention.objects.count()
-            + models.StructureIntervention.objects.count(),
+            .first()
+        )
+        planned_count = models.RoadSectionIntervention.objects.count() + models.StructureIntervention.objects.count()
+
+        context = {
+            **extra_context,
+            "menu_groups": MENU_GROUPS,
+            "total_roads": models.Road.objects.count(),
+            "total_sections": models.RoadSection.objects.count(),
+            "total_segments": models.RoadSegment.objects.count(),
+            "latest_traffic_year": latest_year,
+            "planned_interventions": planned_count,
         }
-        return super().index(request, extra_context=extra_context)
+        context["sections"] = self._build_sections(request)
+        context["menu_groups"] = self._build_menu_groups(request, app_list)
+        context["admin_kpis"] = {
+            "roads": context["total_roads"],
+            "sections": context["total_sections"],
+            "segments": context["total_segments"],
+            "latest_traffic_year": context["latest_traffic_year"],
+            "planned_interventions": context["planned_interventions"],
+        }
+
+        return super().index(request, extra_context=context)
 
     def app_index(self, request, app_label, extra_context=None):
         """Keep navigation consistent by redirecting per-app views to the dashboard."""
