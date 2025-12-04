@@ -57,12 +57,9 @@ class GRMSAdminSiteTests(TestCase):
         request = self.factory.get("/admin/")
         request.user = self.user
 
-        original_definitions = grms_admin_site.SECTION_DEFINITIONS
-        custom_definitions = (
-            {"title": "Only roads", "models": ("Roads",)},
-        )
-        grms_admin_site.SECTION_DEFINITIONS = custom_definitions
-        self.addCleanup(setattr, grms_admin_site, "SECTION_DEFINITIONS", original_definitions)
+        original_groups = grms_admin_site.MENU_GROUPS
+        grms_admin_site.MENU_GROUPS = {"Only roads": (("Road", "Roads"),)}
+        self.addCleanup(setattr, grms_admin_site, "MENU_GROUPS", original_groups)
 
         sections = grms_admin_site._build_sections(request)
 
