@@ -116,6 +116,7 @@ body.grms-admin {
     position: sticky;
     top: 48px;
     width: var(--sidebar-width);
+    margin-left: var(--spacing-lg);
     background: var(--color-sidebar-bg);
     color: var(--color-sidebar-text);
     padding: var(--spacing-md);
@@ -236,6 +237,7 @@ body.grms-admin {
         position: fixed;
         left: 0;
         top: 48px;
+        margin-left: 0;
         transform: translateX(-100%);
         transition: transform 0.2s ease;
         height: calc(100vh - 48px);
