@@ -1,91 +1,69 @@
 {% extends "admin/base.html" %}
-{% load i18n %}
+{% load i18n static %}
 
 {% block title %}{{ site_title|default:_('Django site admin') }}{% endblock %}
 
-{% block branding %}
-<h1 id="site-name"><a href="{% url 'admin:index' %}">{{ site_header|default:_('Django administration') }}</a></h1>
-{% endblock %}
-
-{% block nav-global %}
-  <div class="nav-global-wrapper">
-    <a class="dashboard-link" href="{% url 'admin:index' %}">{% trans 'Dashboard' %}</a>
-  </div>
-{% endblock %}
-
-{% block breadcrumbs %}
-  {{ block.super }}
-  <div class="grms-back-link"><a href="{% url 'admin:index' %}">← {% trans 'Back to Dashboard' %}</a></div>
-{% endblock %}
+{% block bodyclass %}grms-admin {{ block.super }}{% endblock %}
 
 {% block extrastyle %}
   {{ block.super }}
-  
-  <style>
-    .nav-global-wrapper {
-      display: flex;
-      justify-content: flex-end;
-      align-items: center;
-      gap: 0.75rem;
-      padding: 0.25rem 1rem;
-      background: var(--body-bg);
-    }
+  <link rel="stylesheet" href="{% static 'grms/css/admin_overrides.css' %}">
+{% endblock %}
 
-    .nav-global-wrapper .dashboard-link {
-      padding: 0.35rem 0.75rem;
-      border-radius: 4px;
-      background: var(--accent);
-      color: #fff;
-      text-decoration: none;
-      font-weight: 600;
-    }
+{% block nav-sidebar %}
+  {% include "admin/_sidebar.html" %}
+{% endblock %}
 
-    .nav-global-wrapper .dashboard-link:hover,
-    .nav-global-wrapper .dashboard-link:focus-visible {
-      background: var(--hairline-color);
-      color: var(--body-fg);
-    }
+{% block header %}
+  <header id="header" class="grms-header">
+    <div class="grms-header-left">
+      <button id="grms-sidebar-toggle" type="button" aria-label="{% trans 'Toggle menu' %}">☰</button>
+      <a class="grms-logo" href="{% url 'admin:index' %}">{{ site_header|default:_('GRMS Administration') }}</a>
+    </div>
+    <div class="grms-header-center">
+      <form class="grms-global-search" action="{% url 'admin:index' %}" method="get" role="search">
+        <label class="visually-hidden" for="grms-global-search">{% trans 'Search' %}</label>
+        <input
+          id="grms-global-search"
+          type="search"
+          name="q"
+          placeholder="{% trans 'Search admin' %}"
+          aria-label="{% trans 'Search admin' %}"
+        />
+      </form>
+    </div>
+    <div class="grms-header-right">
+      <div class="grms-user-menu">
+        <span class="grms-username">{% firstof request.user.get_short_name request.user.get_username %}</span>
+        <div class="grms-user-actions">
+          {% if site_url %}
+            <a href="{{ site_url }}">{% trans 'View site' %}</a>
+          {% endif %}
+          {% if request.user.has_usable_password %}
+            <a href="{% url 'admin:password_change' %}">{% trans 'Change password' %}</a>
+          {% endif %}
+          <form method="post" action="{% url 'admin:logout' %}">
+            {% csrf_token %}
+            <button type="submit">{% trans 'Log out' %}</button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </header>
+{% endblock %}
 
-    /* Keep the dashboard link styled consistently across pages */
-    .visually-hidden {
-      position: absolute;
-      width: 1px;
-      height: 1px;
-      padding: 0;
-      margin: -1px;
-      overflow: hidden;
-      clip: rect(0, 0, 0, 0);
-      border: 0;
-    }
+{% block nav-breadcrumbs %}
+  <nav id="grms-breadcrumbs" aria-label="{% trans 'Breadcrumbs' %}">
+    {% block breadcrumbs %}
+      <div class="breadcrumbs">
+        <a href="{% url 'admin:index' %}">{% trans 'Home' %}</a>
+        {% if title %} &rsaquo; {{ title }}{% endif %}
+      </div>
+    {% endblock %}
+  </nav>
+{% endblock %}
 
-    /* Restore default changelist layout spacing */
-    body.change-list #toolbar {
-      display: flex;
-      align-items: center;
-      margin-bottom: 1rem;
-    }
-
-    body.change-list #changelist-form {
-      clear: both;
-    }
-
-    .grms-back-link {
-      margin: 0.5rem 1rem;
-    }
-
-    .grms-back-link a {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.35rem;
-      color: var(--link-fg);
-      font-weight: 600;
-      text-decoration: none;
-    }
-
-    .grms-back-link a:hover,
-    .grms-back-link a:focus-visible {
-      text-decoration: underline;
-    }
-  </style>
-
+{% block footer %}
+  {{ block.super }}
+  <script src="{% static 'grms/js/admin_sidebar.js' %}"></script>
 {% endblock %}

@@ -14,6 +14,7 @@ from django.urls import path, reverse
 from django.utils.html import format_html
 
 from . import models
+from .menu import MENU_GROUPS
 from traffic import models as traffic_models
 from .gis_fields import LineStringField, PointField
 from .services import map_services, prioritization
@@ -209,14 +210,60 @@ class GRMSAdminSite(AdminSite):
                 sections.append({"title": "Other models", "models": leftovers})
         return sections
 
+    def _build_menu_groups(
+        self, request, app_list: List[Dict[str, object]] | None = None
+    ) -> Dict[str, List[Dict[str, object]]]:
+        app_list = app_list or self.get_app_list(request)
+        lookup = self._build_model_lookup(app_list)
+        assigned: set[tuple[str | None, str]] = set()
+        menu_groups: Dict[str, List[Dict[str, object]]] = {}
+
+        for group_name, targets in MENU_GROUPS.items():
+            items: List[Dict[str, object]] = []
+            for target in targets:
+                for model in lookup.get(self._normalise(target), []):
+                    identifier = (model.get("app_label"), model["object_name"])
+                    if identifier in assigned:
+                        continue
+                    url = model.get("admin_url")
+                    if not url:
+                        continue
+                    items.append(
+                        {
+                            "url": url,
+                            "label": model.get("name", model["object_name"]),
+                            "active": request.path.startswith(url),
+                        }
+                    )
+                    assigned.add(identifier)
+            if items:
+                menu_groups[group_name] = items
+
+        return menu_groups
+
     def each_context(self, request):
         context = super().each_context(request)
         context["sections"] = self._build_sections(request)
+        context["menu_groups"] = self._build_menu_groups(request)
         return context
 
     def index(self, request, extra_context=None):  # pragma: no cover - thin wrapper
         extra_context = extra_context or {}
+        app_list = self.get_app_list(request)
         extra_context["sections"] = self._build_sections(request)
+        extra_context["menu_groups"] = self._build_menu_groups(request, app_list)
+        extra_context["admin_kpis"] = {
+            "roads": models.Road.objects.count(),
+            "sections": models.RoadSection.objects.count(),
+            "segments": models.RoadSegment.objects.count(),
+            "latest_traffic_year": models.TrafficSurveySummary.objects.order_by(
+                "-fiscal_year"
+            )
+            .values_list("fiscal_year", flat=True)
+            .first(),
+            "planned_interventions": models.RoadSectionIntervention.objects.count()
+            + models.StructureIntervention.objects.count(),
+        }
         return super().index(request, extra_context=extra_context)
 
     def app_index(self, request, app_label, extra_context=None):
@@ -487,7 +534,7 @@ class RoadSectionAdmin(admin.ModelAdmin):
         "length_km",
         "surface_type",
     )
-    list_filter = ("surface_type", "road__admin_zone")
+    list_filter = ("road", "admin_zone_override", "admin_woreda_override", "surface_type")
     search_fields = ("road__road_name_from", "road__road_name_to", "name")
     readonly_fields = (
         "length_km",
@@ -703,6 +750,7 @@ class RoadSectionAdmin(admin.ModelAdmin):
 class RoadSegmentAdmin(admin.ModelAdmin):
     list_display = ("section", "station_from_km", "station_to_km", "cross_section")
     search_fields = ("section__road__road_name_from", "section__road__road_name_to")
+    list_filter = ("section", "terrain_longitudinal", "terrain_transverse")
     change_form_template = "admin/grms/roadsegment/change_form.html"
     fieldsets = (
         ("Identification", {"fields": ("section",)}),
@@ -1432,10 +1480,50 @@ class PrioritizationResultAdmin(admin.ModelAdmin):
     def has_change_permission(self, request, obj=None):
         return False if obj else super().has_change_permission(request, obj)
 
+
+@admin.register(models.AnnualWorkPlan, site=grms_admin_site)
+class AnnualWorkPlanAdmin(admin.ModelAdmin):
+    list_display = ("road", "fiscal_year", "priority_rank", "status", "total_budget")
+    list_filter = ("fiscal_year", "road__admin_zone")
+    search_fields = ("road__road_identifier", "road__road_name_from", "road__road_name_to")
+
+
+@admin.register(models.StructureIntervention, site=grms_admin_site)
+class StructureInterventionAdmin(admin.ModelAdmin):
+    list_display = (
+        "structure",
+        "intervention",
+        "intervention_year",
+        "status",
+        "estimated_cost",
+    )
+    list_filter = ("intervention_year", "structure__road__admin_zone")
+    search_fields = (
+        "structure__road__road_identifier",
+        "structure__road__road_name_from",
+        "structure__road__road_name_to",
+    )
+
+
+@admin.register(models.RoadSectionIntervention, site=grms_admin_site)
+class RoadSectionInterventionAdmin(admin.ModelAdmin):
+    list_display = (
+        "section",
+        "intervention",
+        "intervention_year",
+        "status",
+        "estimated_cost",
+    )
+    list_filter = ("intervention_year", "section__road__admin_zone")
+    search_fields = (
+        "section__road__road_identifier",
+        "section__road__road_name_from",
+        "section__road__road_name_to",
+    )
+
 # Register supporting models without custom admins
 for model in [
     models.QAStatus,
-    models.AnnualWorkPlan,
     models.ActivityLookup,
     models.DistressType,
     models.DistressCondition,
@@ -1446,7 +1534,5 @@ for model in [
     models.FordDetail,
     models.RetainingWallDetail,
     models.GabionWallDetail,
-    models.StructureIntervention,
-    models.RoadSectionIntervention,
 ]:
     grms_admin_site.register(model)
