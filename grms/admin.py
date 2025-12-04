@@ -8,6 +8,7 @@ from decimal import Decimal, ROUND_HALF_UP
 from django import forms
 from django.contrib import admin
 from django.contrib.admin import AdminSite
+from django.template.response import TemplateResponse
 from django.http import JsonResponse
 from django.shortcuts import redirect
 from django.urls import path, reverse
@@ -247,36 +248,50 @@ class GRMSAdminSite(AdminSite):
         context["menu_groups"] = self._build_menu_groups(request)
         return context
 
-    def index(self, request, extra_context=None):  # pragma: no cover - thin wrapper
-        extra_context = extra_context or {}
-        app_list = self.get_app_list(request)
-        latest_year = (
-            TrafficSurveyOverall.objects.order_by("-fiscal_year")
-            .values_list("fiscal_year", flat=True)
-            .first()
-        )
-        planned_count = models.RoadSectionIntervention.objects.count() + models.StructureIntervention.objects.count()
+    def index(self, request, extra_context=None):
+        """
+        Override the admin index page to show all grouped menu items exactly
+        as defined in MENU_GROUPS.
+        """
+        from django.contrib.admin.sites import all_sites
+
+        # Build grouped models for dashboard
+        app_dict = {}
+        for group_name, model_labels in MENU_GROUPS.items():
+            items = []
+            for model_label in model_labels:
+                model = self._registry.get(self._get_model_from_label(model_label))
+                if not model:
+                    continue
+                model_info = {
+                    "name": model_label,
+                    "object_name": model.model._meta.model_name,
+                    "admin_url": f"{model.model._meta.app_label}/{model.model._meta.model_name}/",
+                }
+                items.append(model_info)
+
+            if items:
+                app_dict[group_name] = items
 
         context = {
-            **extra_context,
-            "menu_groups": MENU_GROUPS,
-            "total_roads": models.Road.objects.count(),
-            "total_sections": models.RoadSection.objects.count(),
-            "total_segments": models.RoadSegment.objects.count(),
-            "latest_traffic_year": latest_year,
-            "planned_interventions": planned_count,
-        }
-        context["sections"] = self._build_sections(request)
-        context["menu_groups"] = self._build_menu_groups(request, app_list)
-        context["admin_kpis"] = {
-            "roads": context["total_roads"],
-            "sections": context["total_sections"],
-            "segments": context["total_segments"],
-            "latest_traffic_year": context["latest_traffic_year"],
-            "planned_interventions": context["planned_interventions"],
+            **self.each_context(request),
+            "title": "Gravel Road Management System",
+            "app_list": app_dict,
         }
 
-        return super().index(request, extra_context=context)
+        return TemplateResponse(request, "admin/index.html", context)
+
+    def _get_model_from_label(self, label):
+        """
+        Resolve a label in MENU_GROUPS to a registered model class.
+        For example 'Roads', 'TrafficSurvey', 'PCU lookups', etc.
+        """
+        for model, admin_obj in self._registry.items():
+            verbose = getattr(model._meta, "verbose_name", "")
+            verbose_plural = getattr(model._meta, "verbose_name_plural", "")
+            if label in (verbose, verbose_plural, model.__name__):
+                return model
+        return None
 
     def app_index(self, request, app_label, extra_context=None):
         """Keep navigation consistent by redirecting per-app views to the dashboard."""
