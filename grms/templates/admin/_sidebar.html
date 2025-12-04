@@ -1,5 +1,5 @@
 {% load i18n %}
-{% with menu_groups|default:{} as menu %}
+{% with menu=menu_groups %}
 <nav id="grms-sidebar">
   {% for group_key, group_items in menu.items %}
     <div class="grms-sidebar-group" data-group="{{ group_key }}">
