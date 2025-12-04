@@ -30,9 +30,8 @@ class Migration(migrations.Migration):
             "ALTER TABLE grms_roadsocioeconomic DROP CONSTRAINT IF EXISTS grms_roadsocioeconomic_population_served_65d455e0_check;",
             migrations.RunSQL.noop,
         ),
-        migrations.AlterField(
-            model_name='roadsocioeconomic',
-            name='population_served',
-            field=models.PositiveIntegerField(default=0),
+        migrations.RunSQL(
+            sql="-- no-op: population_served constraint already exists",
+            reverse_sql="-- no-op",
         ),
     ]
