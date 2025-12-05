@@ -2,306 +2,114 @@
 {% load static %}
 
 {% block extrastyle %}
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet@2.0.0-alpha.1/dist/leaflet.css" />
 <style>
 .dashboard-wrapper {
     max-width: 1400px;
     margin: 0 auto;
     padding: 1.5rem 0 2rem;
-    color: #0f172a;
 }
-
-.dashboard-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 1rem;
-    margin-bottom: 1.5rem;
-    flex-wrap: wrap;
-}
-
-.dashboard-header h1 {
-    font-size: 1.75rem;
-    font-weight: 700;
-    margin: 0;
-}
-
-.dashboard-subtitle {
-    color: #475569;
-    font-size: 0.95rem;
-    margin: 0;
-}
-
 .kpi-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
     gap: 1rem;
-    margin-bottom: 1.5rem;
+    margin-bottom: 2rem;
 }
-
 .kpi-card {
-    background: #ffffff;
+    background: #fff;
     border: 1px solid #e2e8f0;
     border-radius: 12px;
-    padding: 1rem 1.1rem;
-    box-shadow: 0 10px 25px -20px rgba(15, 23, 42, 0.55);
-    display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
+    padding: 1rem 1.25rem;
+    box-shadow: 0 8px 20px -10px rgba(0,0,0,0.12);
 }
-
-.kpi-label {
-    color: #64748b;
-    font-size: 0.9rem;
-    margin: 0;
-}
-
-.kpi-value {
-    font-size: 1.8rem;
-    font-weight: 700;
-    margin: 0;
-}
-
-.kpi-meta {
-    color: #0ea5e9;
-    font-size: 0.9rem;
-    font-weight: 600;
-}
-
-.section-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-    gap: 1rem;
+.panel {
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 1rem;
     margin-bottom: 1.5rem;
 }
-
-.panel {
-    background: #ffffff;
-    border: 1px solid #e2e8f0;
-    border-radius: 12px;
-    padding: 1rem 1.1rem;
-    box-shadow: 0 10px 25px -20px rgba(15, 23, 42, 0.55);
-}
-
-.panel h2 {
-    margin: 0 0 0.75rem;
-    font-size: 1.15rem;
-    font-weight: 700;
-    color: #0f172a;
-}
-
 .chart-container {
-    position: relative;
     height: 260px;
 }
-
-#road-map {
-    width: 100%;
-    height: 320px;
-    border-radius: 10px;
-    border: 1px solid #e2e8f0;
-}
-
 .menu-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
     gap: 1rem;
 }
-
 .menu-group {
-    background: #ffffff;
+    background: #fff;
     border: 1px solid #e2e8f0;
     border-radius: 12px;
-    padding: 1rem 1.1rem;
-    box-shadow: 0 10px 25px -20px rgba(15, 23, 42, 0.55);
-}
-
-.menu-group h2 {
-    margin: 0 0 0.65rem;
-    font-size: 1.05rem;
-    font-weight: 700;
-    color: #0f172a;
-}
-
-.menu-group ul {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-    display: grid;
-    gap: 0.4rem;
-}
-
-.menu-group a {
-    text-decoration: none;
-    color: #0ea5e9;
-    font-weight: 600;
-}
-
-.menu-group a:hover {
-    color: #0369a1;
-    text-decoration: underline;
-}
-
-@media (max-width: 768px) {
-    .dashboard-wrapper {
-        padding: 1rem 0;
-    }
-
-    .kpi-card,
-    .panel,
-    .menu-group {
-        padding: 0.9rem 1rem;
-    }
+    padding: 1rem;
 }
 </style>
 {% endblock %}
 
 {% block extrahead %}
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.3.0/dist/chart.umd.min.js"></script>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://unpkg.com/leaflet@2.0.0-alpha.1/dist/leaflet.js"></script>
 {% endblock %}
 
 {% block content %}
 <div class="dashboard-wrapper">
-    <div class="dashboard-header">
-        <div>
-            <h1>Gravel Road Management Dashboard</h1>
-            <p class="dashboard-subtitle">Key metrics, traffic trends, and quick links to manage GRMS data.</p>
-        </div>
-    </div>
+
+    <h1>Gravel Road Management Dashboard</h1>
+    <p>Key metrics, traffic trends, and quick links to manage GRMS data.</p>
 
     <div class="kpi-grid">
-        <div class="kpi-card">
-            <p class="kpi-label">Total Roads</p>
-            <p class="kpi-value">{{ total_roads|default:"0" }}</p>
-        </div>
-        <div class="kpi-card">
-            <p class="kpi-label">Road Sections</p>
-            <p class="kpi-value">{{ total_sections|default:"0" }}</p>
-        </div>
-        <div class="kpi-card">
-            <p class="kpi-label">Road Segments</p>
-            <p class="kpi-value">{{ total_segments|default:"0" }}</p>
-        </div>
-        <div class="kpi-card">
-            <p class="kpi-label">Planned Interventions</p>
-            <p class="kpi-value">{{ planned_interventions|default:"0" }}</p>
-        </div>
-        <div class="kpi-card">
-            <p class="kpi-label">Latest Traffic Year</p>
-            <p class="kpi-value">{{ latest_traffic_year|default:"-" }}</p>
+        <div class="kpi-card"><strong>Total Roads</strong><br>{{ total_roads }}</div>
+        <div class="kpi-card"><strong>Road Sections</strong><br>{{ total_sections }}</div>
+        <div class="kpi-card"><strong>Road Segments</strong><br>{{ total_segments }}</div>
+        <div class="kpi-card"><strong>Planned Interventions</strong><br>{{ planned_interventions }}</div>
+        <div class="kpi-card"><strong>Latest Traffic Year</strong><br>{{ latest_traffic_year }}</div>
+    </div>
+
+    <div class="panel">
+        <h2>Surface Type Distribution</h2>
+        <div class="chart-container">
+            <canvas id="surfaceChart"></canvas>
         </div>
     </div>
 
-    <div class="section-grid">
-        <div class="panel">
-            <h2>Surface Type Distribution</h2>
-            <div class="chart-container">
-                <canvas id="surfaceChart"></canvas>
-            </div>
-        </div>
-        <div class="panel">
-            <h2>Traffic Trend (ADT)</h2>
-            <div class="chart-container">
-                <canvas id="trafficChart"></canvas>
-            </div>
+    <div class="panel">
+        <h2>Traffic Trend (ADT)</h2>
+        <div class="chart-container">
+            <canvas id="trafficChart"></canvas>
         </div>
     </div>
 
-    <div class="panel" style="margin-bottom: 1.5rem;">
+    <div class="panel">
         <h2>Road Network Map</h2>
-        <div id="road-map"></div>
+        <div id="road-map" style="width:100%; height:320px;"></div>
     </div>
 
     <div class="menu-grid">
         {% for group, items in menu_groups.items %}
         <div class="menu-group">
-            <h2>{{ group }}</h2>
+            <h3>{{ group }}</h3>
             <ul>
                 {% for item in items %}
-                <li>
-                  <a href="{{ item.url }}">{{ item.label }}</a>
-                </li>
+                    <li><a href="{{ item.url }}">{{ item.label }}</a></li>
                 {% endfor %}
             </ul>
         </div>
         {% endfor %}
     </div>
+
 </div>
 
 <script>
-(function() {
-    const surfaceCtx = document.getElementById('surfaceChart');
-    const trafficCtx = document.getElementById('trafficChart');
-    const surfaceData = [
-        {{ asphalt_count|default:0 }},
-        {{ gravel_count|default:0 }},
-        {{ dirt_count|default:0 }}
-    ];
-    const surfaceLabels = ['Asphalt/Paved', 'Gravel', 'Earth/Dirt'];
-    if (surfaceCtx) {
-        new Chart(surfaceCtx, {
-            type: 'pie',
-            data: {
-                labels: surfaceLabels,
-                datasets: [{
-                    data: surfaceData,
-                    backgroundColor: ['#3b82f6', '#10b981', '#f59e0b'],
-                    borderWidth: 1,
-                }]
-            },
-            options: {
-                plugins: {
-                    legend: {
-                        position: 'bottom',
-                    }
-                }
-            }
-        });
+new Chart(document.getElementById('surfaceChart'), {
+    type: 'pie',
+    data: {
+        labels: ["Asphalt", "Gravel", "Dirt"],
+        datasets: [{
+            data: [{{ asphalt_count }}, {{ gravel_count }}, {{ dirt_count }}],
+            backgroundColor: ['#3b82f6','#10b981','#f59e0b']
+        }]
     }
-
-    const trafficYears = {{ traffic_years|default:"[]"|safe }};
-    const trafficValues = {{ traffic_values|default:"[]"|safe }};
-    if (trafficCtx) {
-        new Chart(trafficCtx, {
-            type: 'line',
-            data: {
-                labels: trafficYears,
-                datasets: [{
-                    label: 'Average Daily Traffic (ADT)',
-                    data: trafficValues,
-                    fill: false,
-                    borderColor: '#0ea5e9',
-                    backgroundColor: '#0ea5e9',
-                    tension: 0.3,
-                    pointRadius: 4,
-                }]
-            },
-            options: {
-                scales: {
-                    y: {
-                        beginAtZero: true
-                    }
-                }
-            }
-        });
-    }
-
-    const roadLocations = JSON.parse('{{ road_locations|default:"[]"|escapejs }}');
-    if (document.getElementById('road-map')) {
-        const defaultView = roadLocations.length ? [roadLocations[0].lat, roadLocations[0].lon] : [9.145, 40.489673];
-        const map = L.map('road-map').setView(defaultView, 6);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            maxZoom: 19,
-            attribution: '© OpenStreetMap'
-        }).addTo(map);
-
-        roadLocations.forEach((loc) => {
-            if (loc.lat && loc.lon) {
-                L.marker([loc.lat, loc.lon]).addTo(map).bindPopup(loc.name || 'Road');
-            }
-        });
-    }
-})();
+});
 </script>
+
 {% endblock %}
