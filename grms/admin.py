@@ -250,23 +250,30 @@ class GRMSAdminSite(AdminSite):
 
     def index(self, request, extra_context=None):
         """
-        Override the admin index page to show all grouped menu items exactly
-        as defined in MENU_GROUPS.
+        Corrected dashboard index that renders ALL MENU_GROUPS sections.
+        Handles (object_name, display_name) pairs properly.
         """
-        from django.contrib.admin.sites import all_sites
-
-        # Build grouped models for dashboard
         app_dict = {}
-        for group_name, model_labels in MENU_GROUPS.items():
+
+        # MENU_GROUPS entries are structured as:
+        #   ("ModelClassName", "Human Display Label")
+        for group_name, model_pairs in self.MENU_GROUPS.items():
             items = []
-            for model_label in model_labels:
-                model = self._registry.get(self._get_model_from_label(model_label))
+
+            for object_name, display_name in model_pairs:
+                # Resolve to real model class
+                model = self._get_model_from_label(object_name)
                 if not model:
                     continue
+
+                admin_obj = self._registry.get(model)
+                if not admin_obj:
+                    continue
+
                 model_info = {
-                    "name": model_label,
-                    "object_name": model.model._meta.model_name,
-                    "admin_url": f"{model.model._meta.app_label}/{model.model._meta.model_name}/",
+                    "name": display_name,
+                    "object_name": model._meta.model_name,
+                    "admin_url": f"{model._meta.app_label}/{model._meta.model_name}/",
                 }
                 items.append(model_info)
 
