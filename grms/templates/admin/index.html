@@ -214,33 +214,18 @@
     </div>
 
     <div class="menu-grid">
-        {% if menu_groups %}
-            {% for group, items in menu_groups.items %}
-            <div class="menu-group">
-                <h2>{{ group }}</h2>
-                <ul>
-                    {% for item in items %}
-                    <li><a href="{{ item.url }}">{{ item.label }}</a></li>
-                    {% endfor %}
-                </ul>
-            </div>
-            {% endfor %}
-        {% else %}
-            {% for group, items in MENU_GROUPS.items %}
-            <div class="menu-group">
-                <h2>{{ group }}</h2>
-                <ul>
-                    {% for model_name, label in items %}
-                    <li>
-                        {% with view_name='admin:grms_'|add:model_name|lower|add:'_changelist' %}
-                        <a href="{% url view_name %}">{{ label }}</a>
-                        {% endwith %}
-                    </li>
-                    {% endfor %}
-                </ul>
-            </div>
-            {% endfor %}
-        {% endif %}
+        {% for group, items in menu_groups.items %}
+        <div class="menu-group">
+            <h2>{{ group }}</h2>
+            <ul>
+                {% for item in items %}
+                <li>
+                  <a href="{{ item.url }}">{{ item.label }}</a>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endfor %}
     </div>
 </div>
 

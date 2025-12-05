@@ -70,7 +70,7 @@ class GRMSAdminSite(AdminSite):
     site_header = "GRMS Administration"
     site_title = "GRMS Admin"
     index_title = "Gravel Road Management System"
-    index_template = "admin/grms_index.html"
+    index_template = "admin/index.html"
     site_url = "/"
 
     EXCLUDED_MODEL_NAMES = {
