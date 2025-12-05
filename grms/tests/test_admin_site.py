@@ -20,7 +20,7 @@ class GRMSAdminSiteTests(TestCase):
         self.assertEqual(response.status_code, 200)
 
         rendered_templates = {template.name for template in response.templates if template.name}
-        self.assertIn("admin/grms_index.html", rendered_templates)
+        self.assertIn("admin/index.html", rendered_templates)
 
         sections = response.context["sections"]
         self.assertTrue(sections)
