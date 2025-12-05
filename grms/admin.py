@@ -82,7 +82,19 @@ class GRMSAdminSite(AdminSite):
 
     @staticmethod
     def _normalise(name: str) -> str:
-        return name.replace("_", " ").strip().lower()
+        """
+        Normalize labels to guarantee consistent matching between:
+        - MENU_GROUPS entries
+        - Django model object_name
+        - Verbose names
+
+        Removes spaces, underscores, and lowercases everything.
+        Example:
+            "RoadSection", "Road Section", "road_section" → "roadsection"
+        """
+        if not name:
+            return ""
+        return name.replace("_", "").replace(" ", "").strip().lower()
 
     @staticmethod
     def _parse_menu_target(target: str | Tuple[str, str]) -> Tuple[str, str]:
@@ -107,9 +119,8 @@ class GRMSAdminSite(AdminSite):
                     continue
                 model_copy = dict(model)
                 model_copy.setdefault("app_label", app_label)
-                normalised = self._normalise(
-                    model_copy.get("object_name") or model_copy.get("name", "")
-                )
+                raw_name = model_copy.get("object_name") or model_copy.get("name", "")
+                normalised = self._normalise(raw_name)
                 lookup.setdefault(normalised, []).append(model_copy)
         return lookup
 
@@ -164,13 +175,28 @@ class GRMSAdminSite(AdminSite):
             items: List[Dict[str, object]] = []
             for target in targets:
                 lookup_label, display_name = self._parse_menu_target(target)
-                for model in lookup.get(self._normalise(lookup_label), []):
+                key = self._normalise(lookup_label)
+
+                # Find matching models
+                models_for_label = lookup.get(key, [])
+                if not models_for_label:
+                    continue
+
+                for model in models_for_label:
                     identifier = (model.get("app_label"), model["object_name"])
                     if identifier in assigned:
                         continue
+
+                    # Ensure admin_url is available; fallback if missing
                     url = model.get("admin_url")
                     if not url:
-                        continue
+                        try:
+                            url = reverse(
+                                f"admin:{model['app_label']}_{model['object_name'].lower()}_changelist"
+                            )
+                        except Exception:
+                            continue
+
                     items.append(
                         {
                             "url": url,
@@ -179,6 +205,7 @@ class GRMSAdminSite(AdminSite):
                         }
                     )
                     assigned.add(identifier)
+
             if items:
                 menu_groups[group_name] = items
 
