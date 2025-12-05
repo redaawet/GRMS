@@ -1,0 +1,76 @@
+<div id="grms-sidebar" class="grms-sidebar">
+
+  {% macro group(title, items) %}
+  <div class="sidebar-group">
+      <h4 class="sidebar-title">{{ title }}</h4>
+      <ul class="sidebar-list">
+          {% for label, url in items %}
+              <li><a href="{{ url }}">{{ label }}</a></li>
+          {% endfor %}
+      </ul>
+  </div>
+  {% endmacro %}
+
+  {{ group("Core Road Inventory", [
+      ("Roads", "/admin/grms/road/"),
+      ("Road socio-economic", "/admin/grms/roadsocioeconomic/"),
+      ("Road sections", "/admin/grms/roadsection/"),
+      ("Road segments", "/admin/grms/roadsegment/"),
+      ("Structure inventories", "/admin/grms/structureinventory/"),
+      ("Furniture inventories", "/admin/grms/furnitureinventory/"),
+  ]) }}
+
+  {{ group("Structure Details", [
+      ("Bridge details", "/admin/grms/bridgedetail/"),
+      ("Culvert details", "/admin/grms/culvertdetail/"),
+      ("Ford details", "/admin/grms/forddetail/"),
+      ("Retaining wall details", "/admin/grms/retainingwalldetail/"),
+      ("Gabion wall details", "/admin/grms/gabionwalldetail/"),
+  ]) }}
+
+  {{ group("Condition Surveys", [
+      ("Road condition surveys", "/admin/grms/roadconditionsurvey/"),
+      ("Structure condition surveys", "/admin/grms/structureconditionsurvey/"),
+      ("Bridge condition surveys", "/admin/grms/bridgeconditionsurvey/"),
+      ("Culvert condition surveys", "/admin/grms/culvertconditionsurvey/"),
+      ("Other structure condition surveys", "/admin/grms/otherstructureconditionsurvey/"),
+      ("Furniture condition surveys", "/admin/grms/furnitureconditionsurvey/"),
+  ]) }}
+
+  {{ group("Detailed Distress Surveys", [
+      ("Road condition detailed surveys", "/admin/grms/roadconditiondetailedsurvey/"),
+      ("Structure condition detailed surveys", "/admin/grms/structureconditiondetailedsurvey/"),
+      ("Furniture condition detailed surveys", "/admin/grms/furnitureconditiondetailedsurvey/"),
+  ]) }}
+
+  {{ group("Traffic & Transport Data", [
+      ("Traffic surveys", "/admin/grms/trafficsurvey/"),
+      ("Night adjustment lookup entries", "/admin/grms/nightadjustmentlookup/"),
+      ("Traffic cycle summaries", "/admin/grms/trafficcyclesummary/"),
+      ("Traffic survey summaries", "/admin/grms/trafficsurveysummary/"),
+  ]) }}
+
+  {{ group("Maintenance Planning & Prioritization", [
+      ("Road section interventions", "/admin/grms/roadsectionintervention/"),
+      ("Structure interventions", "/admin/grms/structureintervention/"),
+      ("Annual work plans", "/admin/grms/annualworkplan/"),
+      ("Benefit factors", "/admin/grms/benefitfactor/"),
+      ("Prioritization results", "/admin/grms/prioritizationresult/"),
+  ]) }}
+
+  {{ group("Reference & Lookup Tables", [
+      ("Condition ratings", "/admin/grms/conditionrating/"),
+      ("QA statuses", "/admin/grms/qastatus/"),
+      ("Activity lookups", "/admin/grms/activitylookup/"),
+      ("Intervention lookups", "/admin/grms/interventionlookup/"),
+      ("Unit costs", "/admin/grms/unitcost/"),
+      ("Distress types", "/admin/grms/distresstype/"),
+      ("Distress conditions", "/admin/grms/distresscondition/"),
+  ]) }}
+
+  {{ group("System Administration", [
+      ("Users", "/admin/auth/user/"),
+      ("Groups", "/admin/auth/group/"),
+  ]) }}
+
+</div>

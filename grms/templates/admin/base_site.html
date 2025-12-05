@@ -1,7 +1,18 @@
 {% extends "admin/base.html" %}
 {% load static %}
-
 {% block extrastyle %}
 <link rel="stylesheet" href="{% static 'grms/dashboard.css' %}">
 {{ block.super }}
+{% endblock %}
+
+{% block content %}
+<div class="layout">
+    <aside class="sidebar">
+        {% include "admin/sidebar_menu.html" %}
+    </aside>
+
+    <main class="main-content">
+        {{ block.super }}
+    </main>
+</div>
 {% endblock %}

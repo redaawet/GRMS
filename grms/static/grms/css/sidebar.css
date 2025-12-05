@@ -1,0 +1,34 @@
+.layout {
+  display: flex;
+}
+.sidebar {
+  width: 280px;
+  background: #0f172a;
+  color: #fff;
+  height: 100vh;
+  overflow-y: auto;
+  padding: 15px;
+}
+.sidebar-title {
+  font-size: 14px;
+  font-weight: 700;
+  margin-top: 20px;
+  color: #38bdf8;
+}
+.sidebar-list {
+  list-style:none;
+  padding-left: 10px;
+}
+.sidebar-list li a {
+  display: block;
+  padding: 4px 0;
+  color: #e2e8f0;
+  text-decoration:none;
+}
+.sidebar-list li a:hover {
+  color: #38bdf8;
+}
+.main-content {
+  flex:1;
+  padding: 20px;
+}
