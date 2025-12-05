@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from typing import Dict, List, Sequence
+from typing import Dict, List, Sequence, Tuple
 
 from decimal import Decimal, ROUND_HALF_UP
 
@@ -15,7 +15,7 @@ from django.urls import path, reverse
 from django.utils.html import format_html
 
 from . import models
-from .menu import MENU_GROUPS
+from .menu import MENU_GROUPS as DEFAULT_MENU_GROUPS
 from traffic.models import TrafficSurveyOverall
 from .gis_fields import LineStringField, PointField
 from .services import map_services, prioritization
@@ -77,81 +77,20 @@ class GRMSAdminSite(AdminSite):
         "trafficforprioritization",
     }
 
-    MENU_GROUPS: Dict[str, Sequence[tuple[str, str]]] = {
-        "Inventories": (
-            ("Road", "Roads"),
-            ("RoadSocioEconomic", "Road socio-economic"),
-            ("RoadSection", "Road sections"),
-            ("RoadSegment", "Road segments"),
-            ("StructureInventory", "Structure inventories"),
-            ("FurnitureInventory", "Furniture inventories"),
-            ("BridgeDetail", "Bridge details"),
-            ("CulvertDetail", "Culvert details"),
-            ("FordDetail", "Ford details"),
-            ("RetainingWallDetail", "Retaining wall details"),
-            ("GabionWallDetail", "Gabion wall details"),
-        ),
-        "Surveys – Condition": (
-            ("RoadConditionSurvey", "Road condition surveys"),
-            ("StructureConditionSurvey", "Structure condition surveys"),
-            ("BridgeConditionSurvey", "Bridge condition surveys"),
-            ("CulvertConditionSurvey", "Culvert condition surveys"),
-            ("OtherStructureConditionSurvey", "Other structure condition surveys"),
-            ("FurnitureConditionSurvey", "Furniture condition surveys"),
-        ),
-        "Surveys – Severity & extent": (
-            ("RoadConditionDetailedSurvey", "Road condition detailed surveys"),
-            ("StructureConditionDetailedSurvey", "Structure condition detailed surveys"),
-            ("FurnitureConditionDetailedSurvey", "Furniture condition detailed surveys"),
-        ),
-        "Traffic Data": (
-            ("TrafficSurvey", "Traffic surveys"),
-            ("TrafficSurveySummary", "Traffic survey summaries"),
-            ("TrafficSurveyOverall", "Traffic surveys overall"),
-        ),
-        "Traffic Data – Details": (
-            ("TrafficCountRecord", "Traffic counts"),
-            ("TrafficCycleSummary", "Traffic cycle summaries"),
-            ("TrafficQC", "Traffic QC issues"),
-        ),
-        "Traffic Data – Lookups": (
-            ("PcuLookup", "PCU lookup entries"),
-            ("NightAdjustmentLookup", "Night adjustment lookup entries"),
-        ),
-        "Maintenance & planning": (
-            ("AnnualWorkPlan", "Annual work plans"),
-            ("StructureIntervention", "Structure interventions"),
-            ("RoadSectionIntervention", "Road section interventions"),
-            ("BenefitFactor", "Benefit factors"),
-            ("PrioritizationResult", "Prioritization results"),
-        ),
-        "Prioritization lookups": (
-            ("RoadLinkTypeLookup", "Road link types"),
-            ("BenefitCategory", "Benefit categories"),
-            ("BenefitCriterion", "Benefit criteria"),
-            ("BenefitCriterionScale", "Benefit criterion scales"),
-        ),
-        "Reference data": (
-            ("ConditionRating", "Condition ratings"),
-            ("QAStatus", "QA statuses"),
-            ("ActivityLookup", "Activity lookups"),
-            ("InterventionLookup", "Intervention lookups"),
-            ("UnitCost", "Unit costs"),
-            ("DistressType", "Distress types"),
-            ("DistressCondition", "Distress conditions"),
-            ("DistressActivity", "Distress activities"),
-            ("AdminZone", "Administrative zones"),
-            ("AdminWoreda", "Administrative woredas"),
-        ),
-        "Other models": (
-            ("Group", "Groups"),
-            ("User", "Users"),
-        ),
-    }
+    MENU_GROUPS: Dict[str, Sequence[str | Tuple[str, str]]] = DEFAULT_MENU_GROUPS
 
     @staticmethod
     def _normalise(name: str) -> str:
         return name.replace("_", " ").strip().lower()
+
+    @staticmethod
+    def _parse_menu_target(target: str | Tuple[str, str]) -> Tuple[str, str]:
+        """Return (lookup_label, display_label) for mixed menu definitions."""
+        if isinstance(target, tuple):
+            lookup_label, display_label = target
+            return lookup_label, display_label
+
+        return target, target
 
     def _build_model_lookup(
         self, app_list: List[Dict[str, object]]
@@ -181,8 +120,9 @@ class GRMSAdminSite(AdminSite):
 
         for title, models in self.MENU_GROUPS.items():
             grouped_models: List[Dict[str, object]] = []
-            for object_name, display_name in models:
-                for model in lookup.get(self._normalise(object_name), []):
+            for target in models:
+                lookup_label, display_name = self._parse_menu_target(target)
+                for model in lookup.get(self._normalise(lookup_label), []):
                     identifier = (model.get("app_label"), model["object_name"])
                     if identifier in assigned:
                         continue
@@ -219,10 +159,11 @@ class GRMSAdminSite(AdminSite):
         assigned: set[tuple[str | None, str]] = set()
         menu_groups: Dict[str, List[Dict[str, object]]] = {}
 
-        for group_name, targets in MENU_GROUPS.items():
+        for group_name, targets in self.MENU_GROUPS.items():
             items: List[Dict[str, object]] = []
             for target in targets:
-                for model in lookup.get(self._normalise(target), []):
+                lookup_label, display_name = self._parse_menu_target(target)
+                for model in lookup.get(self._normalise(lookup_label), []):
                     identifier = (model.get("app_label"), model["object_name"])
                     if identifier in assigned:
                         continue
@@ -232,7 +173,7 @@ class GRMSAdminSite(AdminSite):
                     items.append(
                         {
                             "url": url,
-                            "label": model.get("name", model["object_name"]),
+                            "label": display_name or model.get("name", model["object_name"]),
                             "active": request.path.startswith(url),
                         }
                     )
@@ -250,23 +191,31 @@ class GRMSAdminSite(AdminSite):
 
     def index(self, request, extra_context=None):
         """
-        Override the admin index page to show all grouped menu items exactly
-        as defined in MENU_GROUPS.
+        Corrected dashboard index that renders ALL MENU_GROUPS sections.
+        Handles (object_name, display_name) pairs properly.
         """
-        from django.contrib.admin.sites import all_sites
-
-        # Build grouped models for dashboard
         app_dict = {}
-        for group_name, model_labels in MENU_GROUPS.items():
+
+        # MENU_GROUPS entries are structured as:
+        #   ("ModelClassName", "Human Display Label")
+        for group_name, model_pairs in self.MENU_GROUPS.items():
             items = []
-            for model_label in model_labels:
-                model = self._registry.get(self._get_model_from_label(model_label))
+
+            for target in model_pairs:
+                object_name, display_name = self._parse_menu_target(target)
+                # Resolve to real model class
+                model = self._get_model_from_label(object_name)
                 if not model:
                     continue
+
+                admin_obj = self._registry.get(model)
+                if not admin_obj:
+                    continue
+
                 model_info = {
-                    "name": model_label,
-                    "object_name": model.model._meta.model_name,
-                    "admin_url": f"{model.model._meta.app_label}/{model.model._meta.model_name}/",
+                    "name": display_name,
+                    "object_name": model._meta.model_name,
+                    "admin_url": f"{model._meta.app_label}/{model._meta.model_name}/",
                 }
                 items.append(model_info)
 
