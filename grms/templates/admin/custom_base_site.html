@@ -2,3 +2,12 @@
 {% load i18n %}
 
 {% block bodyclass %}model-index {{ block.super }}{% endblock %}
+
+{% block extrahead %}
+<style>
+body.model-index .main {
+    margin-left: 0 !important;
+    padding: 1.25rem 1.5rem 2rem !important;
+}
+</style>
+{% endblock %}
