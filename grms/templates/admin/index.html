@@ -1,151 +1,45 @@
 {% extends "admin/base_site.html" %}
 {% load static %}
-
-{% block extrastyle %}
-<link rel="stylesheet" href="https://unpkg.com/leaflet@2.0.0-alpha.1/dist/leaflet.css" />
-<style>
-:root {
-    --admin-padding: 1.5rem;
-}
-
-#content {
-    padding: var(--admin-padding);
-    margin-left: var(--sidebar-width, 260px);
-}
-
-.dashboard-wrapper {
-    max-width: 1400px;
-    margin: 0 auto;
-}
-
-.kpi-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-    gap: 1rem;
-}
-
-.kpi-card {
-    background: #fff;
-    padding: 1rem;
-    border-radius: 10px;
-    border: 1px solid #e2e8f0;
-    box-shadow: 0 10px 25px -20px rgba(0,0,0,0.2);
-}
-
-.section-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-    gap: 1rem;
-    margin-top: 1.5rem;
-}
-
-.panel {
-    background: #fff;
-    padding: 1rem;
-    border-radius: 10px;
-    border: 1px solid #e2e8f0;
-}
-
-#road-map {
-    height: 320px;
-    border-radius: 10px;
-    border: 1px solid #e2e8f0;
-}
-
-.menu-grid {
-    margin-top: 1.5rem;
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-    gap: 1rem;
-}
-</style>
-{% endblock %}
-
-{% block extrahead %}
-{{ block.super }}
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script src="https://unpkg.com/leaflet@2.0.0-alpha.1/dist/leaflet.js"></script>
-{% endblock %}
-
 {% block content %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css">
+<link rel="stylesheet" href="{% static 'grms/css/dashboard.css' %}">
 <div class="dashboard-wrapper">
 
-    <h1>Gravel Road Management Dashboard</h1>
-    <p class="dashboard-subtitle">Key metrics, traffic trends, and quick links to manage GRMS data.</p>
+  <h1 class="dash-title">GRMS Professional Dashboard</h1>
+  <p class="dash-subtitle">Analytics overview and quick insights for gravel road management.</p>
 
-    <div class="kpi-grid">
-        <div class="kpi-card"><p>Total Roads</p><h2>{{ total_roads }}</h2></div>
-        <div class="kpi-card"><p>Road Sections</p><h2>{{ total_sections }}</h2></div>
-        <div class="kpi-card"><p>Road Segments</p><h2>{{ total_segments }}</h2></div>
-        <div class="kpi-card"><p>Planned Interventions</p><h2>{{ planned_interventions }}</h2></div>
-        <div class="kpi-card"><p>Latest Traffic Year</p><h2>{{ latest_traffic_year }}</h2></div>
-    </div>
+  <div class="kpi-grid">
+      <div class="kpi-card"><span>Total Roads</span><h2>{{ total_roads }}</h2></div>
+      <div class="kpi-card"><span>Road Sections</span><h2>{{ total_sections }}</h2></div>
+      <div class="kpi-card"><span>Road Segments</span><h2>{{ total_segments }}</h2></div>
+      <div class="kpi-card"><span>Planned Interventions</span><h2>{{ planned_interventions }}</h2></div>
+      <div class="kpi-card"><span>Latest Traffic Year</span><h2>{{ latest_traffic_year }}</h2></div>
+  </div>
 
-    <div class="section-grid">
-        <div class="panel">
-            <h2>Surface Type Distribution</h2>
-            <canvas id="surfaceChart"></canvas>
-        </div>
+  <div class="panel-grid">
+      <div class="panel">
+          <h3>Surface Type Distribution</h3>
+          <canvas id="surfaceChart"></canvas>
+      </div>
 
-        <div class="panel">
-            <h2>Traffic Trend (ADT)</h2>
-            <canvas id="trafficChart"></canvas>
-        </div>
-    </div>
+      <div class="panel">
+          <h3>Traffic Trend (ADT)</h3>
+          <canvas id="trafficChart"></canvas>
+      </div>
+  </div>
 
-    <div class="panel">
-        <h2>Road Network Map</h2>
-        <div id="road-map"></div>
-    </div>
-
-    <div class="menu-grid">
-        {% for group, items in menu_groups.items %}
-        <div class="panel menu-group">
-            <h3>{{ group }}</h3>
-            <ul>
-                {% for item in items %}
-                    <li><a href="{{ item.url }}">{{ item.label }}</a></li>
-                {% endfor %}
-            </ul>
-        </div>
-        {% endfor %}
-    </div>
-
+  <div class="panel">
+      <h3>Road Network Map</h3>
+      <div id="map"></div>
+  </div>
 </div>
 
 <script>
-(function() {
-    const surfaceCtx = document.getElementById("surfaceChart");
-    new Chart(surfaceCtx, {
-        type: "pie",
-        data: {
-            labels: ["Asphalt/Paved", "Gravel", "Earth/Dirt"],
-            datasets: [{
-                data: [{{ asphalt_count }}, {{ gravel_count }}, {{ dirt_count }}],
-                backgroundColor: ["#3b82f6","#10b981","#f59e0b"]
-            }]
-        }
-    });
-
-    const trafficCtx = document.getElementById("trafficChart");
-    new Chart(trafficCtx, {
-        type: "line",
-        data: {
-            labels: {{ traffic_years|safe }},
-            datasets: [{
-                data: {{ traffic_values|safe }},
-                borderColor: "#0284c7",
-                tension: 0.3
-            }]
-        }
-    });
-
-    const map = L.map("road-map").setView([9.145, 40.489673], 6);
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png").addTo(map);
-
-    const roadLocations = JSON.parse('{{ road_locations|escapejs }}');
-    roadLocations.forEach(loc => L.marker([loc.lat, loc.lon]).addTo(map));
-})();
+window.surfaceData = {{ surface_data|safe }};
+window.trafficYears = {{ traffic_years|safe }};
+window.trafficValues = {{ traffic_values|safe }};
 </script>
-
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+<script src="{% static 'grms/js/dashboard.js' %}"></script>
 {% endblock %}

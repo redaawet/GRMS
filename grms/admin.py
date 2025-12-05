@@ -234,7 +234,7 @@ class GRMSAdminSite(AdminSite):
             .order_by("-fiscal_year")
         )
         latest_traffic_year = (
-            traffic_qs.first()["fiscal_year"] if traffic_qs.exists() else None
+            traffic_qs.first()["fiscal_year"] if traffic_qs.exists() else "–"
         )
         traffic_summary = list(traffic_qs[:5])
         traffic_summary.reverse()
@@ -257,14 +257,6 @@ class GRMSAdminSite(AdminSite):
             else:
                 dirt_count += count
 
-        road_locations = []
-        for road in models.Road.objects.exclude(road_start_coordinates__isnull=True):
-            coords = point_to_lat_lng(road.road_start_coordinates)
-            if coords:
-                road_locations.append(
-                    {"lat": coords["lat"], "lon": coords["lng"], "name": str(road)}
-                )
-
         context = {
             **base_ctx,
             **(extra_context or {}),
@@ -277,12 +269,9 @@ class GRMSAdminSite(AdminSite):
             "total_segments": total_segments,
             "planned_interventions": planned_interventions,
             "latest_traffic_year": latest_traffic_year,
-            "asphalt_count": asphalt_count,
-            "gravel_count": gravel_count,
-            "dirt_count": dirt_count,
+            "surface_data": json.dumps([asphalt_count, gravel_count, dirt_count]),
             "traffic_years": json.dumps(traffic_years),
             "traffic_values": json.dumps(traffic_values),
-            "road_locations": json.dumps(road_locations),
         }
 
         return TemplateResponse(request, "admin/index.html", context)
