@@ -192,6 +192,7 @@ class GRMSAdminSite(AdminSite):
 
     def index(self, request, extra_context=None):
         app_list = self.get_app_list(request)
+        base_ctx = self.each_context(request)
         total_roads = models.Road.objects.count()
         total_sections = models.RoadSection.objects.count()
         total_segments = models.RoadSegment.objects.count()
@@ -238,10 +239,12 @@ class GRMSAdminSite(AdminSite):
                 )
 
         context = {
-            **self.each_context(request),
+            **base_ctx,
             **(extra_context or {}),
             "title": "Gravel Road Management System",
             "app_list": app_list,
+            "menu_groups": base_ctx.get("menu_groups", {}),
+            "sections": base_ctx.get("sections", []),
             "total_roads": total_roads,
             "total_sections": total_sections,
             "total_segments": total_segments,
@@ -253,7 +256,6 @@ class GRMSAdminSite(AdminSite):
             "traffic_years": json.dumps(traffic_years),
             "traffic_values": json.dumps(traffic_values),
             "road_locations": json.dumps(road_locations),
-            "MENU_GROUPS": self.MENU_GROUPS,
         }
 
         return TemplateResponse(request, "admin/index.html", context)

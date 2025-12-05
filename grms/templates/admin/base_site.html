@@ -8,6 +8,11 @@
 {% block extrastyle %}
   {{ block.super }}
   <link rel="stylesheet" href="{% static 'grms/css/admin_overrides.css' %}">
+  <style>
+  #nav-sidebar { display:none !important; }
+  .module { display:none !important; } /* Hide default app list */
+  #content { margin-left:0 !important; width:100% !important; }
+  </style>
 {% endblock %}
 
 {% block nav-sidebar %}
