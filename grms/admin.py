@@ -8,6 +8,7 @@ from decimal import Decimal, ROUND_HALF_UP
 from django import forms
 from django.contrib import admin
 from django.contrib.admin import AdminSite
+from django.db.models import Count, Sum
 from django.template.response import TemplateResponse
 from django.http import JsonResponse
 from django.shortcuts import redirect
@@ -190,42 +191,69 @@ class GRMSAdminSite(AdminSite):
         return context
 
     def index(self, request, extra_context=None):
-        """
-        Corrected dashboard index that renders ALL MENU_GROUPS sections.
-        Handles (object_name, display_name) pairs properly.
-        """
-        app_dict = {}
+        app_list = self.get_app_list(request)
+        total_roads = models.Road.objects.count()
+        total_sections = models.RoadSection.objects.count()
+        total_segments = models.RoadSegment.objects.count()
+        planned_interventions = (
+            models.RoadSectionIntervention.objects.count()
+            + models.StructureIntervention.objects.count()
+        )
 
-        # MENU_GROUPS entries are structured as:
-        #   ("ModelClassName", "Human Display Label")
-        for group_name, model_pairs in self.MENU_GROUPS.items():
-            items = []
+        traffic_qs = (
+            TrafficSurveyOverall.objects.values("fiscal_year")
+            .annotate(total_adt=Sum("adt_total"))
+            .order_by("-fiscal_year")
+        )
+        latest_traffic_year = (
+            traffic_qs.first()["fiscal_year"] if traffic_qs.exists() else None
+        )
+        traffic_summary = list(traffic_qs[:5])
+        traffic_summary.reverse()
+        traffic_years = [entry["fiscal_year"] for entry in traffic_summary]
+        traffic_values = [float(entry["total_adt"]) for entry in traffic_summary]
 
-            for target in model_pairs:
-                object_name, display_name = self._parse_menu_target(target)
-                # Resolve to real model class
-                model = self._get_model_from_label(object_name)
-                if not model:
-                    continue
+        surface_counts = (
+            models.Road.objects.values("surface_type")
+            .annotate(total=Count("id"))
+            .order_by()
+        )
+        asphalt_count = gravel_count = dirt_count = 0
+        for item in surface_counts:
+            surface = item.get("surface_type") or ""
+            count = item.get("total", 0)
+            if surface in {"Paved", "Asphalt", "DBST", "Sealed"}:
+                asphalt_count += count
+            elif surface == "Gravel":
+                gravel_count += count
+            else:
+                dirt_count += count
 
-                admin_obj = self._registry.get(model)
-                if not admin_obj:
-                    continue
-
-                model_info = {
-                    "name": display_name,
-                    "object_name": model._meta.model_name,
-                    "admin_url": f"{model._meta.app_label}/{model._meta.model_name}/",
-                }
-                items.append(model_info)
-
-            if items:
-                app_dict[group_name] = items
+        road_locations = []
+        for road in models.Road.objects.exclude(road_start_coordinates__isnull=True):
+            coords = point_to_lat_lng(road.road_start_coordinates)
+            if coords:
+                road_locations.append(
+                    {"lat": coords["lat"], "lon": coords["lng"], "name": str(road)}
+                )
 
         context = {
             **self.each_context(request),
+            **(extra_context or {}),
             "title": "Gravel Road Management System",
-            "app_list": app_dict,
+            "app_list": app_list,
+            "total_roads": total_roads,
+            "total_sections": total_sections,
+            "total_segments": total_segments,
+            "planned_interventions": planned_interventions,
+            "latest_traffic_year": latest_traffic_year,
+            "asphalt_count": asphalt_count,
+            "gravel_count": gravel_count,
+            "dirt_count": dirt_count,
+            "traffic_years": json.dumps(traffic_years),
+            "traffic_values": json.dumps(traffic_values),
+            "road_locations": json.dumps(road_locations),
+            "MENU_GROUPS": self.MENU_GROUPS,
         }
 
         return TemplateResponse(request, "admin/index.html", context)
