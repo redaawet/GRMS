@@ -1,0 +1,172 @@
+:root {
+  --grms-header-height: 56px;
+
+  --grms-sidebar-bg: #0f172a;
+  --grms-sidebar-border: #1f2937;
+  --grms-sidebar-text: #e2e8f0;
+  --grms-sidebar-muted: #9ca3af;
+  --grms-sidebar-accent: #38bdf8;
+  --grms-sidebar-active-bg: #111827;
+
+  --grms-content-bg: #f3f4f6;
+}
+
+/* Dark theme overrides */
+html[data-grms-theme="dark"] {
+  --grms-sidebar-bg: #020617;
+  --grms-sidebar-border: #111827;
+  --grms-sidebar-text: #e5e7eb;
+  --grms-sidebar-muted: #9ca3af;
+  --grms-sidebar-accent: #0ea5e9;
+  --grms-sidebar-active-bg: #020617;
+  --grms-content-bg: #020617;
+}
+
+/* Sticky header */
+#header {
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+}
+
+/* Let Django's layout handle widths; we just style nav-sidebar */
+#nav-sidebar {
+  position: sticky;
+  top: var(--grms-header-height);
+  max-height: calc(100vh - var(--grms-header-height));
+  overflow-y: auto;
+  background: var(--grms-sidebar-bg);
+  border-right: 1px solid var(--grms-sidebar-border);
+  padding: 0;
+}
+
+/* Set main content background */
+#content {
+  background: var(--grms-content-bg);
+}
+
+/* Branding + theme toggle */
+.grms-branding {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.grms-theme-toggle {
+  border: none;
+  background: transparent;
+  color: #e5e7eb;
+  padding: 6px 10px;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.grms-theme-toggle:hover {
+  background: rgba(15, 23, 42, 0.5);
+}
+
+/* Sidebar structure */
+
+.grms-sidebar {
+  font-size: 13px;
+  color: var(--grms-sidebar-text);
+  padding: 8px 10px 12px;
+}
+
+.grms-sidebar-group {
+  border-bottom: 1px solid var(--grms-sidebar-border);
+}
+
+.grms-group-header {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 6px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: inherit;
+}
+
+.grms-group-icon {
+  width: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--grms-sidebar-accent);
+}
+
+.grms-group-title {
+  flex: 1;
+  text-align: left;
+  font-weight: 600;
+}
+
+.grms-group-chevron {
+  transition: transform 0.2s ease;
+}
+
+/* Collapsed state */
+.grms-sidebar-group.is-collapsed .grms-group-chevron {
+  transform: rotate(-90deg);
+}
+
+.grms-group-body {
+  padding: 2px 0 6px 26px;
+}
+
+/* Hide body in collapsed state */
+.grms-sidebar-group.is-collapsed .grms-group-body {
+  display: none;
+}
+
+/* Links */
+.grms-menu-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.grms-menu-link {
+  display: block;
+  padding: 4px 0;
+  color: var(--grms-sidebar-muted);
+  text-decoration: none;
+  border-radius: 4px;
+}
+
+.grms-menu-link:hover {
+  color: var(--grms-sidebar-text);
+}
+
+.grms-menu-link.is-active {
+  color: var(--grms-sidebar-accent);
+  font-weight: 600;
+}
+
+/* Scrollbar tweaks */
+#nav-sidebar::-webkit-scrollbar {
+  width: 6px;
+}
+
+#nav-sidebar::-webkit-scrollbar-thumb {
+  background: #4b5563;
+  border-radius: 999px;
+}
+
+/* Responsive: narrow view collapses nav sidebar */
+@media (max-width: 900px) {
+  #nav-sidebar {
+    position: fixed;
+    top: var(--grms-header-height);
+    left: 0;
+    width: 230px;
+    max-height: calc(100vh - var(--grms-header-height));
+    z-index: 900;
+  }
+
+  body.show-nav-sidebar #nav-sidebar {
+    transform: translateX(0);
+  }
+}
