@@ -265,6 +265,17 @@ class GRMSAdminSite(AdminSite):
                     {"lat": coords["lat"], "lon": coords["lng"], "name": str(road)}
                 )
 
+        grms_data = {
+            "surface": {
+                "asphalt": asphalt_count,
+                "gravel": gravel_count,
+                "dirt": dirt_count,
+            },
+            "traffic_years": traffic_years,
+            "traffic_values": traffic_values,
+            "road_locations": road_locations,
+        }
+
         context = {
             **base_ctx,
             **(extra_context or {}),
@@ -283,6 +294,7 @@ class GRMSAdminSite(AdminSite):
             "traffic_years": json.dumps(traffic_years),
             "traffic_values": json.dumps(traffic_values),
             "road_locations": json.dumps(road_locations),
+            "grms_data": grms_data,
         }
 
         return TemplateResponse(request, "admin/index.html", context)

@@ -1,6 +1,8 @@
 {% extends "admin/base_site.html" %}
 {% load static %}
 
+{% block bodyclass %}grms-dashboard-page {{ block.super }}{% endblock %}
+
 {% block content %}
 <div class="grms-dashboard">
 
@@ -67,19 +69,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+{{ grms_data|json_script:"grms-data" }}
 <script src="{% static 'grms/dashboard.js' %}"></script>
-
-<script>
-window.GRMS_DATA = {
-    surface: {
-        asphalt: {{ asphalt_count }},
-        gravel: {{ gravel_count }},
-        dirt: {{ dirt_count }},
-    },
-    traffic_years: {{ traffic_years|safe }},
-    traffic_values: {{ traffic_values|safe }},
-    road_locations: {{ road_locations|safe }},
-};
-</script>
 
 {% endblock %}

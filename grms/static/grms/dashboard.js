@@ -1,7 +1,14 @@
 (function () {
-    document.body.classList.add('grms-dashboard-page');
+    const dataScript = document.getElementById('grms-data');
+    let data = {};
 
-    const data = window.GRMS_DATA || {};
+    if (dataScript) {
+        try {
+            data = JSON.parse(dataScript.textContent) || {};
+        } catch (err) {
+            data = {};
+        }
+    }
 
     const buildSurfaceChart = () => {
         if (!window.Chart) return;
