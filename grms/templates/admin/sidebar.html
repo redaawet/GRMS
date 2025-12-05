@@ -1,0 +1,55 @@
+{% load static %}
+<nav class="grms-sidebar">
+  {% if menu_groups %}
+    {% for group_name, items in menu_groups.items %}
+      {% with group_id=group_name|slugify %}
+      <section class="grms-sidebar-group" data-group-id="{{ group_id }}">
+        <button type="button" class="grms-group-header">
+          <span class="grms-group-icon">
+            <i class="fa-solid
+              {% if group_name|lower|startswith:"core road" %}
+                fa-road
+              {% elif group_name|lower|startswith:"structure detail" %}
+                fa-bridge
+              {% elif group_name|lower|startswith:"condition survey" %}
+                fa-stethoscope
+              {% elif group_name|lower|startswith:"detailed distress" %}
+                fa-triangle-exclamation
+              {% elif group_name|lower|startswith:"traffic" %}
+                fa-traffic-light
+              {% elif group_name|lower|startswith:"maintenance" %}
+                fa-screwdriver-wrench
+              {% elif group_name|lower|startswith:"reference" %}
+                fa-database
+              {% elif group_name|lower|startswith:"system" %}
+                fa-gear
+              {% else %}
+                fa-folder-tree
+              {% endif %}
+            "></i>
+          </span>
+          <span class="grms-group-title">{{ group_name }}</span>
+          <span class="grms-group-chevron">
+            <i class="fa-solid fa-chevron-down"></i>
+          </span>
+        </button>
+        <div class="grms-group-body">
+          <ul class="grms-menu-list">
+            {% for item in items %}
+              <li>
+                <a href="{{ item.url }}"
+                   class="grms-menu-link{% if item.active %} is-active{% endif %}">
+                  {{ item.label }}
+                </a>
+              </li>
+            {% endfor %}
+          </ul>
+        </div>
+      </section>
+      {% endwith %}
+    {% endfor %}
+  {% else %}
+    {# Fallback to default Django sidebar if menu_groups is missing #}
+    {{ block.super }}
+  {% endif %}
+</nav>
