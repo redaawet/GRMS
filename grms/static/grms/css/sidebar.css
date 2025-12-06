@@ -1,63 +1,64 @@
 #grms-sidebar {
     position: fixed;
-    top: 0;
+    top: 48px;
     left: 0;
-    width: 250px;
-    height: 100vh;
-    background: #ffffff;
-    border-right: 1px solid #e0e0e0;
-    padding: 20px 0;
+    width: 260px;
+    height: calc(100vh - 48px);
     overflow-y: auto;
+    background: #ffffff;
+    border-right: 1px solid #ddd;
+    padding-bottom: 20px;
     z-index: 1000;
 }
 
-#grms-sidebar .sidebar-section {
-    padding: 10px 20px;
+.sidebar-group {
+    border-bottom: 1px solid #eee;
+}
+
+.sidebar-header {
+    padding: 14px 18px;
+    font-size: 14px;
     font-weight: 700;
-    color: #444;
-    margin-top: 20px;
-    text-transform: uppercase;
-    font-size: 13px;
+    background: #f3f4f6;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: #374151;
 }
 
-#grms-sidebar .sidebar-sub {
-    padding: 6px 20px 4px;
-    font-weight: 600;
-    color: #1b4973;
-    font-size: 12px;
-    text-transform: uppercase;
-    letter-spacing: 0.02em;
+.sidebar-header:hover {
+    background: #e5e7eb;
 }
 
-#grms-sidebar a {
+.sidebar-header .arrow {
+    transition: transform 0.25s ease;
+}
+
+.sidebar-links {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.25s ease;
+    background: #fff;
+}
+
+.sidebar-links.expanded {
+    max-height: 700px;
+}
+
+.sidebar-links a {
     display: block;
-    padding: 8px 20px;
+    padding: 10px 32px;
+    color: #374151;
     font-size: 14px;
     text-decoration: none;
-    color: #333;
 }
 
-#grms-sidebar a:hover {
-    background: #f0f4f8;
-    color: #1b4973;
+.sidebar-links a:hover {
+    background: #eef2ff;
+    color: #1e3a8a;
 }
 
-#grms-main {
-    margin-left: 260px;
-    padding: 30px;
-}
-
-/* Fix default admin width issues */
-.change-list, .change-form, .module {
-    max-width: 100% !important;
-}
-
-/* Responsive */
-@media (max-width: 900px) {
-    #grms-sidebar {
-        width: 200px;
-    }
-    #grms-main {
-        margin-left: 210px;
-    }
+#content, #container {
+    margin-left: 260px !important;
 }
