@@ -1,92 +1,69 @@
+/* ---------------------------
+   FIXED LEFT SIDEBAR LAYOUT
+---------------------------- */
 #grms-sidebar {
-    width: 260px;
-    background: #0d253f;
-    color: white;
-    height: 100vh;
     position: fixed;
+    top: 50px; /* below top admin bar */
     left: 0;
-    top: 0;
+    width: 260px;
+    height: calc(100vh - 50px);
     overflow-y: auto;
-    padding-bottom: 2rem;
-    box-shadow: 4px 0 12px rgba(0, 0, 0, 0.2);
+    background: #f5f7fa;
+    border-right: 1px solid #d9e1e9;
+    padding: 10px 0;
+    z-index: 2000;
 }
 
-.sidebar-header {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 18px;
-    font-size: 22px;
-    font-weight: bold;
-    letter-spacing: 0.5px;
-}
-
-.sidebar-menu {
-    padding: 0 6px 10px;
-}
-
-.sidebar-menu ul {
-    list-style: none;
-    padding-left: 24px;
-    display: none;
-    margin: 0 0 10px;
-}
-
-.menu-group {
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-.menu-group.open ul {
+/* Sidebar links */
+#grms-sidebar a {
     display: block;
-}
-
-.menu-toggle {
-    background: none;
-    color: white;
-    border: none;
-    width: 100%;
-    text-align: left;
-    padding: 14px 14px;
-    font-size: 15px;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    cursor: pointer;
-}
-
-.menu-toggle:hover,
-.menu-group.open > .menu-toggle {
-    background: #123456;
-}
-
-.sidebar-menu a {
-    color: #bcd5f5;
+    padding: 12px 20px;
+    font-weight: 600;
+    color: #1f2937;
     text-decoration: none;
-    display: block;
-    padding: 6px 0;
-    transition: color 0.2s ease;
 }
 
-.sidebar-menu a:hover {
-    color: #fff;
+#grms-sidebar a:hover {
+    background: #e3eaf3;
 }
 
-.small-title {
-    font-size: 12px;
-    margin-top: 10px;
-    opacity: 0.7;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
+/* ---------------------------
+   MAIN CONTENT FIX
+---------------------------- */
+#content,
+#container,
+#content-main,
+.dashboard,
+.change-form,
+.change-list {
+    margin-left: 260px !important; /* SAME AS SIDEBAR WIDTH */
+    padding: 20px !important;
+    width: calc(100% - 260px) !important;
+    box-sizing: border-box !important;
 }
 
-.admin-shell {
-    display: flex;
-    min-height: 100vh;
-    background: #f6f7f9;
+/* Fix breadcrumb and header */
+#header,
+.breadcrumbs {
+    margin-left: 260px !important;
 }
 
-#grms-main-content {
-    flex: 1;
-    margin-left: 260px;
-    padding: 20px;
+/* ---------------------------
+   MOBILE (sidebar collapses)
+---------------------------- */
+@media (max-width: 900px) {
+    #grms-sidebar {
+        position: fixed;
+        left: -260px;
+        transition: left 0.3s ease;
+    }
+    #grms-sidebar.open {
+        left: 0;
+    }
+
+    #content,
+    #content-main {
+        margin-left: 0 !important;
+        width: 100% !important;
+    }
 }
