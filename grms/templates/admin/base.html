@@ -27,18 +27,18 @@
         href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
         integrity="sha512-SzlrxWUlpfuzQ+pcUCosxcglQRNAq/DZjVsC0lE40xsADsfeQoEypE+enwcOiGjk/bSuGGKHEyjSoQ1zVisanQ=="
         crossorigin="anonymous" referrerpolicy="no-referrer">
-  <script src="{% static 'grms/js/sidebar.js' %}"></script>
 {% endblock %}
 
 {% block responsive %}
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="{% static "admin/css/responsive.css" %}">
     {% if LANGUAGE_BIDI %}<link rel="stylesheet" href="{% static "admin/css/responsive_rtl.css" %}">{% endif %}
-{% endblock %}
-{% block blockbots %}<meta name="robots" content="NONE,NOARCHIVE">{% endblock %}
+    {% endblock %}
+    {% block blockbots %}<meta name="robots" content="NONE,NOARCHIVE">{% endblock %}
 </head>
 
-<body class="{% if is_popup %}popup {% endif %}{% block bodyclass %}{{ block.super }} dashboard-with-sidebar{% endblock %}"
+{# Fix sidebar positioning #}
+<body class="{% if is_popup %}popup {% endif %}{% block bodyclass %}{{ block.super }}{% if not is_popup and is_nav_sidebar_enabled %} dashboard grms-has-sidebar{% endif %}{% endblock %}"
   data-admin-utc-offset="{% now "Z" %}">
 <a href="#content-start" class="skip-to-content-link">{% translate 'Skip to main content' %}</a>
 <!-- Container -->
@@ -146,6 +146,7 @@
 <!-- END SVGs -->
 {% block extrabody %}
 {{ block.super }}
+<script src="{% static 'grms/js/sidebar.js' %}"></script>
 <script src="{% static 'grms/js/grms_admin.js' %}" defer></script>
 {% endblock extrabody %}
 {# END OF BASE.HTML #}
