@@ -29,6 +29,7 @@
 <body class="{% if is_popup %}popup {% endif %}{% block bodyclass %}{% endblock %}"
   data-admin-utc-offset="{% now "Z" %}">
 {% include "admin/sidebar.html" %}
+<div id="grms-main">
 <a href="#content-start" class="skip-to-content-link">{% translate 'Skip to main content' %}</a>
 <!-- Container -->
 <div id="container">
@@ -115,6 +116,7 @@
     <footer id="footer">{% block footer %}{% endblock %}</footer>
 </div>
 <!-- END Container -->
+</div>
 
 <!-- SVGs -->
 <svg xmlns="http://www.w3.org/2000/svg" class="base-svgs">
