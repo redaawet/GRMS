@@ -1,0 +1,150 @@
+{% load static %}
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+
+<div id="grms-sidebar">
+
+    <!-- Header -->
+    <div class="sidebar-header">
+        <span class="material-icons">map</span>
+        <h1>GRMS</h1>
+    </div>
+
+    <!-- Accordion Menu -->
+    <div class="sidebar-menu">
+
+        <!-- 1. Core Road Network -->
+        <div class="menu-group">
+            <button class="menu-toggle">
+                <span class="material-icons">alt_route</span> Core Road Network
+            </button>
+            <ul>
+                <li><a href="/admin/grms/road/">Roads</a></li>
+                <li><a href="/admin/grms/roadsocioeconomic/">Road socio-economic</a></li>
+                <li><a href="/admin/grms/roadsection/">Road sections</a></li>
+                <li><a href="/admin/grms/roadsegment/">Road segments</a></li>
+                <li><a href="/admin/grms/structureinventory/">Structure inventories</a></li>
+                <li><a href="/admin/grms/furnitureinventory/">Furniture inventories</a></li>
+            </ul>
+        </div>
+
+        <!-- 2. Structure Details -->
+        <div class="menu-group">
+            <button class="menu-toggle">
+                <span class="material-icons">architecture</span> Structure Details
+            </button>
+            <ul>
+                <li><a href="/admin/grms/bridgedetail/">Bridge details</a></li>
+                <li><a href="/admin/grms/culvertdetail/">Culvert details</a></li>
+                <li><a href="/admin/grms/forddetail/">Ford details</a></li>
+                <li><a href="/admin/grms/retainingwalldetail/">Retaining wall details</a></li>
+                <li><a href="/admin/grms/gabionwalldetail/">Gabion wall details</a></li>
+            </ul>
+        </div>
+
+        <!-- 3. Condition Surveys -->
+        <div class="menu-group">
+            <button class="menu-toggle">
+                <span class="material-icons">fact_check</span> Condition Surveys
+            </button>
+            <ul>
+                <li><a href="/admin/grms/roadconditionsurvey/">Road condition surveys</a></li>
+                <li><a href="/admin/grms/structureconditionsurvey/">Structure condition surveys</a></li>
+                <li><a href="/admin/grms/bridgeconditionsurvey/">Bridge condition surveys</a></li>
+                <li><a href="/admin/grms/culvertconditionsurvey/">Culvert condition surveys</a></li>
+                <li><a href="/admin/grms/otherstructureconditionsurvey/">Other structure condition surveys</a></li>
+                <li><a href="/admin/grms/furnitureconditionsurvey/">Furniture condition surveys</a></li>
+            </ul>
+        </div>
+
+        <!-- 4. Detailed Distress -->
+        <div class="menu-group">
+            <button class="menu-toggle">
+                <span class="material-icons">emergency</span> Detailed Distress
+            </button>
+            <ul>
+                <li><a href="/admin/grms/roaddetaileddistress/">Road detailed surveys</a></li>
+                <li><a href="/admin/grms/structuredetaileddistress/">Structure detailed surveys</a></li>
+                <li><a href="/admin/grms/furnituredetaileddistress/">Furniture detailed surveys</a></li>
+            </ul>
+        </div>
+
+        <!-- 5. Traffic & Transport -->
+        <div class="menu-group">
+            <button class="menu-toggle">
+                <span class="material-icons">traffic</span> Traffic & Transport
+            </button>
+            <ul>
+                <li><a href="/admin/traffic/trafficsurvey/">Traffic surveys</a></li>
+                <li><a href="/admin/traffic/trafficcyclesummary/">Traffic cycle summaries</a></li>
+                <li><a href="/admin/traffic/trafficsurveysummary/">Traffic survey summaries</a></li>
+                <li><a href="/admin/traffic/nightadjustment/">Night adjustment lookup</a></li>
+                <li><a href="/admin/traffic/pcu/">PCU lookup</a></li>
+            </ul>
+        </div>
+
+        <!-- 6. Maintenance & Prioritization -->
+        <div class="menu-group">
+            <button class="menu-toggle">
+                <span class="material-icons">construction</span> Maintenance & Planning
+            </button>
+            <ul>
+                <li><a href="/admin/grms/roadsectionintervention/">Road section interventions</a></li>
+                <li><a href="/admin/grms/structureintervention/">Structure interventions</a></li>
+                <li><a href="/admin/grms/annualworkplan/">Annual work plans</a></li>
+                <li><a href="/admin/grms/benefitfactor/">Benefit factors</a></li>
+                <li><a href="/admin/grms/prioritizationresult/">Prioritization results</a></li>
+            </ul>
+        </div>
+
+        <!-- 7. Lookups & Reference Tables -->
+        <div class="menu-group">
+            <button class="menu-toggle">
+                <span class="material-icons">tune</span> Lookup & Reference
+            </button>
+            <ul>
+                <!-- Distress Modeling -->
+                <li class="small-title">Distress Modeling</li>
+                <li><a href="/admin/grms/distresstype/">Distress types</a></li>
+                <li><a href="/admin/grms/distresscondition/">Distress conditions</a></li>
+                <li><a href="/admin/grms/distressactivity/">Distress activities</a></li>
+                <li><a href="/admin/grms/conditionrating/">Condition ratings</a></li>
+                <li><a href="/admin/grms/qastatus/">QA statuses</a></li>
+
+                <!-- Intervention Planning -->
+                <li class="small-title">Intervention Planning</li>
+                <li><a href="/admin/grms/activitylookup/">Activity lookups</a></li>
+                <li><a href="/admin/grms/interventionlookup/">Intervention lookups</a></li>
+                <li><a href="/admin/grms/unitcost/">Unit costs</a></li>
+                <li><a href="/admin/grms/benefitcategory/">Benefit categories</a></li>
+                <li><a href="/admin/grms/benefitcriterion/">Benefit criteria</a></li>
+                <li><a href="/admin/grms/benefitscale/">Benefit criterion scales</a></li>
+
+                <!-- Network Referencing -->
+                <li class="small-title">Network Referencing</li>
+                <li><a href="/admin/grms/roadlinktype/">Road link types</a></li>
+                <li><a href="/admin/grms/administrativezone/">Administrative zones</a></li>
+                <li><a href="/admin/grms/administrativeworeda/">Administrative woredas</a></li>
+            </ul>
+        </div>
+
+        <!-- 8. System Administration -->
+        <div class="menu-group">
+            <button class="menu-toggle">
+                <span class="material-icons">admin_panel_settings</span> System Admin
+            </button>
+            <ul>
+                <li><a href="/admin/auth/user/">Users</a></li>
+                <li><a href="/admin/auth/group/">Groups</a></li>
+            </ul>
+        </div>
+
+    </div>
+</div>
+
+<script>
+document.querySelectorAll(".menu-toggle").forEach(btn => {
+    btn.addEventListener("click", () => {
+        btn.parentElement.classList.toggle("open");
+    });
+});
+</script>
