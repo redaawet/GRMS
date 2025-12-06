@@ -21,16 +21,19 @@ os.environ["PROJ_LIB"] = r"C:\OSGeo4W\share\proj"
 
 
 INSTALLED_APPS = [
-    'grms.admin_config.GRMSAdminConfig',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'rest_framework',
     'corsheaders',
+    'rest_framework',
     'traffic',
     'grms',
+    # Custom admin site needs to load after dependent apps (including `traffic`)
+    # so that imports in `grms.admin` can locate all models during app registry
+    # initialization.
+    'grms.admin_config.GRMSAdminConfig',
 ]
 
 if USE_POSTGIS:
