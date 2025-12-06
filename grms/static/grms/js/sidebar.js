@@ -29,8 +29,33 @@
     }
   }
 
+  function markActiveLinks() {
+    const currentPath = window.location.pathname;
+    const links = document.querySelectorAll(".sidebar-item");
+
+    links.forEach((link) => {
+      const href = link.getAttribute("href");
+
+      if (!href) return;
+
+      const linkPath = new URL(href, window.location.origin).pathname;
+
+      if (currentPath.startsWith(linkPath)) {
+        link.classList.add("active");
+        const parent = link.closest(".sidebar-items");
+
+        if (parent) {
+          parent.classList.add("active");
+        }
+      }
+    });
+  }
+
   function initSidebar() {
     const state = loadState();
+
+    markActiveLinks();
+
     const groups = document.querySelectorAll(".sidebar-group");
 
     groups.forEach((group, index) => {
