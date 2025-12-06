@@ -1,5 +1,8 @@
 (function () {
   const storageKey = "grmsSidebarState";
+  const prefersReducedMotion = window.matchMedia(
+    "(prefers-reduced-motion: reduce)"
+  ).matches;
 
   function loadState() {
     try {
@@ -17,14 +20,61 @@
     }
   }
 
-  function toggleItems(items, expanded, state, key) {
+  function setCollapsed(items, animate) {
     if (!items) return;
+
+    const startHeight = items.scrollHeight;
+
+    if (prefersReducedMotion || !animate) {
+      items.style.maxHeight = "0px";
+      items.style.display = "none";
+      return;
+    }
+
+    items.style.maxHeight = `${startHeight}px`;
+    requestAnimationFrame(() => {
+      items.style.maxHeight = "0px";
+    });
+
+    items.addEventListener(
+      "transitionend",
+      () => {
+        items.style.display = "none";
+      },
+      { once: true }
+    );
+  }
+
+  function setExpanded(items, animate) {
+    if (!items) return;
+
+    items.style.display = "block";
+    const targetHeight = items.scrollHeight;
+
+    if (prefersReducedMotion || !animate) {
+      items.style.maxHeight = `${targetHeight}px`;
+      return;
+    }
+
+    items.style.maxHeight = "0px";
+    requestAnimationFrame(() => {
+      items.style.maxHeight = `${targetHeight}px`;
+    });
+  }
+
+  function applyState(items, expanded, state, key, animate) {
+    if (!items) return;
+
+    items.style.overflow = "hidden";
+    items.style.transition = "max-height 220ms ease";
 
     if (expanded) {
       items.classList.add("active");
+      setExpanded(items, animate);
       state[key] = "expanded";
     } else {
       items.classList.remove("active");
+      setCollapsed(items, animate);
       state[key] = "collapsed";
     }
   }
@@ -69,11 +119,11 @@
 
       const hasActiveItem = items.querySelector(".sidebar-item.active") !== null;
       const initialExpanded = state[key] === "expanded" || hasActiveItem;
-      toggleItems(items, initialExpanded, state, key);
+      applyState(items, initialExpanded, state, key, false);
 
       header.addEventListener("click", () => {
-        const isExpanded = items.classList.toggle("active");
-        state[key] = isExpanded ? "expanded" : "collapsed";
+        const isExpanded = items.classList.contains("active");
+        applyState(items, !isExpanded, state, key, true);
         saveState(state);
       });
     });
