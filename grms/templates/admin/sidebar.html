@@ -1,0 +1,28 @@
+{% load static %}
+<div class="sidebar-sections">
+  {% if menu_groups %}
+    {% for title, items in menu_groups.items %}
+      <div class="sidebar-group">
+        <div class="sidebar-group-header" data-group="{{ forloop.counter0 }}">
+          <span class="sidebar-group-title">{{ title }}</span>
+        </div>
+        <div class="sidebar-items" id="group-{{ forloop.counter0 }}">
+          {% for item in items %}
+            <a href="{{ item.url }}" class="sidebar-item{% if item.active %} active{% endif %}">
+              {{ item.label }}
+            </a>
+          {% endfor %}
+        </div>
+      </div>
+    {% endfor %}
+  {% else %}
+    <div class="sidebar-group empty">
+      <div class="sidebar-group-header">
+        <span class="sidebar-group-title">No menu items available</span>
+      </div>
+      <div class="sidebar-items">
+        <p class="sidebar-empty">You do not have access to any models.</p>
+      </div>
+    </div>
+  {% endif %}
+</div>
