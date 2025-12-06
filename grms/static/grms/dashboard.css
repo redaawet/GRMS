@@ -7,6 +7,24 @@
     background: #f6f7f9;
 }
 
+.grms-hero {
+    background: linear-gradient(120deg, #e0ebff 0%, #f6f8ff 50%, #ffffff 100%);
+    border: 1px solid #d7e3ff;
+    border-radius: 12px;
+    padding: 22px 24px;
+    margin-bottom: 22px;
+    box-shadow: 0 8px 18px rgba(46, 77, 128, 0.08);
+}
+
+.hero-kicker {
+    margin: 0 0 6px;
+    color: #1f3b73;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    font-size: 13px;
+}
+
 .dash-title {
     font-size: 28px;
     font-weight: 700;
