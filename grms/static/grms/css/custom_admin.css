@@ -1,134 +1,123 @@
-/* ============================================================
-   GRMS ADMIN LAYOUT — CLEAN, PROFESSIONAL, MODERN UI
-   ============================================================ */
+/* -------------------------------------------
+   GRMS Sidebar – Clean Django-like design
+-------------------------------------------- */
 
-:root {
-    --grms-sidebar-width: 250px;
-    --grms-sidebar-bg: #f5f7fa;
-    --grms-sidebar-border: #d9e1e8;
-    --grms-admin-header-height: 56px;
-    --grms-content-bg: #f8fafc;
-}
-
-/* ------------------------------
-   FIXED LEFT SIDEBAR
-   ------------------------------ */
+/* Set fixed sidebar */
 #grms-sidebar {
     position: fixed;
-    top: var(--grms-admin-header-height);
+    top: var(--grms-header-height, 55px);
     left: 0;
-    width: var(--grms-sidebar-width);
-    height: calc(100vh - var(--grms-admin-header-height));
-    background: var(--grms-sidebar-bg);
-    border-right: 1px solid var(--grms-sidebar-border);
+    width: 240px;
+    height: calc(100% - var(--grms-header-height, 55px));
     overflow-y: auto;
-    z-index: 999;
-    padding: 10px 0 20px 0;
-    box-shadow: 2px 0 6px rgba(0,0,0,0.05);
+
+    background: #f8fafc;
+    border-right: 1px solid #d6dce5;
+
+    padding: 0;
+    margin: 0;
+    z-index: 1000;
 }
 
-/* ------------------------------
-   MAIN CONTENT SHIFT
-   ------------------------------ */
-body #container,
-body #content,
-.colM {
-    margin-left: var(--grms-sidebar-width) !important;
-    background: var(--grms-content-bg);
-    padding: 20px 30px;
-}
-
-/* ------------------------------
-   SIDEBAR GROUP HEADERS
-   ------------------------------ */
-.sidebar-group-header {
-    font-size: 13px;
-    font-weight: 700;
+/* Sidebar items */
+#grms-sidebar .menu-group-title {
+    font-size: 12px;
+    font-weight: bold;
+    padding: 10px 16px;
+    color: #4b5563;
     text-transform: uppercase;
-    padding: 12px 18px;
-    color: #444;
-    border-bottom: 1px solid var(--grms-sidebar-border);
-    border-top: 1px solid var(--grms-sidebar-border);
-    background: #eef2f6;
-    cursor: pointer;
-    letter-spacing: 0.5px;
+    background: #eef2f7;
+    border-bottom: 1px solid #d6dce5;
 }
 
-.sidebar-group-header:hover {
-    background: #e3e8ef;
+#grms-sidebar ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
 }
 
-.sidebar-items {
-    display: none;
-    background: #fafbfd;
-    padding: 5px 0;
-    border-bottom: 1px solid var(--grms-sidebar-border);
+#grms-sidebar li {
+    border-bottom: 1px solid #e3e6eb;
 }
 
-.sidebar-item {
-    padding: 8px 22px;
+#grms-sidebar li a {
     display: block;
+    padding: 10px 18px;
+    text-decoration: none;
     font-size: 14px;
-    color: #333;
-    transition: all 0.15s;
+    color: #111827;
 }
 
-.sidebar-item:hover {
-    background: #e9eef5;
-    color: #000;
-    padding-left: 28px;
+#grms-sidebar li a:hover,
+#grms-sidebar li.active a {
+    background: #dbeafe;
+    color: #1e3a8a;
 }
 
-/* ------------------------------
-   ACTIVE LINK HIGHLIGHT
-   ------------------------------ */
-.sidebar-item.active {
-    background: #d9e7ff;
-    font-weight: 600;
-    border-left: 4px solid #1d6fe5;
+/* -------------------------------------------
+   Main content alignment
+-------------------------------------------- */
+
+body #container,
+#content,
+#content-main,
+.colM {
+    margin-left: 240px !important;
+    padding-left: 25px;
+    padding-right: 25px;
 }
 
-/* ------------------------------
-   RESPONSIVE BEHAVIOR
-   ------------------------------ */
-@media (max-width: 900px) {
-    #grms-sidebar {
-        width: 70%;
-        max-width: 240px;
-        left: -100%; /* Hidden by default */
-        transition: left 0.25s ease-out;
-        position: fixed;
-    }
-
-    /* Slide-in when toggled via JS */
-    #grms-sidebar.open {
-        left: 0;
-    }
-
-    body #container {
-        margin-left: 0 !important;
-        padding-left: 0 !important;
-    }
-}
-
-/* ------------------------------
-   CLEANER DASHBOARD CARD SPACING
-   ------------------------------ */
-.dashboard .module {
-    border-radius: 10px !important;
-    padding: 20px !important;
-    background: white !important;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.08) !important;
-}
-
-.dashboard #content-main {
-    max-width: 1200px;
-    margin: 0 auto;
-}
-
+/* Breadcrumbs */
 .breadcrumbs {
-    margin-left: var(--grms-sidebar-width) !important;
-    background: #e7edf3 !important;
-    padding: 12px 25px !important;
-    border-bottom: 1px solid #cdd5df;
+    margin-left: 240px !important;
+}
+
+/* -------------------------------------------
+   Header styling fix
+-------------------------------------------- */
+
+#header {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: var(--grms-header-height, 55px);
+    z-index: 1200;
+
+    display: flex;
+    align-items: center;
+
+    background: #25475d;
+    color: white;
+    padding: 0 20px !important;
+}
+
+/* -------------------------------------------
+   Responsive Behavior
+-------------------------------------------- */
+
+@media (max-width: 900px) {
+
+    #grms-sidebar {
+        position: relative;
+        width: 100%;
+        height: auto;
+        border-right: none;
+        border-bottom: 1px solid #d6dce5;
+    }
+
+    body #container,
+    #content,
+    #content-main,
+    .colM,
+    .breadcrumbs {
+        margin-left: 0 !important;
+        padding-left: 15px;
+        padding-right: 15px;
+    }
+
+    #header {
+        position: fixed;
+        padding-left: 15px !important;
+    }
 }
