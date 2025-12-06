@@ -1,69 +1,72 @@
-/* ---------------------------
-   FIXED LEFT SIDEBAR LAYOUT
----------------------------- */
 #grms-sidebar {
     position: fixed;
-    top: 50px; /* below top admin bar */
+    top: 48px;
     left: 0;
     width: 260px;
-    height: calc(100vh - 50px);
+    height: calc(100vh - 48px);
     overflow-y: auto;
-    background: #f5f7fa;
-    border-right: 1px solid #d9e1e9;
-    padding: 10px 0;
-    z-index: 2000;
+    background: #ffffff;
+    border-right: 1px solid #ddd;
+    padding-bottom: 20px;
+    z-index: 1000;
 }
 
-/* Sidebar links */
-#grms-sidebar a {
+.sidebar-group {
+    border-bottom: 1px solid #eee;
+}
+
+.sidebar-header {
+    padding: 14px 18px;
+    font-size: 14px;
+    font-weight: 700;
+    background: #f3f4f6;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: #374151;
+}
+
+.sidebar-header:hover {
+    background: #e5e7eb;
+}
+
+.sidebar-header .arrow {
+    transition: transform 0.25s ease;
+}
+
+.sidebar-links {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.25s ease;
+    background: #fff;
+}
+
+.sidebar-links.expanded {
+    max-height: 700px;
+}
+
+.sidebar-links a {
     display: block;
-    padding: 12px 20px;
-    font-weight: 600;
-    color: #1f2937;
+    padding: 10px 32px;
+    color: #374151;
+    font-size: 14px;
     text-decoration: none;
 }
 
-#grms-sidebar a:hover {
-    background: #e3eaf3;
+.sidebar-subheader {
+    padding: 12px 32px 6px;
+    font-size: 13px;
+    font-weight: 700;
+    color: #6b7280;
+    text-transform: uppercase;
 }
 
-/* ---------------------------
-   MAIN CONTENT FIX
----------------------------- */
-#content,
-#container,
-#content-main,
-.dashboard,
-.change-form,
-.change-list {
-    margin-left: 260px !important; /* SAME AS SIDEBAR WIDTH */
-    padding: 20px !important;
-    width: calc(100% - 260px) !important;
-    box-sizing: border-box !important;
+.sidebar-links a:hover {
+    background: #eef2ff;
+    color: #1e3a8a;
 }
 
-/* Fix breadcrumb and header */
-#header,
-.breadcrumbs {
+#content, #container {
     margin-left: 260px !important;
-}
-
-/* ---------------------------
-   MOBILE (sidebar collapses)
----------------------------- */
-@media (max-width: 900px) {
-    #grms-sidebar {
-        position: fixed;
-        left: -260px;
-        transition: left 0.3s ease;
-    }
-    #grms-sidebar.open {
-        left: 0;
-    }
-
-    #content,
-    #content-main {
-        margin-left: 0 !important;
-        width: 100% !important;
-    }
 }
