@@ -7,10 +7,12 @@
 {% endblock %}
 
 {% block content %}
-<div class="admin-shell">
-    {% include "admin/custom_sidebar.html" %}
+<div class="layout">
+    <aside class="sidebar">
+        {% include "admin/sidebar_menu.html" %}
+    </aside>
 
-    <main id="grms-main-content">
+    <main class="main-content">
         {{ block.super }}
     </main>
 </div>
