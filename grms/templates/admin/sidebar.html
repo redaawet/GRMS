@@ -1,0 +1,55 @@
+{% load static %}
+<nav class="grms-sidebar">
+  {% if menu_groups %}
+    {% for group_name, items in menu_groups.items %}
+      {% with group_id=group_name|slugify lower_name=group_name|lower %}
+      <section class="grms-sidebar-group" data-group-id="{{ group_id }}">
+        <button type="button" class="grms-group-header">
+          <span class="grms-group-icon">
+            <i class="fa-solid
+              {% if "core road" in lower_name %}
+                fa-road
+              {% elif "structure detail" in lower_name %}
+                fa-bridge
+              {% elif "condition survey" in lower_name %}
+                fa-stethoscope
+              {% elif "detailed distress" in lower_name %}
+                fa-triangle-exclamation
+              {% elif "traffic" in lower_name %}
+                fa-traffic-light
+              {% elif "maintenance" in lower_name %}
+                fa-screwdriver-wrench
+              {% elif "reference" in lower_name %}
+                fa-database
+              {% elif "system" in lower_name %}
+                fa-gear
+              {% else %}
+                fa-folder-tree
+              {% endif %}
+            "></i>
+          </span>
+          <span class="grms-group-title">{{ group_name }}</span>
+          <span class="grms-group-chevron">
+            <i class="fa-solid fa-chevron-down"></i>
+          </span>
+        </button>
+        <div class="grms-group-body">
+          <ul class="grms-menu-list">
+            {% for item in items %}
+              <li>
+                <a href="{{ item.url }}"
+                   class="grms-menu-link{% if item.active %} is-active{% endif %}">
+                  {{ item.label }}
+                </a>
+              </li>
+            {% endfor %}
+          </ul>
+        </div>
+      </section>
+      {% endwith %}
+    {% endfor %}
+  {% else %}
+    {# Fallback to default Django sidebar if menu_groups is missing #}
+    {{ block.super }}
+  {% endif %}
+</nav>
