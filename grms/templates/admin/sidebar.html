@@ -27,20 +27,34 @@
     <a href="/admin/grms/structuredetaileddistresssurvey/">Structure condition detailed surveys</a>
     <a href="/admin/grms/furnituredetaileddistresssurvey/">Furniture condition detailed surveys</a>
 
-    <div class="sidebar-section">Traffic & Transport</div>
-    <a href="/admin/traffic/trafficsurvey/">Traffic surveys</a>
-    <a href="/admin/traffic/nightadjustmentlookup/">Night adjustment lookup</a>
-    <a href="/admin/traffic/trafficcycle/">Traffic cycle summaries</a>
-    <a href="/admin/traffic/trafficsummary/">Traffic survey summaries</a>
+    <div class="sidebar-section">Traffic &amp; Transport Data</div>
+    <div class="sidebar-sub">Survey Input</div>
+    <a href="{% url 'admin:traffic_trafficsurvey_changelist' %}">Traffic surveys</a>
+    <a href="{% url 'admin:traffic_trafficcountrecord_changelist' %}">Traffic counts</a>
 
-    <div class="sidebar-section">Maintenance & Prioritization</div>
+    <div class="sidebar-sub">Lookup &amp; Adjustment</div>
+    <a href="{% url 'admin:traffic_nightadjustmentlookup_changelist' %}">Night adjustment lookup</a>
+    <a href="{% url 'admin:traffic_pculookup_changelist' %}">PCU lookup</a>
+
+    <div class="sidebar-sub">Computed Summaries</div>
+    <a href="{% url 'admin:traffic_trafficcyclesummary_changelist' %}">Traffic cycle summaries</a>
+    <a href="{% url 'admin:traffic_trafficsurveysummary_changelist' %}">Traffic survey summaries</a>
+    <a href="{% url 'admin:traffic_trafficsurveyoverall_changelist' %}">Road traffic summaries</a>
+
+    <div class="sidebar-sub">Prioritization</div>
+    <a href="{% url 'admin:traffic_trafficforprioritization_changelist' %}">Traffic values for prioritization</a>
+
+    <div class="sidebar-sub">Quality Control</div>
+    <a href="{% url 'admin:traffic_trafficqc_changelist' %}">Traffic QC issues</a>
+
+    <div class="sidebar-section">Maintenance &amp; Prioritization</div>
     <a href="/admin/grms/roadsectionintervention/">Road section interventions</a>
     <a href="/admin/grms/structureintervention/">Structure interventions</a>
     <a href="/admin/grms/annualworkplan/">Annual work plans</a>
     <a href="/admin/grms/benefitfactor/">Benefit factors</a>
     <a href="/admin/grms/prioritizationresult/">Prioritization results</a>
 
-    <div class="sidebar-section">Reference & Lookup Tables</div>
+    <div class="sidebar-section">Reference &amp; Lookup Tables</div>
     <a href="/admin/grms/conditionrating/">Condition ratings</a>
     <a href="/admin/grms/qastatus/">QA statuses</a>
     <a href="/admin/grms/activitylookup/">Activity lookups</a>

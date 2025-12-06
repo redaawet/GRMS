@@ -20,6 +20,15 @@
     font-size: 13px;
 }
 
+#grms-sidebar .sidebar-sub {
+    padding: 6px 20px 4px;
+    font-weight: 600;
+    color: #1b4973;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+}
+
 #grms-sidebar a {
     display: block;
     padding: 8px 20px;
