@@ -38,7 +38,7 @@
 </head>
 
 {# Fix sidebar positioning #}
-<body class="{% if is_popup %}popup {% endif %}{% block bodyclass %}{{ block.super }} dashboard grms-has-sidebar{% endblock %}"
+<body class="{% if is_popup %}popup {% endif %}{% block bodyclass %}{{ block.super }}{% if not is_popup and is_nav_sidebar_enabled %} dashboard grms-has-sidebar{% endif %}{% endblock %}"
   data-admin-utc-offset="{% now "Z" %}">
 <a href="#content-start" class="skip-to-content-link">{% translate 'Skip to main content' %}</a>
 <!-- Container -->
