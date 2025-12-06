@@ -1,0 +1,59 @@
+/* ======================
+   FIXED SIDEBAR LAYOUT
+   ====================== */
+
+body.grms-has-sidebar #container {
+    margin-left: 260px !important;
+}
+
+#grms-sidebar {
+    width: 260px;
+    background: #f5f7fa;
+    border-right: 1px solid #d1d9e6;
+    height: 100vh;
+    position: fixed;
+    top: 0;
+    left: 0;
+    overflow-y: auto;
+    z-index: 999; /* Above admin but below dropdowns */
+    padding-top: 60px; /* Avoid overlapping admin top header */
+}
+
+/* Content wrapper */
+#grms-content-wrapper {
+    margin-left: 260px !important;
+    padding: 20px;
+}
+
+/* Sidebar groups */
+.sidebar-group-header {
+    font-size: 14px;
+    font-weight: 600;
+    padding: 14px 16px;
+    background: #eef2f7;
+    border-bottom: 1px solid #dce3ee;
+    cursor: pointer;
+    color: #33475b;
+}
+
+.sidebar-items {
+    display: none;
+    background: #fafbfd;
+    padding: 5px 0;
+}
+
+.sidebar-item {
+    padding: 8px 20px;
+    display: block;
+    font-size: 13px;
+    color: #444;
+}
+
+.sidebar-item:hover {
+    background: #d8e8ff;
+}
+
+.sidebar-item.active {
+    background: #bfd7ff;
+    font-weight: bold;
+}
