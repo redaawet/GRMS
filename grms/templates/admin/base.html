@@ -1,4 +1,7 @@
 {% load i18n static %}<!DOCTYPE html>
+{# ---------------------------------------------------------------------- #}
+{#  Custom GRMS Sidebar + Admin Theme Overrides                          #}
+{# ---------------------------------------------------------------------- #}
 {% get_current_language as LANGUAGE_CODE %}{% get_current_language_bidi as LANGUAGE_BIDI %}
 <html lang="{{ LANGUAGE_CODE|default:"en-us" }}" dir="{{ LANGUAGE_BIDI|yesno:'rtl,ltr,auto' }}">
 <head>
@@ -13,8 +16,9 @@
   <script src="{% static 'admin/js/nav_sidebar.js' %}" defer></script>
 {% endif %}
 {% block extrastyle %}
-<link rel="stylesheet" href="{% static 'grms/css/grms_admin.css' %}">
 {{ block.super }}
+<link rel="stylesheet" href="{% static 'grms/css/grms_admin.css' %}">
+<link rel="stylesheet" href="{% static 'grms/css/custom_admin.css' %}">
 {% endblock %}
 {% if LANGUAGE_BIDI %}<link rel="stylesheet" href="{% block stylesheet_rtl %}{% static "admin/css/rtl.css" %}{% endblock %}">{% endif %}
 {% block extrahead %}
@@ -23,7 +27,9 @@
         href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
         integrity="sha512-SzlrxWUlpfuzQ+pcUCosxcglQRNAq/DZjVsC0lE40xsADsfeQoEypE+enwcOiGjk/bSuGGKHEyjSoQ1zVisanQ=="
         crossorigin="anonymous" referrerpolicy="no-referrer">
+  <script src="{% static 'grms/js/sidebar.js' %}"></script>
 {% endblock %}
+
 {% block responsive %}
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="{% static "admin/css/responsive.css" %}">
@@ -32,7 +38,7 @@
 {% block blockbots %}<meta name="robots" content="NONE,NOARCHIVE">{% endblock %}
 </head>
 
-<body class="{% if is_popup %}popup {% endif %}{% block bodyclass %}{% endblock %}"
+<body class="{% if is_popup %}popup {% endif %}{% block bodyclass %}{{ block.super }} dashboard-with-sidebar{% endblock %}"
   data-admin-utc-offset="{% now "Z" %}">
 <a href="#content-start" class="skip-to-content-link">{% translate 'Skip to main content' %}</a>
 <!-- Container -->
@@ -95,11 +101,13 @@
     {% endif %}
 
     <div class="main" id="main">
-      {% if not is_popup and is_nav_sidebar_enabled %}
-        {% block nav-sidebar %}
-          {% include "admin/sidebar.html" %}
-        {% endblock %}
-      {% endif %}
+        {% if not is_popup and is_nav_sidebar_enabled %}
+          {% block nav-sidebar %}
+          <div id="grms-sidebar" class="grms-sidebar">
+            {% include "admin/sidebar.html" %}
+          </div>
+          {% endblock %}
+        {% endif %}
       <main id="content-start" class="content" tabindex="-1">
         {% block messages %}
           {% if messages %}
@@ -114,8 +122,10 @@
           {% block content_title %}{% if title %}<h1>{{ title }}</h1>{% endif %}{% endblock %}
           {% block content_subtitle %}{% if subtitle %}<h2>{{ subtitle }}</h2>{% endif %}{% endblock %}
           {% block content %}
+          <div class="grms-content">
             {% block object-tools %}{% endblock %}
             {{ content }}
+          </div>
           {% endblock %}
           {% block sidebar %}{% endblock %}
           <br class="clear">
@@ -138,5 +148,6 @@
 {{ block.super }}
 <script src="{% static 'grms/js/grms_admin.js' %}" defer></script>
 {% endblock extrabody %}
+{# END OF BASE.HTML #}
 </body>
 </html>
