@@ -2,7 +2,7 @@
 <div class="sidebar-sections">
   {% if menu_groups %}
     {% for title, items in menu_groups.items %}
-      <div class="sidebar-group">
+      <div class="sidebar-group" data-group="{{ forloop.counter0 }}">
         <div class="sidebar-group-header" data-group="{{ forloop.counter0 }}">
           <span class="sidebar-group-title">{{ title }}</span>
         </div>
