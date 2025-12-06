@@ -1,69 +1,63 @@
-/* ---------------------------
-   FIXED LEFT SIDEBAR LAYOUT
----------------------------- */
 #grms-sidebar {
     position: fixed;
-    top: 50px; /* below top admin bar */
+    top: 0;
     left: 0;
-    width: 260px;
-    height: calc(100vh - 50px);
+    width: 250px;
+    height: 100vh;
+    background: #ffffff;
+    border-right: 1px solid #e0e0e0;
+    padding: 20px 0;
     overflow-y: auto;
-    background: #f5f7fa;
-    border-right: 1px solid #d9e1e9;
-    padding: 10px 0;
-    z-index: 2000;
+    z-index: 1000;
 }
 
-/* Sidebar links */
+#grms-sidebar .sidebar-section {
+    padding: 10px 20px;
+    font-weight: 700;
+    color: #444;
+    margin-top: 20px;
+    text-transform: uppercase;
+    font-size: 13px;
+}
+
+#grms-sidebar .sidebar-sub {
+    padding: 6px 20px 4px;
+    font-weight: 600;
+    color: #1b4973;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+}
+
 #grms-sidebar a {
     display: block;
-    padding: 12px 20px;
-    font-weight: 600;
-    color: #1f2937;
+    padding: 8px 20px;
+    font-size: 14px;
     text-decoration: none;
+    color: #333;
 }
 
 #grms-sidebar a:hover {
-    background: #e3eaf3;
+    background: #f0f4f8;
+    color: #1b4973;
 }
 
-/* ---------------------------
-   MAIN CONTENT FIX
----------------------------- */
-#content,
-#container,
-#content-main,
-.dashboard,
-.change-form,
-.change-list {
-    margin-left: 260px !important; /* SAME AS SIDEBAR WIDTH */
-    padding: 20px !important;
-    width: calc(100% - 260px) !important;
-    box-sizing: border-box !important;
+#grms-main {
+    margin-left: 260px;
+    padding: 30px;
 }
 
-/* Fix breadcrumb and header */
-#header,
-.breadcrumbs {
-    margin-left: 260px !important;
+/* Fix default admin width issues */
+.change-list, .change-form, .module {
+    max-width: 100% !important;
 }
 
-/* ---------------------------
-   MOBILE (sidebar collapses)
----------------------------- */
+/* Responsive */
 @media (max-width: 900px) {
     #grms-sidebar {
-        position: fixed;
-        left: -260px;
-        transition: left 0.3s ease;
+        width: 200px;
     }
-    #grms-sidebar.open {
-        left: 0;
-    }
-
-    #content,
-    #content-main {
-        margin-left: 0 !important;
-        width: 100% !important;
+    #grms-main {
+        margin-left: 210px;
     }
 }
