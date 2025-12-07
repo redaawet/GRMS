@@ -6,8 +6,11 @@
 {% block content %}
 <div class="grms-dashboard">
 
-    <h1 class="dash-title">GRMS Professional Dashboard</h1>
-    <p class="dash-subtitle">Analytics overview and quick insights for gravel road management.</p>
+    <div class="grms-hero">
+        <p class="hero-kicker">Gravel Road Management System</p>
+        <h1 class="dash-title">GRMS Professional Dashboard</h1>
+        <p class="dash-subtitle">Analytics overview and quick insights for gravel road management.</p>
+    </div>
 
     <div class="kpi-row">
         <div class="kpi-card">
@@ -47,38 +50,6 @@
     <div class="panel">
         <h2>Road Network Overview</h2>
         <div id="roadMap"></div>
-    </div>
-
-    <div class="panel admin-menu-panel">
-        <div class="panel-heading">
-            <div>
-                <h2>Admin menu</h2>
-                <p class="panel-subtitle">Jump to the tools you use most, grouped by workflow.</p>
-            </div>
-        </div>
-
-        <div class="menu-grid">
-            {% for group, items in menu_groups.items %}
-                <div class="menu-group-card">
-                    <div class="menu-group-header">
-                        <h3>{{ group }}</h3>
-                        <span class="menu-count">{{ items|length }}</span>
-                    </div>
-                    <ul class="menu-links">
-                        {% for item in items %}
-                            <li>
-                                <a href="{{ item.url }}" class="menu-link {{ item.active|yesno:'is-active,' }}">
-                                    <span class="menu-link-label">{{ item.label }}</span>
-                                    <span class="menu-link-arrow">→</span>
-                                </a>
-                            </li>
-                        {% endfor %}
-                    </ul>
-                </div>
-            {% empty %}
-                <p class="empty-menu">No admin sections available.</p>
-            {% endfor %}
-        </div>
     </div>
 
 </div>

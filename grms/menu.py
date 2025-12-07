@@ -1,7 +1,6 @@
 MENU_GROUPS = {
     "Core Road Inventory": [
         ("Road", "Roads"),
-        ("RoadSocioEconomic", "Road socio-economic"),
         ("RoadSection", "Road sections"),
         ("RoadSegment", "Road segments"),
         ("StructureInventory", "Structure inventories"),
@@ -47,8 +46,6 @@ MENU_GROUPS = {
         ("RoadSectionIntervention", "Road section interventions"),
         ("StructureIntervention", "Structure interventions"),
         ("AnnualWorkPlan", "Annual work plans"),
-        ("BenefitFactor", "Benefit factors"),
-        ("PrioritizationResult", "Prioritization results"),
     ],
 
     "Reference & Lookup Tables": [
@@ -60,12 +57,18 @@ MENU_GROUPS = {
         ("DistressType", "Distress types"),
         ("DistressCondition", "Distress conditions"),
         ("DistressActivity", "Distress activities"),
-        ("RoadLinkTypeLookup", "Road link types"),
         ("AdminZone", "Administrative zones"),
         ("AdminWoreda", "Administrative woredas"),
+    ],
+
+    "Prioritization & Benefit Model": [
         ("BenefitCategory", "Benefit categories"),
         ("BenefitCriterion", "Benefit criteria"),
         ("BenefitCriterionScale", "Benefit criterion scales"),
+        ("RoadLinkTypeLookup", "Road link types"),
+        ("RoadSocioEconomic", "Road socio-economic"),
+        ("BenefitFactor", "Benefit factors"),
+        ("PrioritizationResult", "Prioritization results"),
     ],
 
     "System Administration": [

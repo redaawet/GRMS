@@ -7,6 +7,24 @@
     background: #f6f7f9;
 }
 
+.grms-hero {
+    background: linear-gradient(120deg, #e0ebff 0%, #f6f8ff 50%, #ffffff 100%);
+    border: 1px solid #d7e3ff;
+    border-radius: 12px;
+    padding: 22px 24px;
+    margin-bottom: 22px;
+    box-shadow: 0 8px 18px rgba(46, 77, 128, 0.08);
+}
+
+.hero-kicker {
+    margin: 0 0 6px;
+    color: #1f3b73;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    font-size: 13px;
+}
+
 .dash-title {
     font-size: 28px;
     font-weight: 700;
@@ -74,99 +92,6 @@
 #roadMap {
     height: 320px;
     border-radius: 10px;
-}
-
-.menu-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-    gap: 14px;
-    margin-top: 14px;
-}
-
-.admin-menu-panel {
-    margin-top: 22px;
-}
-
-.menu-group-card {
-    background: #f8fafc;
-    border: 1px solid #e5e7eb;
-    border-radius: 10px;
-    padding: 14px;
-    transition: border-color 0.2s ease, box-shadow 0.2s ease;
-}
-
-.menu-group-card:hover {
-    border-color: #d1d5db;
-    box-shadow: 0 6px 16px rgba(15, 23, 42, 0.08);
-}
-
-.menu-group-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 10px;
-}
-
-.menu-group-header h3 {
-    margin: 0;
-    font-size: 16px;
-    color: #111827;
-}
-
-.menu-count {
-    background: #e0ecff;
-    color: #1d4ed8;
-    border-radius: 999px;
-    padding: 4px 10px;
-    font-weight: 600;
-    font-size: 12px;
-}
-
-.menu-links {
-    list-style: none;
-    padding-left: 0;
-    margin: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-}
-
-.menu-link {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    background: white;
-    padding: 10px 12px;
-    border-radius: 8px;
-    border: 1px solid #e5e7eb;
-    color: #1f2937;
-    text-decoration: none;
-    transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
-}
-
-.menu-link:hover {
-    border-color: #cbd5e1;
-    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08);
-    transform: translateY(-1px);
-}
-
-.menu-link.is-active {
-    border-color: #1d4ed8;
-    box-shadow: 0 8px 18px rgba(37, 99, 235, 0.15);
-}
-
-.menu-link-label {
-    font-weight: 600;
-}
-
-.menu-link-arrow {
-    color: #9ca3af;
-    font-size: 14px;
-}
-
-.empty-menu {
-    color: #6b7280;
-    margin: 0;
 }
 
 body.grms-dashboard-page #content {
