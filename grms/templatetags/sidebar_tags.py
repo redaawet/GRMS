@@ -16,5 +16,7 @@ def resolve_model(context: template.Context, model_name: str):
     """Resolve a model from the context-provided lookup function."""
     resolver = context.get("get_model_by_name")
     if callable(resolver):
-        return resolver(model_name)
+        model = resolver(model_name)
+        if model is not None:
+            return getattr(model, "_meta", None)
     return None
