@@ -1,30 +1,105 @@
+/* ====== PROFESSIONAL UI THEME UPGRADE ====== */
+
+:root {
+    --sidebar-bg: #fafafa;
+    --sidebar-border: #e2e2e2;
+    --sidebar-text: #333;
+    --sidebar-hover: #eef3ff;
+    --sidebar-active: #dbe5ff;
+    --box-bg: #ffffff;
+    --box-shadow: rgba(0, 0, 0, 0.06) 0px 2px 6px;
+    --transition-fast: 0.18s ease;
+    --border-radius: 8px;
+}
+
+/* Main sidebar container */
 .nav-sidebar {
-    max-height: calc(100vh - 55px);
+    background: var(--sidebar-bg);
+    padding: 6px 8px;
+    max-height: calc(100vh - 60px);
     overflow-y: auto;
-    overflow-x: hidden;
-    padding-right: 4px;
 }
 
-.group-items,
-.subgroup-items {
-    overflow: hidden;
-    transition: max-height 0.25s ease;
-    max-height: 0;
+/* Top-level group headers */
+.group-header {
+    cursor: pointer;
+    font-weight: 600;
+    color: var(--sidebar-text);
+    padding: 10px 12px;
+    border-radius: var(--border-radius);
+    display: flex;
+    justify-content: space-between;
+    transition: background var(--transition-fast);
 }
 
-.group-items.show,
-.subgroup-items.show {
-    max-height: 1000px;
+.group-header:hover {
+    background: var(--sidebar-hover);
 }
 
-.group-header,
+.group-header.active {
+    background: var(--sidebar-active);
+}
+
+/* Boxed subgroup (Style B, premium) */
+.subgroup {
+    background: var(--box-bg);
+    border: 1px solid var(--sidebar-border);
+    border-radius: var(--border-radius);
+    padding: 12px;
+    margin: 8px 0;
+    box-shadow: var(--box-shadow);
+}
+
+/* Subgroup header */
 .subgroup-header {
     cursor: pointer;
-    padding: 6px 12px;
     font-weight: 600;
-    user-select: none;
+    margin-bottom: 8px;
+    display: flex;
+    justify-content: space-between;
+    transition: color var(--transition-fast);
 }
 
-.subgroup-title {
+.subgroup-header:hover {
+    color: #1a4fc3;
+}
+
+.subgroup-header.active {
+    color: #1a4fc3;
+}
+
+/* Subgroup items */
+.subgroup-items {
+    overflow: hidden;
+    max-height: 0;
+    transition: max-height 0.25s ease;
     padding-left: 12px;
+}
+
+.subgroup-items.show {
+    max-height: 1200px;
+}
+
+/* Model items */
+.model-item a {
+    color: var(--sidebar-text);
+    padding: 6px 4px;
+    display: block;
+    border-radius: 4px;
+    transition: background var(--transition-fast), padding-left var(--transition-fast);
+}
+
+.model-item a:hover {
+    background: var(--sidebar-hover);
+    padding-left: 8px;
+}
+
+/* Arrow icon smoothing */
+.toggle-icon {
+    transition: transform var(--transition-fast);
+}
+
+.group-header.active .toggle-icon,
+.subgroup-header.active .toggle-icon {
+    transform: rotate(90deg);
 }
