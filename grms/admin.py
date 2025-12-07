@@ -274,6 +274,21 @@ grms_admin_site = GRMSAdminSite(name="admin")
 admin.site = grms_admin_site
 admin.sites.site = grms_admin_site
 
+# Guarantee these models are only registered under the prioritized grouping.
+for model in (
+    models.RoadLinkTypeLookup,
+    models.RoadSocioEconomic,
+    models.BenefitCategory,
+    models.BenefitCriterion,
+    models.BenefitCriterionScale,
+    models.BenefitFactor,
+    models.PrioritizationResult,
+):
+    try:
+        admin.site.unregister(model)
+    except admin.sites.NotRegistered:
+        pass
+
 
 class RoadAdminForm(forms.ModelForm):
     start_easting = forms.DecimalField(label="Start easting", required=False, max_digits=12, decimal_places=2)
