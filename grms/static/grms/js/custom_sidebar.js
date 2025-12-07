@@ -1,55 +1,30 @@
-// ---------------------------
-// TOP LEVEL ACCORDION
-// ---------------------------
-function initTopLevelAccordion() {
-    document.querySelectorAll('.group-header').forEach(header => {
-        header.addEventListener('click', () => {
-            const key = header.dataset.group;
-            const list = document.getElementById(`group-${key}`);
+// Hybrid accordion behavior for GRMS sidebar
 
-            // Collapse other top groups
-            document.querySelectorAll('.group-items').forEach(other => {
-                if (other !== list) {
-                    other.classList.remove('show');
-                    localStorage.setItem(`sidebar-${other.id}`, 'collapsed');
-                }
-            });
+// Top-level accordion (only one open at a time)
+document.querySelectorAll('.group-header').forEach(header => {
+    header.addEventListener('click', () => {
+        const key = header.dataset.group;
+        const list = document.getElementById(`group-${key}`);
 
-            // Toggle current
-            list.classList.toggle('show');
-            const isCollapsed = !list.classList.contains('show');
-            localStorage.setItem(`sidebar-${key}`, isCollapsed ? 'collapsed' : 'expanded');
+        document.querySelectorAll('.group-items').forEach(other => {
+            if (other !== list) other.classList.remove('show');
         });
+
+        list.classList.toggle('show');
     });
-}
+});
 
-// ---------------------------
-// SUBGROUP ACCORDION
-// ---------------------------
-function initSubgroupAccordion() {
-    document.querySelectorAll('.subgroup-header').forEach(header => {
-        header.addEventListener('click', () => {
-            const key = header.dataset.subgroup;
-            const list = document.getElementById(`subgroup-${key}`);
+// Subgroup accordion (within Reference & Lookups only)
+document.querySelectorAll('.subgroup-header').forEach(header => {
+    header.addEventListener('click', () => {
+        const key = header.dataset.subgroup;
+        const list = document.getElementById(`subgroup-${key}`);
 
-            // Collapse siblings inside same top group
-            const parent = header.closest('.group-items');
-            parent.querySelectorAll('.subgroup-items').forEach(other => {
-                if (other !== list) {
-                    other.classList.remove('show');
-                    localStorage.setItem(`subgroup-${other.id}`, 'collapsed');
-                }
-            });
-
-            // Toggle current subgroup
-            list.classList.toggle('show');
-            const isCollapsed = !list.classList.contains('show');
-            localStorage.setItem(`subgroup-${key}`, isCollapsed ? 'collapsed' : 'expanded');
+        const parent = header.closest('.group-items');
+        parent.querySelectorAll('.subgroup-items').forEach(other => {
+            if (other !== list) other.classList.remove('show');
         });
-    });
-}
 
-document.addEventListener('DOMContentLoaded', () => {
-    initTopLevelAccordion();
-    initSubgroupAccordion();
+        list.classList.toggle('show');
+    });
 });
