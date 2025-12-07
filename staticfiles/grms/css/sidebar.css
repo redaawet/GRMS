@@ -111,6 +111,11 @@
   border-top: none;
 }
 
+#grms-sidebar .sidebar-group.single-subgroup .ss-header,
+#grms-sidebar .sidebar-group.single-subgroup .ss-arrow {
+  display: none;
+}
+
 #grms-sidebar .ss-header {
   display: flex;
   align-items: center;
@@ -133,6 +138,11 @@
   margin: 0;
   gap: 2px;
   flex-direction: column;
+}
+
+#grms-sidebar .sidebar-group.single-subgroup .ss-list {
+  display: flex;
+  padding-top: 6px;
 }
 
 #grms-sidebar .sidebar-subgroup.open > .ss-list {

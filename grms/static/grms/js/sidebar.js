@@ -66,6 +66,19 @@
     if (first) openSubgroup(first);
   }
 
+  function activateSingleSubgroups() {
+    document.querySelectorAll("#grms-sidebar .sidebar-group").forEach((group) => {
+      const subgroups = group.querySelectorAll(":scope > .sg-content > .sidebar-subgroup");
+      if (subgroups.length === 1) {
+        const single = subgroups[0];
+        group.classList.add("single-subgroup");
+        single.classList.add("no-toggle");
+        openSubgroup(single);
+        setMaxHeight(group.querySelector(":scope > .sg-content"), group.classList.contains("open"));
+      }
+    });
+  }
+
   function markActiveLinks() {
     const currentPath = window.location.pathname;
     let activeGroup = null;
@@ -125,6 +138,7 @@
         event.stopPropagation();
         const subgroup = header.closest(".sidebar-subgroup");
         if (!subgroup) return;
+        if (subgroup.classList.contains("no-toggle")) return;
         if (subgroup.classList.contains("open")) {
           subgroup.classList.remove("open");
           const list = subgroup.querySelector(":scope > .ss-list");
@@ -217,6 +231,7 @@
     if (!sidebar) return;
 
     const { activeGroup, activeSubgroup } = markActiveLinks();
+    activateSingleSubgroups();
     if (activeGroup) {
       openGroup(activeGroup, false);
     }
