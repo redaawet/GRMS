@@ -36,8 +36,7 @@
     background: var(--sidebar-hover);
 }
 
-/* Expanded group visually highlighted */
-.group-items.show ~ .group-header {
+.group-header.active {
     background: var(--sidebar-active);
 }
 
@@ -62,6 +61,10 @@
 }
 
 .subgroup-header:hover {
+    color: #1a4fc3;
+}
+
+.subgroup-header.active {
     color: #1a4fc3;
 }
 
@@ -96,7 +99,7 @@
     transition: transform var(--transition-fast);
 }
 
-.group-items.show ~ .group-header .toggle-icon,
-.subgroup-items.show ~ .subgroup-header .toggle-icon {
+.group-header.active .toggle-icon,
+.subgroup-header.active .toggle-icon {
     transform: rotate(90deg);
 }

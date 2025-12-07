@@ -6,10 +6,14 @@ document.querySelectorAll('.group-header').forEach(header => {
         const panel = document.getElementById(`group-${key}`);
 
         document.querySelectorAll('.group-items').forEach(g => {
-            if (g !== panel) g.classList.remove('show');
+            if (g !== panel) {
+                g.classList.remove('show');
+                g.previousElementSibling?.classList?.remove('active');
+            }
         });
 
-        panel.classList.toggle('show');
+        const isOpen = panel.classList.toggle('show');
+        header.classList.toggle('active', isOpen);
     });
 });
 
@@ -21,10 +25,14 @@ document.querySelectorAll('.subgroup-header').forEach(header => {
         const parent = header.closest('.group-items');
 
         parent.querySelectorAll('.subgroup-items').forEach(s => {
-            if (s !== panel) s.classList.remove('show');
+            if (s !== panel) {
+                s.classList.remove('show');
+                s.previousElementSibling?.classList?.remove('active');
+            }
         });
 
-        panel.classList.toggle('show');
+        const isOpen = panel.classList.toggle('show');
+        header.classList.toggle('active', isOpen);
     });
 });
 
