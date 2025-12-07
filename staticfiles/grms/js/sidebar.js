@@ -21,12 +21,12 @@
     });
 
     group.classList.add("open");
+    ensureDefaultSubgroup(group);
     setMaxHeight(group.querySelector(":scope > .sg-content"), true);
     if (saveState) {
       const key = group.getAttribute("data-group") || "";
       localStorage.setItem(ACTIVE_GROUP_KEY, key);
     }
-    ensureDefaultSubgroup(group);
   }
 
   function closeGroup(group) {

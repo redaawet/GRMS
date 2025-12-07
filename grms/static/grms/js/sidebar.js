@@ -21,6 +21,7 @@
     });
 
     group.classList.add("open");
+    ensureDefaultSubgroup(group);
     setMaxHeight(group.querySelector(":scope > .sg-content"), true);
     if (saveState) {
       const key = group.getAttribute("data-group") || "";
