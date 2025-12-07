@@ -1,4 +1,4 @@
-{% load admin_urls %}
+{% load admin_urls sidebar_tags %}
 
 <ul class="nav-sidebar">
 
@@ -6,7 +6,7 @@
 
   <li class="model-group">
     <div class="group-header" data-group="{{ group_key|slugify }}">
-      <span class="group-title">{{ group_key|replace:"_, " }}</span>
+      <span class="group-title">{{ group_key|underscore_to_space }}</span>
       <span class="toggle-icon">▸</span>
     </div>
 
