@@ -66,6 +66,10 @@ def _reverse_or_empty(name: str, object_id):
     return reverse(name, args=[object_id])
 
 
+MenuTarget = str | Tuple[str, str]
+MenuGroup = Sequence[MenuTarget] | Dict[str, Sequence[MenuTarget]]
+
+
 class GRMSAdminSite(AdminSite):
     site_header = "GRMS Administration"
     site_title = "GRMS Admin"
@@ -78,7 +82,7 @@ class GRMSAdminSite(AdminSite):
         "trafficforprioritization",
     }
 
-    MENU_GROUPS: Dict[str, Sequence[str | Tuple[str, str]]] = DEFAULT_MENU_GROUPS
+    MENU_GROUPS: Dict[str, MenuGroup] = DEFAULT_MENU_GROUPS
 
     @staticmethod
     def _normalise(name: str) -> str:
@@ -104,6 +108,27 @@ class GRMSAdminSite(AdminSite):
             return lookup_label, display_label
 
         return target, target
+
+    @staticmethod
+    def _flatten_group_models(group: MenuGroup) -> List[MenuTarget]:
+        if isinstance(group, dict):
+            models: List[MenuTarget] = []
+            for subgroup_models in group.values():
+                models.extend(subgroup_models)
+            return models
+        return list(group)
+
+    def _resolve_model_by_name(self, label: str):
+        normalized_label = self._normalise(label)
+        for model, _admin in self._registry.items():
+            model_names = {
+                self._normalise(model.__name__),
+                self._normalise(getattr(model._meta, "verbose_name", "")),
+                self._normalise(getattr(model._meta, "model_name", "")),
+            }
+            if normalized_label in model_names:
+                return model
+        return None
 
     def _build_model_lookup(
         self, app_list: List[Dict[str, object]]
@@ -131,8 +156,9 @@ class GRMSAdminSite(AdminSite):
         sections: List[Dict[str, object]] = []
 
         for title, models in self.MENU_GROUPS.items():
+            display_title = title.replace("_", " ").strip()
             grouped_models: List[Dict[str, object]] = []
-            for target in models:
+            for target in self._flatten_group_models(models):
                 lookup_label, display_name = self._parse_menu_target(target)
                 for model in lookup.get(self._normalise(lookup_label), []):
                     identifier = (model.get("app_label"), model["object_name"])
@@ -143,7 +169,7 @@ class GRMSAdminSite(AdminSite):
                     grouped_models.append(model_entry)
                     assigned.add(identifier)
             if grouped_models:
-                sections.append({"title": title, "models": grouped_models})
+                sections.append({"title": display_title, "models": grouped_models})
 
         leftovers: List[Dict[str, object]] = []
         other_section = next(
@@ -166,6 +192,8 @@ class GRMSAdminSite(AdminSite):
     def each_context(self, request):
         context = super().each_context(request)
         context["sections"] = self._build_sections(request)
+        context["MENU_GROUPS"] = self.MENU_GROUPS
+        context["get_model_by_name"] = self._resolve_model_by_name
         return context
 
     def index(self, request, extra_context=None):

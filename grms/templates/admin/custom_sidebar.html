@@ -1,86 +1,191 @@
+{% load admin_urls %}
+{% comment %}
+  Custom sidebar with hybrid accordion:
+  – All top-level groups collapse/expand
+  – Only Reference & Lookups has nested subgroups
+{% endcomment %}
+
 <ul class="nav-sidebar">
 
-  <!-- Top-level group: Reference & Lookups -->
+  <!-- Core Road Inventory -->
+  <li class="model-group">
+    <div class="group-header" data-group="core_road_inventory">
+      <span class="group-title">Core Road Inventory</span>
+      <span class="toggle-icon">▸</span>
+    </div>
+    <ul id="group-core_road_inventory" class="group-items collapse">
+      {% for model_name, display_name in MENU_GROUPS.Core_Road_Inventory %}
+        {% with model=get_model_by_name model_name %}
+          {% if model %}
+            <li class="model-item">
+              <a href="{% url model|admin_urlname:'changelist' %}">{{ display_name }}</a>
+            </li>
+          {% endif %}
+        {% endwith %}
+      {% endfor %}
+    </ul>
+  </li>
+
+  <!-- Structure Inventory -->
+  <li class="model-group">
+    <div class="group-header" data-group="structure_inventory">
+      <span class="group-title">Structure Inventory</span>
+      <span class="toggle-icon">▸</span>
+    </div>
+    <ul id="group-structure_inventory" class="group-items collapse">
+      {% for model_name, display_name in MENU_GROUPS.Structure_Inventory %}
+        {% with model=get_model_by_name model_name %}
+          {% if model %}
+            <li class="model-item">
+              <a href="{% url model|admin_urlname:'changelist' %}">{{ display_name }}</a>
+            </li>
+          {% endif %}
+        {% endwith %}
+      {% endfor %}
+    </ul>
+  </li>
+
+  <!-- Condition Surveys -->
+  <li class="model-group">
+    <div class="group-header" data-group="condition_surveys">
+      <span class="group-title">Condition Surveys</span>
+      <span class="toggle-icon">▸</span>
+    </div>
+    <ul id="group-condition_surveys" class="group-items collapse">
+      {% for model_name, display_name in MENU_GROUPS.Condition_Surveys %}
+        {% with model=get_model_by_name model_name %}
+          {% if model %}
+            <li class="model-item">
+              <a href="{% url model|admin_urlname:'changelist' %}">{{ display_name }}</a>
+            </li>
+          {% endif %}
+        {% endwith %}
+      {% endfor %}
+    </ul>
+  </li>
+
+  <!-- Detailed Distress Surveys -->
+  <li class="model-group">
+    <div class="group-header" data-group="detailed_distress_surveys">
+      <span class="group-title">Detailed Distress Surveys</span>
+      <span class="toggle-icon">▸</span>
+    </div>
+    <ul id="group-detailed_distress_surveys" class="group-items collapse">
+      {% for model_name, display_name in MENU_GROUPS.Detailed_Distress_Surveys %}
+        {% with model=get_model_by_name model_name %}
+          {% if model %}
+            <li class="model-item">
+              <a href="{% url model|admin_urlname:'changelist' %}">{{ display_name }}</a>
+            </li>
+          {% endif %}
+        {% endwith %}
+      {% endfor %}
+    </ul>
+  </li>
+
+  <!-- Traffic & Transport -->
+  <li class="model-group">
+    <div class="group-header" data-group="traffic_transport">
+      <span class="group-title">Traffic & Transport</span>
+      <span class="toggle-icon">▸</span>
+    </div>
+    <ul id="group-traffic_transport" class="group-items collapse">
+      {% for model_name, display_name in MENU_GROUPS.Traffic_Transport %}
+        {% with model=get_model_by_name model_name %}
+          {% if model %}
+            <li class="model-item">
+              <a href="{% url model|admin_urlname:'changelist' %}">{{ display_name }}</a>
+            </li>
+          {% endif %}
+        {% endwith %}
+      {% endfor %}
+    </ul>
+  </li>
+
+  <!-- Maintenance & Planning -->
+  <li class="model-group">
+    <div class="group-header" data-group="maintenance_planning">
+      <span class="group-title">Maintenance & Planning</span>
+      <span class="toggle-icon">▸</span>
+    </div>
+    <ul id="group-maintenance_planning" class="group-items collapse">
+      {% for model_name, display_name in MENU_GROUPS.Maintenance_Planning %}
+        {% with model=get_model_by_name model_name %}
+          {% if model %}
+            <li class="model-item">
+              <a href="{% url model|admin_urlname:'changelist' %}">{{ display_name }}</a>
+            </li>
+          {% endif %}
+        {% endwith %}
+      {% endfor %}
+    </ul>
+  </li>
+
+  <!-- Reference & Lookups (subgroups) -->
   <li class="model-group">
     <div class="group-header" data-group="reference_lookups">
       <span class="group-title">Reference & Lookups</span>
       <span class="toggle-icon">▸</span>
     </div>
+    <ul id="group-reference_lookups" class="group-items collapse">
 
-    <ul id="group-reference_lookups" class="group-items collapse show">
-
-      <!-- Subgroup: Asset Classification -->
+      {% for subgroup_name, subgroup_models in MENU_GROUPS.Reference_Lookups.items %}
       <li class="subgroup">
-        <div class="subgroup-header" data-subgroup="asset_classification">
-          <span class="subgroup-title">Asset Classification</span>
+        <div class="subgroup-header" data-subgroup="{{ subgroup_name|slugify }}">
+          <span class="subgroup-title">{{ subgroup_name }}</span>
           <span class="toggle-icon">▸</span>
         </div>
-
-        <ul id="subgroup-asset_classification" class="subgroup-items collapse">
-          {{ render_models_for "ActivityLookups" }}
-          {{ render_models_for "InterventionLookups" }}
-          {{ render_models_for "UnitCosts" }}
+        <ul id="subgroup-{{ subgroup_name|slugify }}" class="subgroup-items collapse">
+          {% for model_name, display_name in subgroup_models %}
+            {% with model=get_model_by_name model_name %}
+              {% if model %}
+                <li class="model-item">
+                  <a href="{% url model|admin_urlname:'changelist' %}">{{ display_name }}</a>
+                </li>
+              {% endif %}
+            {% endwith %}
+          {% endfor %}
         </ul>
       </li>
-
-      <!-- Subgroup: Condition & Survey -->
-      <li class="subgroup">
-        <div class="subgroup-header" data-subgroup="condition_survey">
-          <span class="subgroup-title">Condition & Survey</span>
-          <span class="toggle-icon">▸</span>
-        </div>
-
-        <ul id="subgroup-condition_survey" class="subgroup-items collapse">
-          {{ render_models_for "ConditionRating" }}
-          {{ render_models_for "QAStatus" }}
-        </ul>
-      </li>
-
-      <!-- Subgroup: Distress Classification -->
-      <li class="subgroup">
-        <div class="subgroup-header" data-subgroup="distress_classification">
-          <span class="subgroup-title">Distress Classification</span>
-          <span class="toggle-icon">▸</span>
-        </div>
-
-        <ul id="subgroup-distress_classification" class="subgroup-items collapse">
-          {{ render_models_for "DistressType" }}
-          {{ render_models_for "DistressCondition" }}
-          {{ render_models_for "DistressActivity" }}
-        </ul>
-      </li>
-
+      {% endfor %}
     </ul>
   </li>
 
-  <!-- Top-level group: Prioritization & Benefit Model -->
+  <!-- Prioritization & Benefit -->
   <li class="model-group">
     <div class="group-header" data-group="benefit_model">
       <span class="group-title">Prioritization & Benefit Model</span>
       <span class="toggle-icon">▸</span>
     </div>
-
     <ul id="group-benefit_model" class="group-items collapse">
-      {{ render_models_for "BenefitCategory" }}
-      {{ render_models_for "BenefitCriterion" }}
-      {{ render_models_for "BenefitCriterionScale" }}
-      {{ render_models_for "RoadLinkTypeLookup" }}
-      {{ render_models_for "RoadSocioEconomic" }}
-      {{ render_models_for "BenefitFactor" }}
-      {{ render_models_for "PrioritizationResult" }}
+      {% for model_name, display_name in MENU_GROUPS.Prioritization_Benefit_Model %}
+        {% with model=get_model_by_name model_name %}
+          {% if model %}
+            <li class="model-item">
+              <a href="{% url model|admin_urlname:'changelist' %}">{{ display_name }}</a>
+            </li>
+          {% endif %}
+        {% endwith %}
+      {% endfor %}
     </ul>
   </li>
 
-  <!-- Top-level group: System Administration -->
+  <!-- System Administration -->
   <li class="model-group">
     <div class="group-header" data-group="system_admin">
       <span class="group-title">System Administration</span>
       <span class="toggle-icon">▸</span>
     </div>
-
     <ul id="group-system_admin" class="group-items collapse">
-      {{ render_models_for "User" }}
-      {{ render_models_for "Group" }}
+      {% for model_name, display_name in MENU_GROUPS.System_Administration %}
+        {% with model=get_model_by_name model_name %}
+          {% if model %}
+            <li class="model-item">
+              <a href="{% url model|admin_urlname:'changelist' %}">{{ display_name }}</a>
+            </li>
+          {% endif %}
+        {% endwith %}
+      {% endfor %}
     </ul>
   </li>
 
