@@ -27,6 +27,7 @@
       const key = group.getAttribute("data-group") || "";
       localStorage.setItem(ACTIVE_GROUP_KEY, key);
     }
+    ensureDefaultSubgroup(group);
   }
 
   function closeGroup(group) {
