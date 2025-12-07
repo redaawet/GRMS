@@ -1,0 +1,21 @@
+.nav-sidebar {
+    overflow-y: auto;
+    max-height: calc(100vh - 40px);
+}
+
+.group-header,
+.subgroup-header {
+    cursor: pointer;
+    padding: 6px 12px;
+    font-weight: 600;
+}
+
+.group-items,
+.subgroup-items {
+    overflow: hidden;
+    transition: all 0.25s ease;
+}
+
+.subgroup-title {
+    padding-left: 10px;
+}
