@@ -1,28 +1,141 @@
 {% load static %}
-<div class="sidebar-sections">
-  {% if menu_groups %}
-    {% for title, items in menu_groups.items %}
-      <div class="sidebar-group" data-group="{{ forloop.counter0 }}">
-        <div class="sidebar-group-header" data-group="{{ forloop.counter0 }}">
-          <span class="sidebar-group-title">{{ title }}</span>
+<div id="grms-sidebar">
+    <div class="sidebar-group">
+        <div class="sidebar-header" data-target="core_inventory">
+            <span>Core Road Inventory</span>
+            <span class="arrow">&#9656;</span>
         </div>
-        <div class="sidebar-items" id="group-{{ forloop.counter0 }}">
-          {% for item in items %}
-            <a href="{{ item.url }}" class="sidebar-item{% if item.active %} active{% endif %}">
-              {{ item.label }}
-            </a>
-          {% endfor %}
+        <div id="core_inventory" class="sidebar-links collapsed">
+            <a href="/admin/grms/road/">Roads</a>
+            <a href="/admin/grms/roadsocioeconomic/">Road socio-economic</a>
+            <a href="/admin/grms/roadsection/">Road sections</a>
+            <a href="/admin/grms/roadsegment/">Road segments</a>
+            <a href="/admin/grms/structureinventory/">Structure inventories</a>
+            <a href="/admin/grms/furnitureinventory/">Furniture inventories</a>
         </div>
-      </div>
-    {% endfor %}
-  {% else %}
-    <div class="sidebar-group empty">
-      <div class="sidebar-group-header">
-        <span class="sidebar-group-title">No menu items available</span>
-      </div>
-      <div class="sidebar-items">
-        <p class="sidebar-empty">You do not have access to any models.</p>
-      </div>
     </div>
-  {% endif %}
+
+    <div class="sidebar-group">
+        <div class="sidebar-header" data-target="structure_details">
+            <span>Structure Details</span>
+            <span class="arrow">&#9656;</span>
+        </div>
+        <div id="structure_details" class="sidebar-links collapsed">
+            <a href="/admin/grms/bridgedetail/">Bridge details</a>
+            <a href="/admin/grms/culvertdetail/">Culvert details</a>
+            <a href="/admin/grms/forddetail/">Ford details</a>
+            <a href="/admin/grms/retainingwalldetail/">Retaining wall details</a>
+            <a href="/admin/grms/gabionwalldetail/">Gabion wall details</a>
+        </div>
+    </div>
+
+    <div class="sidebar-group">
+        <div class="sidebar-header" data-target="condition_surveys">
+            <span>Condition Surveys</span>
+            <span class="arrow">&#9656;</span>
+        </div>
+        <div id="condition_surveys" class="sidebar-links collapsed">
+            <a href="/admin/grms/roadconditionsurvey/">Road condition surveys</a>
+            <a href="/admin/grms/structureconditionsurvey/">Structure condition surveys</a>
+            <a href="/admin/grms/bridgeconditionsurvey/">Bridge condition surveys</a>
+            <a href="/admin/grms/culvertconditionsurvey/">Culvert condition surveys</a>
+            <a href="/admin/grms/otherstructureconditionsurvey/">Other structure condition surveys</a>
+            <a href="/admin/grms/furnitureconditionsurvey/">Furniture condition surveys</a>
+        </div>
+    </div>
+
+    <div class="sidebar-group">
+        <div class="sidebar-header" data-target="detailed_distress">
+            <span>Detailed Distress Surveys</span>
+            <span class="arrow">&#9656;</span>
+        </div>
+        <div id="detailed_distress" class="sidebar-links collapsed">
+            <a href="/admin/grms/roaddetaileddistresssurvey/">Road detailed surveys</a>
+            <a href="/admin/grms/structuredetaileddistresssurvey/">Structure detailed surveys</a>
+            <a href="/admin/grms/furnituredetaileddistresssurvey/">Furniture detailed surveys</a>
+        </div>
+    </div>
+
+    <div class="sidebar-group">
+        <div class="sidebar-header" data-target="traffic_transport">
+            <span>Traffic &amp; Transport</span>
+            <span class="arrow">&#9656;</span>
+        </div>
+        <div id="traffic_transport" class="sidebar-links collapsed">
+            <a href="/admin/traffic/trafficsurvey/">Traffic surveys</a>
+            <a href="/admin/traffic/trafficcountrecord/">Traffic counts</a>
+            <a href="/admin/traffic/nightadjustmentlookup/">Night adjustment lookup</a>
+            <a href="/admin/traffic/pculookup/">PCU lookup</a>
+            <a href="/admin/traffic/trafficcyclesummary/">Traffic cycle summaries</a>
+            <a href="/admin/traffic/trafficsurveysummary/">Traffic survey summaries</a>
+            <a href="/admin/traffic/trafficsurveyoverall/">Road traffic summaries</a>
+            <a href="/admin/traffic/trafficforprioritization/">Traffic values for prioritization</a>
+            <a href="/admin/traffic/trafficqc/">Traffic QC issues</a>
+        </div>
+    </div>
+
+    <div class="sidebar-group">
+        <div class="sidebar-header" data-target="planning">
+            <span>Maintenance &amp; Planning</span>
+            <span class="arrow">&#9656;</span>
+        </div>
+        <div id="planning" class="sidebar-links collapsed">
+            <a href="/admin/grms/roadsectionintervention/">Road section interventions</a>
+            <a href="/admin/grms/structureintervention/">Structure interventions</a>
+            <a href="/admin/grms/annualworkplan/">Annual work plans</a>
+        </div>
+    </div>
+
+    <div class="sidebar-group">
+        <div class="sidebar-header" data-target="reference_lookups">
+            <span>Reference &amp; Lookups</span>
+            <span class="arrow">&#9656;</span>
+        </div>
+        <div id="reference_lookups" class="sidebar-links collapsed">
+            <div class="sidebar-subheader">Network &amp; Administrative</div>
+            <a href="/admin/grms/adminzone/">Administrative zones</a>
+            <a href="/admin/grms/adminworeda/">Administrative woredas</a>
+
+            <div class="sidebar-subheader">Asset Classification</div>
+            <a href="/admin/grms/activitylookup/">Activity lookups</a>
+            <a href="/admin/grms/interventionlookup/">Intervention lookups</a>
+            <a href="/admin/grms/unitcost/">Unit costs</a>
+
+            <div class="sidebar-subheader">Condition &amp; Survey</div>
+            <a href="/admin/grms/conditionrating/">Condition ratings</a>
+            <a href="/admin/grms/qastatus/">QA statuses</a>
+
+            <div class="sidebar-subheader">Distress Classification</div>
+            <a href="/admin/grms/distresstype/">Distress types</a>
+            <a href="/admin/grms/distresscondition/">Distress conditions</a>
+            <a href="/admin/grms/distressactivity/">Distress activities</a>
+        </div>
+    </div>
+
+    <div class="sidebar-group">
+        <div class="sidebar-header" data-target="benefit_model">
+            <span>Prioritization &amp; Benefit Model</span>
+            <span class="arrow">&#9656;</span>
+        </div>
+        <div id="benefit_model" class="sidebar-links collapsed">
+            <a href="/admin/grms/benefitcategory/">Benefit categories</a>
+            <a href="/admin/grms/benefitcriterion/">Benefit criteria</a>
+            <a href="/admin/grms/benefitcriterionscale/">Benefit criterion scales</a>
+            <a href="/admin/grms/roadlinktype/">Road link types</a>
+            <a href="/admin/grms/roadsocioeconomic/">Road socio-economic</a>
+            <a href="/admin/grms/benefitfactor/">Benefit factors</a>
+            <a href="/admin/grms/prioritizationresult/">Prioritization results</a>
+        </div>
+    </div>
+
+    <div class="sidebar-group">
+        <div class="sidebar-header" data-target="system_admin">
+            <span>System Administration</span>
+            <span class="arrow">&#9656;</span>
+        </div>
+        <div id="system_admin" class="sidebar-links collapsed">
+            <a href="/admin/auth/user/">Users</a>
+            <a href="/admin/auth/group/">Groups</a>
+        </div>
+    </div>
 </div>
