@@ -17,6 +17,7 @@
 {% endif %}
 {% block extrastyle %}
 {{ block.super }}
+<link rel="stylesheet" href="{% static 'grms/css/sidebar.css' %}">
 <link rel="stylesheet" href="{% static 'grms/css/grms_admin.css' %}">
 <link rel="stylesheet" href="{% static 'grms/css/custom_admin.css' %}">
 {% endblock %}
@@ -103,9 +104,7 @@
     <div class="main" id="main">
         {% if not is_popup and is_nav_sidebar_enabled %}
           {% block nav-sidebar %}
-          <div id="grms-sidebar" class="grms-sidebar">
-            {% include "admin/sidebar.html" %}
-          </div>
+          {% include "admin/sidebar.html" %}
           {% endblock %}
         {% endif %}
       <main id="content-start" class="content" tabindex="-1">
@@ -146,7 +145,9 @@
 <!-- END SVGs -->
 {% block extrabody %}
 {{ block.super }}
-<script src="{% static 'grms/js/sidebar.js' %}"></script>
+{% if not is_popup and is_nav_sidebar_enabled %}
+<script src="{% static 'grms/js/sidebar.js' %}" defer></script>
+{% endif %}
 <script src="{% static 'grms/js/grms_admin.js' %}" defer></script>
 {% endblock extrabody %}
 {# END OF BASE.HTML #}

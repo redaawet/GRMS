@@ -1,176 +1,238 @@
 {% load static %}
 <div id="grms-sidebar" class="sidebar">
-    <div class="sidebar-actions">
-        <button id="sidebar-toggle" class="sidebar-toggle" type="button" aria-label="Collapse sidebar">« Collapse sidebar</button>
-        <input id="sidebar-search" class="sidebar-search" type="search" placeholder="Search menu…" aria-label="Search menu">
+  <button id="sidebar-toggle" class="sidebar-toggle" type="button" aria-label="Collapse sidebar">▸</button>
+  <input id="sidebar-search" class="sidebar-search" type="search" placeholder="Search menu…" aria-label="Search menu">
+
+  <nav class="sidebar-nav" aria-label="GRMS admin navigation">
+    <div class="sidebar-group" data-group="core_inventory">
+      <div class="sg-header">
+        <span class="sg-title">Core Road Inventory</span>
+        <span class="sg-arrow" aria-hidden="true">▸</span>
+      </div>
+      <div class="sg-content">
+        <div class="sidebar-subgroup" data-sub="core_inventory">
+          <div class="ss-header">
+            <span class="ss-title">Inventory</span>
+            <span class="ss-arrow" aria-hidden="true">▸</span>
+          </div>
+          <div class="ss-list">
+            <a class="ss-link" href="/admin/grms/road/"><span class="link-label">Roads</span></a>
+            <a class="ss-link" href="/admin/grms/roadsocioeconomic/"><span class="link-label">Road socio-economic</span></a>
+            <a class="ss-link" href="/admin/grms/roadsection/"><span class="link-label">Road sections</span></a>
+            <a class="ss-link" href="/admin/grms/roadsegment/"><span class="link-label">Road segments</span></a>
+            <a class="ss-link" href="/admin/grms/structureinventory/"><span class="link-label">Structure inventories</span></a>
+            <a class="ss-link" href="/admin/grms/furnitureinventory/"><span class="link-label">Furniture inventories</span></a>
+          </div>
+        </div>
+      </div>
     </div>
 
-    <nav class="sidebar-nav" aria-label="GRMS admin navigation">
-        <div class="sidebar-group" data-group="core_inventory">
-            <div class="sidebar-group-header">
-                <span class="group-title">Core Road Inventory</span>
-                <span class="toggle-icon" aria-hidden="true">▸</span>
-            </div>
-            <ul class="submenu">
-                <li><a class="menu-link" href="/admin/grms/road/"><span class="link-label">Roads</span></a></li>
-                <li><a class="menu-link" href="/admin/grms/roadsocioeconomic/"><span class="link-label">Road socio-economic</span></a></li>
-                <li><a class="menu-link" href="/admin/grms/roadsection/"><span class="link-label">Road sections</span></a></li>
-                <li><a class="menu-link" href="/admin/grms/roadsegment/"><span class="link-label">Road segments</span></a></li>
-                <li><a class="menu-link" href="/admin/grms/structureinventory/"><span class="link-label">Structure inventories</span></a></li>
-                <li><a class="menu-link" href="/admin/grms/furnitureinventory/"><span class="link-label">Furniture inventories</span></a></li>
-            </ul>
+    <div class="sidebar-group" data-group="structure_details">
+      <div class="sg-header">
+        <span class="sg-title">Structure Details</span>
+        <span class="sg-arrow" aria-hidden="true">▸</span>
+      </div>
+      <div class="sg-content">
+        <div class="sidebar-subgroup" data-sub="structure_details">
+          <div class="ss-header">
+            <span class="ss-title">Structure Details</span>
+            <span class="ss-arrow" aria-hidden="true">▸</span>
+          </div>
+          <div class="ss-list">
+            <a class="ss-link" href="/admin/grms/bridgedetail/"><span class="link-label">Bridge details</span></a>
+            <a class="ss-link" href="/admin/grms/culvertdetail/"><span class="link-label">Culvert details</span></a>
+            <a class="ss-link" href="/admin/grms/forddetail/"><span class="link-label">Ford details</span></a>
+            <a class="ss-link" href="/admin/grms/retainingwalldetail/"><span class="link-label">Retaining wall details</span></a>
+            <a class="ss-link" href="/admin/grms/gabionwalldetail/"><span class="link-label">Gabion wall details</span></a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sidebar-group" data-group="condition_surveys">
+      <div class="sg-header">
+        <span class="sg-title">Condition Surveys</span>
+        <span class="sg-arrow" aria-hidden="true">▸</span>
+      </div>
+      <div class="sg-content">
+        <div class="sidebar-subgroup" data-sub="condition_surveys">
+          <div class="ss-header">
+            <span class="ss-title">Condition Surveys</span>
+            <span class="ss-arrow" aria-hidden="true">▸</span>
+          </div>
+          <div class="ss-list">
+            <a class="ss-link" href="/admin/grms/roadconditionsurvey/"><span class="link-label">Road condition surveys</span></a>
+            <a class="ss-link" href="/admin/grms/structureconditionsurvey/"><span class="link-label">Structure condition surveys</span></a>
+            <a class="ss-link" href="/admin/grms/bridgeconditionsurvey/"><span class="link-label">Bridge condition surveys</span></a>
+            <a class="ss-link" href="/admin/grms/culvertconditionsurvey/"><span class="link-label">Culvert condition surveys</span></a>
+            <a class="ss-link" href="/admin/grms/otherstructureconditionsurvey/"><span class="link-label">Other structure condition surveys</span></a>
+            <a class="ss-link" href="/admin/grms/furnitureconditionsurvey/"><span class="link-label">Furniture condition surveys</span></a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sidebar-group" data-group="detailed_distress">
+      <div class="sg-header">
+        <span class="sg-title">Detailed Distress Surveys</span>
+        <span class="sg-arrow" aria-hidden="true">▸</span>
+      </div>
+      <div class="sg-content">
+        <div class="sidebar-subgroup" data-sub="detailed_distress">
+          <div class="ss-header">
+            <span class="ss-title">Distress Surveys</span>
+            <span class="ss-arrow" aria-hidden="true">▸</span>
+          </div>
+          <div class="ss-list">
+            <a class="ss-link" href="/admin/grms/roaddetaileddistresssurvey/"><span class="link-label">Road detailed surveys</span></a>
+            <a class="ss-link" href="/admin/grms/structuredetaileddistresssurvey/"><span class="link-label">Structured detailed surveys</span></a>
+            <a class="ss-link" href="/admin/grms/furnituredetaileddistresssurvey/"><span class="link-label">Furniture detailed surveys</span></a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sidebar-group" data-group="traffic_transport">
+      <div class="sg-header">
+        <span class="sg-title">Traffic &amp; Transport</span>
+        <span class="sg-arrow" aria-hidden="true">▸</span>
+      </div>
+      <div class="sg-content">
+        <div class="sidebar-subgroup" data-sub="traffic_transport">
+          <div class="ss-header">
+            <span class="ss-title">Traffic &amp; Transport</span>
+            <span class="ss-arrow" aria-hidden="true">▸</span>
+          </div>
+          <div class="ss-list">
+            <a class="ss-link" href="/admin/traffic/trafficsurvey/"><span class="link-label">Traffic surveys</span></a>
+            <a class="ss-link" href="/admin/traffic/trafficcountrecord/"><span class="link-label">Traffic counts</span></a>
+            <a class="ss-link" href="/admin/traffic/nightadjustmentlookup/"><span class="link-label">Night adjustment lookup</span></a>
+            <a class="ss-link" href="/admin/traffic/pculookup/"><span class="link-label">PCU lookup</span></a>
+            <a class="ss-link" href="/admin/traffic/trafficcyclesummary/"><span class="link-label">Traffic cycle summaries</span></a>
+            <a class="ss-link" href="/admin/traffic/trafficsurveysummary/"><span class="link-label">Traffic survey summaries</span></a>
+            <a class="ss-link" href="/admin/traffic/trafficsurveyoverall/"><span class="link-label">Road traffic summaries</span></a>
+            <a class="ss-link" href="/admin/traffic/trafficforprioritization/"><span class="link-label">Traffic values for prioritization</span></a>
+            <a class="ss-link" href="/admin/traffic/trafficqc/"><span class="link-label">Traffic QC issues</span></a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sidebar-group" data-group="planning">
+      <div class="sg-header">
+        <span class="sg-title">Maintenance &amp; Planning</span>
+        <span class="sg-arrow" aria-hidden="true">▸</span>
+      </div>
+      <div class="sg-content">
+        <div class="sidebar-subgroup" data-sub="planning">
+          <div class="ss-header">
+            <span class="ss-title">Maintenance &amp; Planning</span>
+            <span class="ss-arrow" aria-hidden="true">▸</span>
+          </div>
+          <div class="ss-list">
+            <a class="ss-link" href="/admin/grms/roadsectionintervention/"><span class="link-label">Road section interventions</span></a>
+            <a class="ss-link" href="/admin/grms/structureintervention/"><span class="link-label">Structure interventions</span></a>
+            <a class="ss-link" href="/admin/grms/annualworkplan/"><span class="link-label">Annual work plans</span></a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sidebar-group" data-group="reference_lookups">
+      <div class="sg-header">
+        <span class="sg-title">Reference &amp; Lookups</span>
+        <span class="sg-arrow" aria-hidden="true">▸</span>
+      </div>
+      <div class="sg-content">
+        <div class="sidebar-subgroup" data-sub="network_admin">
+          <div class="ss-header">
+            <span class="ss-title">Network &amp; Administrative</span>
+            <span class="ss-arrow" aria-hidden="true">▸</span>
+          </div>
+          <div class="ss-list">
+            <a class="ss-link" href="/admin/grms/adminzone/"><span class="link-label">Administrative zones</span></a>
+            <a class="ss-link" href="/admin/grms/adminworeda/"><span class="link-label">Administrative woredas</span></a>
+          </div>
         </div>
 
-        <div class="sidebar-group" data-group="structure_details">
-            <div class="sidebar-group-header">
-                <span class="group-title">Structure Details</span>
-                <span class="toggle-icon" aria-hidden="true">▸</span>
-            </div>
-            <ul class="submenu">
-                <li><a class="menu-link" href="/admin/grms/bridgedetail/"><span class="link-label">Bridge details</span></a></li>
-                <li><a class="menu-link" href="/admin/grms/culvertdetail/"><span class="link-label">Culvert details</span></a></li>
-                <li><a class="menu-link" href="/admin/grms/forddetail/"><span class="link-label">Ford details</span></a></li>
-                <li><a class="menu-link" href="/admin/grms/retainingwalldetail/"><span class="link-label">Retaining wall details</span></a></li>
-                <li><a class="menu-link" href="/admin/grms/gabionwalldetail/"><span class="link-label">Gabion wall details</span></a></li>
-            </ul>
+        <div class="sidebar-subgroup" data-sub="asset_classification">
+          <div class="ss-header">
+            <span class="ss-title">Asset Classification</span>
+            <span class="ss-arrow" aria-hidden="true">▸</span>
+          </div>
+          <div class="ss-list">
+            <a class="ss-link" href="/admin/grms/activitylookup/"><span class="link-label">Activity lookups</span></a>
+            <a class="ss-link" href="/admin/grms/interventionlookup/"><span class="link-label">Intervention lookups</span></a>
+            <a class="ss-link" href="/admin/grms/unitcost/"><span class="link-label">Unit costs</span></a>
+          </div>
         </div>
 
-        <div class="sidebar-group" data-group="condition_surveys">
-            <div class="sidebar-group-header">
-                <span class="group-title">Condition Surveys</span>
-                <span class="toggle-icon" aria-hidden="true">▸</span>
-            </div>
-            <ul class="submenu">
-                <li><a class="menu-link" href="/admin/grms/roadconditionsurvey/"><span class="link-label">Road condition surveys</span></a></li>
-                <li><a class="menu-link" href="/admin/grms/structureconditionsurvey/"><span class="link-label">Structure condition surveys</span></a></li>
-                <li><a class="menu-link" href="/admin/grms/bridgeconditionsurvey/"><span class="link-label">Bridge condition surveys</span></a></li>
-                <li><a class="menu-link" href="/admin/grms/culvertconditionsurvey/"><span class="link-label">Culvert condition surveys</span></a></li>
-                <li><a class="menu-link" href="/admin/grms/otherstructureconditionsurvey/"><span class="link-label">Other structure condition surveys</span></a></li>
-                <li><a class="menu-link" href="/admin/grms/furnitureconditionsurvey/"><span class="link-label">Furniture condition surveys</span></a></li>
-            </ul>
+        <div class="sidebar-subgroup" data-sub="condition_survey">
+          <div class="ss-header">
+            <span class="ss-title">Condition &amp; Survey</span>
+            <span class="ss-arrow" aria-hidden="true">▸</span>
+          </div>
+          <div class="ss-list">
+            <a class="ss-link" href="/admin/grms/conditionrating/"><span class="link-label">Condition ratings</span></a>
+            <a class="ss-link" href="/admin/grms/qastatus/"><span class="link-label">QA statuses</span></a>
+          </div>
         </div>
 
-        <div class="sidebar-group" data-group="detailed_distress">
-            <div class="sidebar-group-header">
-                <span class="group-title">Detailed Distress Surveys</span>
-                <span class="toggle-icon" aria-hidden="true">▸</span>
-            </div>
-            <ul class="submenu">
-                <li><a class="menu-link" href="/admin/grms/roaddetaileddistresssurvey/"><span class="link-label">Road detailed surveys</span></a></li>
-                <li><a class="menu-link" href="/admin/grms/structuredetaileddistresssurvey/"><span class="link-label">Structure detailed surveys</span></a></li>
-                <li><a class="menu-link" href="/admin/grms/furnituredetaileddistresssurvey/"><span class="link-label">Furniture detailed surveys</span></a></li>
-            </ul>
+        <div class="sidebar-subgroup" data-sub="distress_classification">
+          <div class="ss-header">
+            <span class="ss-title">Distress Classification</span>
+            <span class="ss-arrow" aria-hidden="true">▸</span>
+          </div>
+          <div class="ss-list">
+            <a class="ss-link" href="/admin/grms/distresstype/"><span class="link-label">Distress types</span></a>
+            <a class="ss-link" href="/admin/grms/distresscondition/"><span class="link-label">Distress conditions</span></a>
+            <a class="ss-link" href="/admin/grms/distressactivity/"><span class="link-label">Distress activities</span></a>
+          </div>
         </div>
+      </div>
+    </div>
 
-        <div class="sidebar-group" data-group="traffic_transport">
-            <div class="sidebar-group-header">
-                <span class="group-title">Traffic &amp; Transport</span>
-                <span class="toggle-icon" aria-hidden="true">▸</span>
-            </div>
-            <ul class="submenu">
-                <li><a class="menu-link" href="/admin/traffic/trafficsurvey/"><span class="link-label">Traffic surveys</span></a></li>
-                <li><a class="menu-link" href="/admin/traffic/trafficcountrecord/"><span class="link-label">Traffic counts</span></a></li>
-                <li><a class="menu-link" href="/admin/traffic/nightadjustmentlookup/"><span class="link-label">Night adjustment lookup</span></a></li>
-                <li><a class="menu-link" href="/admin/traffic/pculookup/"><span class="link-label">PCU lookup</span></a></li>
-                <li><a class="menu-link" href="/admin/traffic/trafficcyclesummary/"><span class="link-label">Traffic cycle summaries</span></a></li>
-                <li><a class="menu-link" href="/admin/traffic/trafficsurveysummary/"><span class="link-label">Traffic survey summaries</span></a></li>
-                <li><a class="menu-link" href="/admin/traffic/trafficsurveyoverall/"><span class="link-label">Road traffic summaries</span></a></li>
-                <li><a class="menu-link" href="/admin/traffic/trafficforprioritization/"><span class="link-label">Traffic values for prioritization</span></a></li>
-                <li><a class="menu-link" href="/admin/traffic/trafficqc/"><span class="link-label">Traffic QC issues</span></a></li>
-            </ul>
+    <div class="sidebar-group" data-group="benefit_model">
+      <div class="sg-header">
+        <span class="sg-title">Prioritization &amp; Benefit Model</span>
+        <span class="sg-arrow" aria-hidden="true">▸</span>
+      </div>
+      <div class="sg-content">
+        <div class="sidebar-subgroup" data-sub="benefit_model">
+          <div class="ss-header">
+            <span class="ss-title">Benefit Model</span>
+            <span class="ss-arrow" aria-hidden="true">▸</span>
+          </div>
+          <div class="ss-list">
+            <a class="ss-link" href="/admin/grms/benefitcategory/"><span class="link-label">Benefit categories</span></a>
+            <a class="ss-link" href="/admin/grms/benefitcriterion/"><span class="link-label">Benefit criteria</span></a>
+            <a class="ss-link" href="/admin/grms/benefitcriterionscale/"><span class="link-label">Benefit criterion scales</span></a>
+            <a class="ss-link" href="/admin/grms/roadlinktype/"><span class="link-label">Road link types</span></a>
+            <a class="ss-link" href="/admin/grms/roadsocioeconomic/"><span class="link-label">Road socio-economic</span></a>
+            <a class="ss-link" href="/admin/grms/benefitfactor/"><span class="link-label">Benefit factors</span></a>
+            <a class="ss-link" href="/admin/grms/prioritizationresult/"><span class="link-label">Prioritization results</span></a>
+          </div>
         </div>
+      </div>
+    </div>
 
-        <div class="sidebar-group" data-group="planning">
-            <div class="sidebar-group-header">
-                <span class="group-title">Maintenance &amp; Planning</span>
-                <span class="toggle-icon" aria-hidden="true">▸</span>
-            </div>
-            <ul class="submenu">
-                <li><a class="menu-link" href="/admin/grms/roadsectionintervention/"><span class="link-label">Road section interventions</span></a></li>
-                <li><a class="menu-link" href="/admin/grms/structureintervention/"><span class="link-label">Structure interventions</span></a></li>
-                <li><a class="menu-link" href="/admin/grms/annualworkplan/"><span class="link-label">Annual work plans</span></a></li>
-            </ul>
+    <div class="sidebar-group" data-group="system_admin">
+      <div class="sg-header">
+        <span class="sg-title">System Administration</span>
+        <span class="sg-arrow" aria-hidden="true">▸</span>
+      </div>
+      <div class="sg-content">
+        <div class="sidebar-subgroup" data-sub="system_admin">
+          <div class="ss-header">
+            <span class="ss-title">Administration</span>
+            <span class="ss-arrow" aria-hidden="true">▸</span>
+          </div>
+          <div class="ss-list">
+            <a class="ss-link" href="/admin/auth/user/"><span class="link-label">Users</span></a>
+            <a class="ss-link" href="/admin/auth/group/"><span class="link-label">Groups</span></a>
+          </div>
         </div>
-
-        <div class="sidebar-group" data-group="reference_lookups">
-            <div class="sidebar-group-header">
-                <span class="group-title">Reference &amp; Lookups</span>
-                <span class="toggle-icon" aria-hidden="true">▸</span>
-            </div>
-            <div class="submenu group-content">
-                <div class="sidebar-subgroup" data-sub="network_admin">
-                    <div class="sidebar-subgroup-header">
-                        <span class="subgroup-title">Network &amp; Administrative</span>
-                        <span class="toggle-icon" aria-hidden="true">▸</span>
-                    </div>
-                    <ul class="submenu">
-                        <li><a class="menu-link" href="/admin/grms/adminzone/"><span class="link-label">Administrative zones</span></a></li>
-                        <li><a class="menu-link" href="/admin/grms/adminworeda/"><span class="link-label">Administrative woredas</span></a></li>
-                    </ul>
-                </div>
-
-                <div class="sidebar-subgroup" data-sub="asset_classification">
-                    <div class="sidebar-subgroup-header">
-                        <span class="subgroup-title">Asset Classification</span>
-                        <span class="toggle-icon" aria-hidden="true">▸</span>
-                    </div>
-                    <ul class="submenu">
-                        <li><a class="menu-link" href="/admin/grms/activitylookup/"><span class="link-label">Activity lookups</span></a></li>
-                        <li><a class="menu-link" href="/admin/grms/interventionlookup/"><span class="link-label">Intervention lookups</span></a></li>
-                        <li><a class="menu-link" href="/admin/grms/unitcost/"><span class="link-label">Unit costs</span></a></li>
-                    </ul>
-                </div>
-
-                <div class="sidebar-subgroup" data-sub="condition_survey">
-                    <div class="sidebar-subgroup-header">
-                        <span class="subgroup-title">Condition &amp; Survey</span>
-                        <span class="toggle-icon" aria-hidden="true">▸</span>
-                    </div>
-                    <ul class="submenu">
-                        <li><a class="menu-link" href="/admin/grms/conditionrating/"><span class="link-label">Condition ratings</span></a></li>
-                        <li><a class="menu-link" href="/admin/grms/qastatus/"><span class="link-label">QA statuses</span></a></li>
-                    </ul>
-                </div>
-
-                <div class="sidebar-subgroup" data-sub="distress_classification">
-                    <div class="sidebar-subgroup-header">
-                        <span class="subgroup-title">Distress Classification</span>
-                        <span class="toggle-icon" aria-hidden="true">▸</span>
-                    </div>
-                    <ul class="submenu">
-                        <li><a class="menu-link" href="/admin/grms/distresstype/"><span class="link-label">Distress types</span></a></li>
-                        <li><a class="menu-link" href="/admin/grms/distresscondition/"><span class="link-label">Distress conditions</span></a></li>
-                        <li><a class="menu-link" href="/admin/grms/distressactivity/"><span class="link-label">Distress activities</span></a></li>
-                    </ul>
-                </div>
-            </div>
-        </div>
-
-        <div class="sidebar-group" data-group="benefit_model">
-            <div class="sidebar-group-header">
-                <span class="group-title">Prioritization &amp; Benefit Model</span>
-                <span class="toggle-icon" aria-hidden="true">▸</span>
-            </div>
-            <ul class="submenu">
-                <li><a class="menu-link" href="/admin/grms/benefitcategory/"><span class="link-label">Benefit categories</span></a></li>
-                <li><a class="menu-link" href="/admin/grms/benefitcriterion/"><span class="link-label">Benefit criteria</span></a></li>
-                <li><a class="menu-link" href="/admin/grms/benefitcriterionscale/"><span class="link-label">Benefit criterion scales</span></a></li>
-                <li><a class="menu-link" href="/admin/grms/roadlinktype/"><span class="link-label">Road link types</span></a></li>
-                <li><a class="menu-link" href="/admin/grms/roadsocioeconomic/"><span class="link-label">Road socio-economic</span></a></li>
-                <li><a class="menu-link" href="/admin/grms/benefitfactor/"><span class="link-label">Benefit factors</span></a></li>
-                <li><a class="menu-link" href="/admin/grms/prioritizationresult/"><span class="link-label">Prioritization results</span></a></li>
-            </ul>
-        </div>
-
-        <div class="sidebar-group" data-group="system_admin">
-            <div class="sidebar-group-header">
-                <span class="group-title">System Administration</span>
-                <span class="toggle-icon" aria-hidden="true">▸</span>
-            </div>
-            <ul class="submenu">
-                <li><a class="menu-link" href="/admin/auth/user/"><span class="link-label">Users</span></a></li>
-                <li><a class="menu-link" href="/admin/auth/group/"><span class="link-label">Groups</span></a></li>
-            </ul>
-        </div>
-    </nav>
+      </div>
+    </div>
+  </nav>
 </div>
