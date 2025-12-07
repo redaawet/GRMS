@@ -54,6 +54,14 @@
     text-decoration: none;
 }
 
+.sidebar-subheader {
+    padding: 12px 32px 6px;
+    font-size: 13px;
+    font-weight: 700;
+    color: #6b7280;
+    text-transform: uppercase;
+}
+
 .sidebar-links a:hover {
     background: #eef2ff;
     color: #1e3a8a;
