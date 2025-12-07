@@ -1,17 +1,33 @@
-/* Universal sidebar collapse styling */
+/* Collapse/expand styling for Django admin sidebar */
 
-/* Hide table rows when collapsed */
-#nav-sidebar tr.nav-collapsed {
-  display: none;
-}
-
-/* Hide custom list items when collapsed */
+/* Hide collapsed table rows or lists */
 #nav-sidebar .nav-collapsed {
   display: none;
 }
 
-/* Optional: add pointer cursor for captions and headers */
-#nav-sidebar caption,
-#nav-sidebar .group-header {
-  cursor: pointer;
+/* Fix the sidebar width and ensure it doesn’t shrink */
+#nav-sidebar {
+  width: 240px;
+  max-width: 240px;
+  padding-right: 0.5rem;
+}
+
+/* Make sure the search bar and toggle button fit inside the new width */
+#nav-sidebar input#nav-filter {
+  width: calc(100% - 1rem);
+}
+
+/* Reset margin so main content uses the remaining width */
+#main,
+body #container {
+  margin-left: 240px;
+}
+
+/* Optional: reduce left margin when nav is collapsed via collapse icon */
+body.nav-collapsed #nav-sidebar {
+  width: 60px;
+}
+body.nav-collapsed #main,
+body.nav-collapsed #container {
+  margin-left: 60px;
 }
