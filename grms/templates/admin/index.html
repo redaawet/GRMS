@@ -52,38 +52,6 @@
         <div id="roadMap"></div>
     </div>
 
-    <div class="panel admin-menu-panel">
-        <div class="panel-heading">
-            <div>
-                <h2>Admin menu</h2>
-                <p class="panel-subtitle">Jump to the tools you use most, grouped by workflow.</p>
-            </div>
-        </div>
-
-        <div class="menu-grid">
-            {% for group, items in menu_groups.items %}
-                <div class="menu-group-card">
-                    <div class="menu-group-header">
-                        <h3>{{ group }}</h3>
-                        <span class="menu-count">{{ items|length }}</span>
-                    </div>
-                    <ul class="menu-links">
-                        {% for item in items %}
-                            <li>
-                                <a href="{{ item.url }}" class="menu-link {{ item.active|yesno:'is-active,' }}">
-                                    <span class="menu-link-label">{{ item.label }}</span>
-                                    <span class="menu-link-arrow">→</span>
-                                </a>
-                            </li>
-                        {% endfor %}
-                    </ul>
-                </div>
-            {% empty %}
-                <p class="empty-menu">No admin sections available.</p>
-            {% endfor %}
-        </div>
-    </div>
-
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>

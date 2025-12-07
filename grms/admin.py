@@ -163,58 +163,9 @@ class GRMSAdminSite(AdminSite):
                 sections.append({"title": "Other models", "models": leftovers})
         return sections
 
-    def _build_menu_groups(
-        self, request, app_list: List[Dict[str, object]] | None = None
-    ) -> Dict[str, List[Dict[str, object]]]:
-        app_list = app_list or self.get_app_list(request)
-        lookup = self._build_model_lookup(app_list)
-        assigned: set[tuple[str | None, str]] = set()
-        menu_groups: Dict[str, List[Dict[str, object]]] = {}
-
-        for group_name, targets in self.MENU_GROUPS.items():
-            items: List[Dict[str, object]] = []
-            for target in targets:
-                lookup_label, display_name = self._parse_menu_target(target)
-                key = self._normalise(lookup_label)
-
-                # Find matching models
-                models_for_label = lookup.get(key, [])
-                if not models_for_label:
-                    continue
-
-                for model in models_for_label:
-                    identifier = (model.get("app_label"), model["object_name"])
-                    if identifier in assigned:
-                        continue
-
-                    # Ensure admin_url is available; fallback if missing
-                    url = model.get("admin_url")
-                    if not url:
-                        try:
-                            url = reverse(
-                                f"admin:{model['app_label']}_{model['object_name'].lower()}_changelist"
-                            )
-                        except Exception:
-                            continue
-
-                    items.append(
-                        {
-                            "url": url,
-                            "label": display_name or model.get("name", model["object_name"]),
-                            "active": request.path.startswith(url),
-                        }
-                    )
-                    assigned.add(identifier)
-
-            if items:
-                menu_groups[group_name] = items
-
-        return menu_groups
-
     def each_context(self, request):
         context = super().each_context(request)
         context["sections"] = self._build_sections(request)
-        context["menu_groups"] = self._build_menu_groups(request)
         return context
 
     def index(self, request, extra_context=None):
@@ -281,7 +232,6 @@ class GRMSAdminSite(AdminSite):
             **(extra_context or {}),
             "title": "Gravel Road Management System",
             "app_list": app_list,
-            "menu_groups": base_ctx.get("menu_groups", {}),
             "sections": base_ctx.get("sections", []),
             "total_roads": total_roads,
             "total_sections": total_sections,
