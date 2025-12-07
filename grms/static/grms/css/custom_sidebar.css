@@ -1,30 +1,46 @@
 .nav-sidebar {
-    max-height: calc(100vh - 55px);
+    max-height: calc(100vh - 60px);
     overflow-y: auto;
     overflow-x: hidden;
     padding-right: 4px;
 }
 
-.group-items,
-.subgroup-items {
-    overflow: hidden;
-    transition: max-height 0.25s ease;
-    max-height: 0;
+/* BOXED SUBGROUP STYLE (STYLE B) */
+.subgroup {
+    border: 1px solid #d4d4d4;
+    border-radius: 6px;
+    padding: 10px;
+    margin: 6px 0 10px 0;
+    background: #f9f9f9;
 }
 
-.group-items.show,
-.subgroup-items.show {
-    max-height: 1000px;
-}
-
-.group-header,
 .subgroup-header {
     cursor: pointer;
-    padding: 6px 12px;
     font-weight: 600;
-    user-select: none;
+    display: flex;
+    justify-content: space-between;
+    padding-bottom: 4px;
 }
 
-.subgroup-title {
+.subgroup-items {
+    margin-left: 0;
     padding-left: 12px;
+    overflow: hidden;
+    max-height: 0;
+    transition: max-height 0.25s ease;
+}
+
+.subgroup-items.show {
+    max-height: 1200px;
+}
+
+/* GROUP ACCORDION */
+.group-items {
+    overflow: hidden;
+    max-height: 0;
+    transition: max-height 0.25s ease;
+}
+
+.group-items.show {
+    max-height: 2000px;
 }

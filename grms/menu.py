@@ -1,5 +1,4 @@
 MENU_GROUPS = {
-    # Core road geometry and socio-economic data
     "Core_Road_Inventory": [
         ("Road", "Roads"),
         ("RoadSection", "Road sections"),
@@ -7,7 +6,6 @@ MENU_GROUPS = {
         ("RoadSocioEconomic", "Road socio-economic"),
     ],
 
-    # Structure inventory and detailed records
     "Structure_Inventory": [
         ("StructureInventory", "Structure inventories"),
         ("BridgeDetail", "Bridge details"),
@@ -18,7 +16,6 @@ MENU_GROUPS = {
         ("FurnitureInventory", "Furniture inventories"),
     ],
 
-    # Basic condition survey headers
     "Condition_Surveys": [
         ("StructureConditionSurvey", "Structure condition surveys"),
         ("BridgeConditionSurvey", "Bridge condition surveys"),
@@ -28,27 +25,24 @@ MENU_GROUPS = {
         ("FurnitureConditionSurvey", "Furniture condition surveys"),
     ],
 
-    # Detailed distress surveys (road, structure, furniture)
     "Detailed_Distress_Surveys": [
         ("RoadConditionDetailedSurvey", "Road detailed surveys"),
         ("StructureConditionDetailedSurvey", "Structured detailed surveys"),
         ("FurnitureConditionDetailedSurvey", "Furniture detailed surveys"),
     ],
 
-    # Traffic & Transport data collection and lookup
     "Traffic_Transport": [
         ("TrafficSurvey", "Traffic surveys"),
-        ("TrafficCountRecord", "Traffic counts"),
+        ("TrafficCountRecord", "Traffic count records"),
         ("NightAdjustmentLookup", "Night adjustment lookups"),
         ("PcuLookup", "PCU lookups"),
-        ("TrafficQC", "Traffic QC issues"),
+        ("TrafficQC", "Traffic QC"),
         ("TrafficCycleSummary", "Traffic cycle summaries"),
         ("TrafficSurveySummary", "Traffic survey summaries"),
         ("TrafficForPrioritization", "Traffic for prioritization"),
-        ("TrafficSurveyOverall", "Traffic survey overall summaries"),
+        ("TrafficSurveyOverall", "Traffic survey overall"),
     ],
 
-    # Maintenance & Planning (interventions and work plans)
     "Maintenance_Planning": [
         ("StructureIntervention", "Structure interventions"),
         ("RoadSectionIntervention", "Road section interventions"),
@@ -57,7 +51,6 @@ MENU_GROUPS = {
         ("AnnualWorkPlan", "Annual work plans"),
     ],
 
-    # Reference & Lookups with multiple sub-groups
     "Reference_Lookups": {
         "Asset Classification": [
             ("ActivityLookup", "Activity lookups"),
@@ -73,22 +66,20 @@ MENU_GROUPS = {
             ("DistressCondition", "Distress conditions"),
             ("DistressActivity", "Distress activities"),
         ],
-        "Admin & Connectivity": [
+        "Network & Administrative": [
             ("RoadLinkTypeLookup", "Road link types"),
             ("AdminZone", "Administrative zones"),
             ("AdminWoreda", "Administrative woredas"),
         ],
     },
 
-    # Prioritization and benefit evaluation
     "Prioritization_Benefit_Model": [
         ("BenefitCategory", "Benefit categories"),
         ("BenefitCriterion", "Benefit criteria"),
-        ("BenefitCriterionScale", "Benefit criterion scales"),
+        ("BenefitCriterionScale", "Benefit scales"),
         ("RoadSocioEconomic", "Road socio-economic"),
     ],
 
-    # System administration
     "System_Administration": [
         ("User", "Users"),
         ("Group", "Groups"),
