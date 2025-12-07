@@ -1,0 +1,17 @@
+/* Universal sidebar collapse styling */
+
+/* Hide table rows when collapsed */
+#nav-sidebar tr.nav-collapsed {
+  display: none;
+}
+
+/* Hide custom list items when collapsed */
+#nav-sidebar .nav-collapsed {
+  display: none;
+}
+
+/* Optional: add pointer cursor for captions and headers */
+#nav-sidebar caption,
+#nav-sidebar .group-header {
+  cursor: pointer;
+}
