@@ -98,3 +98,28 @@ body.grms-dashboard-page #content {
     background: #f6f7f9;
     padding: 20px;
 }
+
+.dashboard-card {
+    background: #fff;
+    border-radius: 12px;
+    padding: 22px;
+    box-shadow: rgba(0, 0, 0, 0.06) 0px 2px 6px;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.dashboard-card:hover {
+    transform: translateY(-2px);
+    box-shadow: rgba(0, 0, 0, 0.08) 0px 4px 12px;
+}
+
+.dashboard-card-title {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: #444;
+}
+
+.dashboard-card-value {
+    font-size: 1.9rem;
+    font-weight: 700;
+    margin-top: 6px;
+}
