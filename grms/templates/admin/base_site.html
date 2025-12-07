@@ -1,17 +1,19 @@
 {% extends "admin/base.html" %}
 {% load static %}
 
+{# Include custom collapse styling #}
 {% block extrastyle %}
   {{ block.super }}
-  <link rel="stylesheet" href="{% static 'grms/css/custom_sidebar.css' %}">
+  <link rel="stylesheet" href="{% static 'grms/css/sidebar_collapse.css' %}">
 {% endblock %}
 
+{# Include custom collapse script #}
 {% block extrahead %}
   {{ block.super }}
-  <script src="{% static 'grms/js/custom_sidebar.js' %}"></script>
+  <script src="{% static 'grms/js/sidebar_collapse.js' %}"></script>
 {% endblock %}
 
-{# THIS IS THE CRITICAL OVERRIDE THAT FIXES EVERYTHING #}
+{# Use the default navigation sidebar; collapse behaviour is handled by JS #}
 {% block nav-sidebar %}
-  {% include "admin/custom_sidebar.html" %}
+  {{ block.super }}
 {% endblock %}

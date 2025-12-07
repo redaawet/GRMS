@@ -20,6 +20,10 @@
     overflow-y: auto;
 }
 
+#nav-sidebar .nav-collapsed {
+    display: none !important;
+}
+
 /* Top-level group headers */
 .group-header {
     cursor: pointer;
