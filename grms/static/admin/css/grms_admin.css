@@ -83,3 +83,43 @@ body.login #content {
     font-weight: bold;
     color: #417690;
 }
+
+/* Responsive tweaks for smaller viewports */
+@media (max-width: 1366px) {
+    .dashboard-grid {
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    }
+
+    .dash-card {
+        padding: 16px;
+    }
+
+    /* Prevent wide cards from forcing horizontal scroll on compact screens */
+    .dash-card.wide {
+        grid-column: span 1;
+    }
+}
+
+@media (max-width: 900px) {
+    /* Let content fill the screen when space is tight */
+    #container {
+        margin-left: 0 !important;
+        width: 100% !important;
+        padding-left: 16px !important;
+        padding-right: 16px !important;
+    }
+
+    /* Stack cards vertically and allow the sidebar to flow inline */
+    .dashboard-grid {
+        grid-template-columns: 1fr;
+    }
+
+    #grms-sidebar {
+        position: relative;
+        width: 100%;
+        height: auto;
+        top: 0;
+        border-right: none;
+        border-bottom: 1px solid #ddd;
+    }
+}
