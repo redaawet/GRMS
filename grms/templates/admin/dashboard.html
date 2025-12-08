@@ -1,184 +1,106 @@
 {% extends "admin/base_site.html" %}
+{% load static %}
 
 {% block bodyclass %}grms-dashboard-page {{ block.super }}{% endblock %}
 
-{% block content %}
+{% block grms_main_content %}
 <div class="grms-dashboard">
+    <header class="grms-hero">
+        <p class="hero-kicker">Gravel Road Management System</p>
+        <h1 class="dash-title">GRMS Dashboard</h1>
+        <p class="dash-subtitle">Quick analytics and shortcuts for the admin team.</p>
+    </header>
 
-    <div class="dashboard-grid">
+    <section class="kpi-row" aria-label="Key performance indicators">
+        <article class="kpi-card">
+            <p class="kpi-label">Total Roads</p>
+            <p class="kpi-value">{{ total_roads }}</p>
+        </article>
+        <article class="kpi-card">
+            <p class="kpi-label">Sections</p>
+            <p class="kpi-value">{{ total_sections }}</p>
+        </article>
+        <article class="kpi-card">
+            <p class="kpi-label">Segments</p>
+            <p class="kpi-value">{{ total_segments }}</p>
+        </article>
+        <article class="kpi-card">
+            <p class="kpi-label">Planned Interventions</p>
+            <p class="kpi-value">{{ planned_interventions }}</p>
+        </article>
+        <article class="kpi-card">
+            <p class="kpi-label">Latest Traffic Year</p>
+            <p class="kpi-value">{{ latest_traffic_year|default:"–" }}</p>
+        </article>
+    </section>
 
-        <div class="dash-card big">
-            <h3>Total Road Network</h3>
-            <p class="value">{{ total_road_km }} km</p>
-            <small>{{ total_roads }} roads</small>
+    <section class="panel-row" aria-label="Charts">
+        <article class="panel">
+            <div class="panel-heading">
+                <h2>Surface Type Distribution</h2>
+                <p class="panel-subtitle">Share of asphalt, gravel, and dirt surfaces</p>
+            </div>
+            <canvas id="surfaceChart" aria-label="Surface distribution chart"></canvas>
+        </article>
+
+        <article class="panel">
+            <div class="panel-heading">
+                <h2>Traffic Trend (ADT)</h2>
+                <p class="panel-subtitle">Recent average daily traffic readings</p>
+            </div>
+            <canvas id="trafficChart" aria-label="Traffic trend chart"></canvas>
+        </article>
+    </section>
+
+    <section class="panel">
+        <div class="panel-heading">
+            <h2>Road Network Overview</h2>
+            <p class="panel-subtitle">Mapped road locations from the latest data</p>
         </div>
-
-        <div class="dash-card">
-            <h3>Gravel vs Paved</h3>
-            <canvas id="surfaceChart"></canvas>
-        </div>
-
-        <div class="dash-card">
-            <h3>Traffic Volume Categories</h3>
-            <canvas id="trafficChart"></canvas>
-        </div>
-
-        <div class="dash-card">
-            <h3>Condition Rating Distribution</h3>
-            <canvas id="conditionChart"></canvas>
-        </div>
-
-        <div class="dash-card">
-            <h3>MCI Distribution</h3>
-            <canvas id="mciChart"></canvas>
-        </div>
-
-        <div class="dash-card wide">
-            <h3>Road Length by Administrative Zone</h3>
-            <canvas id="zoneLengthChart"></canvas>
-        </div>
-
-        <div class="dash-card wide">
-            <h3>Maintenance Priority Summary</h3>
-            <canvas id="priorityChart"></canvas>
-        </div>
-
-    </div>
+        <div id="roadMap" aria-label="Road map"></div>
+    </section>
 
     {% if sections %}
-    <section class="section-browser">
-        <div class="section-browser__header">
-            <h2>Browse data</h2>
-            <p class="section-browser__hint">Jump into any part of the inventory, surveys, or reference data.</p>
+    <section class="panel">
+        <div class="panel-heading">
+            <h2>Admin shortcuts</h2>
+            <p class="panel-subtitle">Manage grouped models without leaving the dashboard.</p>
         </div>
         <div class="section-grid">
             {% for section in sections %}
-                <article class="section-card">
-                    <header class="section-card__header">
-                        <h3>{{ section.title }}</h3>
-                        <span class="section-card__meta">{{ section.models|length }} item{{ section.models|length|pluralize }}</span>
-                    </header>
-                    <ul class="section-card__links">
-                        {% for model in section.models %}
-                            <li><a href="{{ model.admin_url }}">{{ model.name }}</a></li>
-                        {% endfor %}
-                    </ul>
-                </article>
-            {% empty %}
-                {% include "admin/app_list.html" with app_list=app_list show_changelinks=True %}
+            <article class="section-card">
+                <div class="section-card__header">
+                    <h3>{{ section.title }}</h3>
+                    <p class="section-card__hint">{{ section.models|length }} models</p>
+                </div>
+                <ul class="section-card__links">
+                    {% for model in section.models %}
+                        <li>
+                            <a href="{{ model.admin_url }}">{{ model.name }}</a>
+                            {% if model.add_url %}
+                            <a class="section-card__add" href="{{ model.add_url }}">Add</a>
+                            {% endif %}
+                        </li>
+                    {% endfor %}
+                </ul>
+            </article>
             {% endfor %}
         </div>
     </section>
     {% endif %}
-
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{{ grms_data|json_script:"grms-data" }}
+{% endblock %}
 
-<script>
-const surfaceCtx = document.getElementById("surfaceChart");
-if (surfaceCtx) {
-    new Chart(surfaceCtx, {
-        type: "pie",
-        data: {
-            labels: ["Gravel", "Paved"],
-            datasets: [{ data: {{ surface_distribution|safe }} }]
-        },
-        options: {
-            plugins: { legend: { position: "bottom" } }
-        }
-    });
-}
+{% block extrastyle %}
+  {{ block.super }}
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+{% endblock %}
 
-const trafficCtx = document.getElementById("trafficChart");
-if (trafficCtx) {
-    new Chart(trafficCtx, {
-        type: "bar",
-        data: {
-            labels: {{ traffic_labels|safe }},
-            datasets: [{
-                label: "ADT",
-                data: {{ traffic_data|safe }},
-                backgroundColor: "#4e79a7"
-            }]
-        },
-        options: {
-            scales: { y: { beginAtZero: true } },
-            plugins: { legend: { display: false } }
-        }
-    });
-}
-
-const conditionCtx = document.getElementById("conditionChart");
-if (conditionCtx) {
-    new Chart(conditionCtx, {
-        type: "pie",
-        data: {
-            labels: ["Good", "Fair", "Poor", "Bad"],
-            datasets: [{ data: {{ condition_distribution|safe }} }]
-        },
-        options: {
-            plugins: { legend: { position: "bottom" } }
-        }
-    });
-}
-
-const mciCtx = document.getElementById("mciChart");
-if (mciCtx) {
-    new Chart(mciCtx, {
-        type: "bar",
-        data: {
-            labels: {{ mci_bins|safe }},
-            datasets: [{
-                label: "Road Count",
-                data: {{ mci_counts|safe }},
-                backgroundColor: "#f28e2b"
-            }]
-        },
-        options: {
-            plugins: { legend: { display: false } },
-            scales: { y: { beginAtZero: true } }
-        }
-    });
-}
-
-const zoneCtx = document.getElementById("zoneLengthChart");
-if (zoneCtx) {
-    new Chart(zoneCtx, {
-        type: "bar",
-        data: {
-            labels: {{ zone_labels|safe }},
-            datasets: [{
-                label: "Total KM",
-                data: {{ zone_lengths|safe }},
-                backgroundColor: "#59a14f"
-            }]
-        },
-        options: {
-            indexAxis: "y",
-            plugins: { legend: { display: false } },
-            scales: { x: { beginAtZero: true } }
-        }
-    });
-}
-
-const priorityCtx = document.getElementById("priorityChart");
-if (priorityCtx) {
-    new Chart(priorityCtx, {
-        type: "bar",
-        data: {
-            labels: ["High", "Medium", "Low"],
-            datasets: [{
-                data: {{ priority_counts|safe }},
-                backgroundColor: ["#d62728", "#ffbf00", "#2ca02c"]
-            }]
-        },
-        options: {
-            plugins: { legend: { display: false } },
-            scales: { y: { beginAtZero: true } }
-        }
-    });
-}
-</script>
-
+{% block extrahead %}
+  {{ block.super }}
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="{% static 'grms/dashboard.js' %}"></script>
 {% endblock %}

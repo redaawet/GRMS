@@ -100,6 +100,65 @@
     border-radius: 10px;
 }
 
+.section-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 14px;
+    margin-top: 10px;
+}
+
+.section-card {
+    background: #f8fafc;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    padding: 14px;
+    display: grid;
+    gap: 10px;
+}
+
+.section-card__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 8px;
+}
+
+.section-card__header h3 {
+    margin: 0;
+    font-size: 16px;
+}
+
+.section-card__hint {
+    margin: 0;
+    color: #6b7280;
+    font-size: 12px;
+}
+
+.section-card__links {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: grid;
+    gap: 6px;
+}
+
+.section-card__links a {
+    color: #1f4b99;
+    text-decoration: none;
+    font-weight: 600;
+}
+
+.section-card__links a:hover,
+.section-card__links a:focus-visible {
+    text-decoration: underline;
+}
+
+.section-card__add {
+    margin-left: 10px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
 .panel-empty {
     margin-top: 10px;
     padding: 12px 14px;
