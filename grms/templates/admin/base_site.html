@@ -3,7 +3,7 @@
 
 {% block title %}{{ site_title }}{% endblock %}
 
-{% block bodyclass %}app-grms {{ block.super }}{% endblock %}
+{% block bodyclass %}app-grms {% if not is_popup and cl is None %}dashboard-index {% endif %}{{ block.super }}{% endblock %}
 
 {% block extrastyle %}
   {{ block.super }}

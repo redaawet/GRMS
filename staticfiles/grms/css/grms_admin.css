@@ -3,14 +3,23 @@
     --sidebar-width: 240px; /* Adjust to your actual sidebar width */
 }
 
-/* Main content alignment fix */
-#content,
-#content-main,
-.change-list,
-.dashboard,
-.content {
+/* Main content alignment fix (dashboard only) */
+body.dashboard-index #content,
+body.dashboard-index #content-main,
+body.dashboard-index .change-list,
+body.dashboard-index .dashboard,
+body.dashboard-index .content {
     margin-left: var(--sidebar-width) !important;
     padding-left: 20px !important;
+}
+
+/* Reset margins for non-dashboard pages */
+body:not(.dashboard-index) #content,
+body:not(.dashboard-index) #content-main,
+body:not(.dashboard-index) .change-list,
+body:not(.dashboard-index) .dashboard,
+body:not(.dashboard-index) .content {
+    margin-left: 0 !important;
 }
 
 /* Header alignment fixes */

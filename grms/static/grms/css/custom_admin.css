@@ -76,18 +76,6 @@ body.change-form #content {
     margin-left: var(--grms-sidebar-width) !important;
 }
 
-/* Fix breadcrumb and title block position */
-#container,
-#content-main,
-#content {
-    margin-left: var(--grms-sidebar-width) !important;
-}
-
-/* Breadcrumbs */
-.breadcrumbs {
-    margin-left: var(--grms-sidebar-width) !important;
-}
-
 /* Header styling fix */
 #header {
     position: fixed;
@@ -202,32 +190,43 @@ body, html {
     --grms-sidebar-width: 260px;
 }
 
-/* Main content area */
-#content, .content, .main, .dashboard-container {
+/* Main content area (dashboard only) */
+body.dashboard-index #content,
+body.dashboard-index .content,
+body.dashboard-index .main,
+body.dashboard-index .dashboard-container {
     margin-left: var(--grms-sidebar-width) !important;
     width: calc(100% - var(--grms-sidebar-width)) !important;
     padding: 20px 30px !important;
 }
 
-/* Global wrapper fix */
-#container, #wrapper, .dashboard-wrapper {
+/* Header and breadcrumbs offset (dashboard only) */
+body.dashboard-index #header,
+body.dashboard-index .breadcrumbs,
+body.dashboard-index .page-header,
+body.dashboard-index .dashboard-cards,
+body.dashboard-index .dashboard-main {
     margin-left: var(--grms-sidebar-width) !important;
 }
 
-/* Header bar fix */
-#header, .breadcrumbs, .page-header {
-    margin-left: var(--grms-sidebar-width) !important;
+/* Reset offsets for non-dashboard pages */
+body:not(.dashboard-index) #container,
+body:not(.dashboard-index) #content,
+body:not(.dashboard-index) #content-main,
+body:not(.dashboard-index) .content,
+body:not(.dashboard-index) .main,
+body:not(.dashboard-index) .dashboard-container,
+body:not(.dashboard-index) #header,
+body:not(.dashboard-index) .breadcrumbs,
+body:not(.dashboard-index) .page-header {
+    margin-left: 0 !important;
+    width: 100% !important;
 }
 
 /* Remove unintended left padding from Django admin body */
 body {
     padding-left: 0 !important;
     overflow-x: hidden !important;
-}
-
-/* Dashboard cards area */
-.dashboard-cards, .dashboard-main {
-    margin-left: var(--grms-sidebar-width) !important;
 }
 
 /* Login page should not shift */
