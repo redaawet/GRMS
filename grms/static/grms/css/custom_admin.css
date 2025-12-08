@@ -3,8 +3,11 @@
 -------------------------------------------- */
 
 :root {
-    --grms-sidebar-width: 260px;
-    --grms-header-offset: 90px; /* account for the fixed Django header */
+    /* Set consistent sidebar width */
+    --grms-sidebar-width: 240px;
+
+    /* Define explicit header height */
+    --grms-header-height: 70px;
 }
 
 /* Wrapper for admin layout */
@@ -17,15 +20,15 @@
 #grms-sidebar {
     width: var(--grms-sidebar-width);
     min-width: var(--grms-sidebar-width);
-    background: #fff;
-    border-right: 1px solid #ddd;
+    background: var(--sidebar-bg, #fafafa);
+    border-right: 1px solid var(--sidebar-border, #ddd);
     position: fixed;
-    top: var(--grms-header-offset);
+    top: var(--grms-header-height);
     bottom: 0;
     left: 0;
     overflow-y: auto;
     padding-top: 10px;
-    z-index: 1000;
+    z-index: 2000;
 }
 
 /* Sidebar items */
@@ -63,14 +66,29 @@
     color: #1e3a8a;
 }
 
+#container {
+    /* Only the main container should have the sidebar offset */
+    margin-left: var(--grms-sidebar-width) !important;
+    padding-left: 0;
+}
+
+/* Reset any left margin on inner wrappers so content starts next to the container */
+#content-main,
+#content,
+.main {
+    margin-left: 0 !important;
+    width: 100% !important;
+}
+
 /* Header styling fix */
 #header {
     position: fixed;
     top: 0;
     left: 0;
     right: 0;
-    height: var(--grms-header-offset);
-    z-index: 1200;
+    height: var(--grms-header-height);
+    line-height: var(--grms-header-height);
+    z-index: 2000;
 
     display: flex;
     align-items: center;
