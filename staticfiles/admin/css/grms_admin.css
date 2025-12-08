@@ -1,6 +1,6 @@
 :root {
     --grms-sidebar-width: 240px;
-    --grms-header-height: 70px;
+    --grms-header-height: 60px;
 }
 
 /* Fix header */
@@ -61,30 +61,4 @@
     margin: 0;
     flex: 1 1 420px;
     min-width: 320px;
-}
-
-.change-list #changelist-search label {
-    margin-right: 8px;
-}
-
-.change-list #changelist-search input {
-    width: 100%;
-    max-width: none;
-}
-
-.change-list #toolbar .object-tools {
-    order: 2;
-    margin-left: auto;
-}
-
-/* Ensure the main container sits below the fixed header */
-#main {
-    padding-top: 20px;
-}
-
-body.login #container,
-body.login #content {
-    margin-left: 0 !important;
-    padding-top: 0 !important;
-    width: auto !important;
 }
