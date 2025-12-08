@@ -1,5 +1,9 @@
 // Sample chart code; replace data with actual values
 document.addEventListener('DOMContentLoaded', function () {
+  const dataScript = document.getElementById('grms-data');
+  if (!dataScript) {
+    return;
+  }
   const surfaceCtx = document.getElementById('surfaceChart');
   if (surfaceCtx) {
     new Chart(surfaceCtx, {

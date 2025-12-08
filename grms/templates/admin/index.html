@@ -3,55 +3,50 @@
 
 {% block bodyclass %}grms-dashboard-page {{ block.super }}{% endblock %}
 
-{% block grms_main_content %}
+{% block content %}
 <div class="grms-dashboard">
 
-    <div class="grms-hero">
-        <p class="hero-kicker">Gravel Road Management System</p>
-        <h1 class="dash-title">GRMS Professional Dashboard</h1>
-        <p class="dash-subtitle">Analytics overview and quick insights for gravel road management.</p>
-    </div>
+    <div class="dashboard-grid">
 
-    <div class="kpi-row">
-        <div class="kpi-card">
-            <div class="kpi-label">Total Roads</div>
-            <div class="kpi-value">{{ total_roads }}</div>
+        <div class="dash-card big">
+            <h3>Total Road Network</h3>
+            <p class="value">{{ total_road_km }} km</p>
+            <small>{{ total_roads }} roads</small>
         </div>
-        <div class="kpi-card">
-            <div class="kpi-label">Sections</div>
-            <div class="kpi-value">{{ total_sections }}</div>
-        </div>
-        <div class="kpi-card">
-            <div class="kpi-label">Segments</div>
-            <div class="kpi-value">{{ total_segments }}</div>
-        </div>
-        <div class="kpi-card">
-            <div class="kpi-label">Planned Interventions</div>
-            <div class="kpi-value">{{ planned_interventions }}</div>
-        </div>
-        <div class="kpi-card">
-            <div class="kpi-label">Latest Traffic Year</div>
-            <div class="kpi-value">{{ latest_traffic_year|default:"–" }}</div>
-        </div>
-    </div>
 
-    <div class="panel-row">
-        <div class="panel">
-            <h2>Surface Type Distribution</h2>
+        <div class="dash-card">
+            <h3>Gravel vs Paved</h3>
             <canvas id="surfaceChart"></canvas>
         </div>
 
-        <div class="panel">
-            <h2>Traffic Trend (ADT)</h2>
+        <div class="dash-card">
+            <h3>Traffic Volume Categories</h3>
             <canvas id="trafficChart"></canvas>
         </div>
+
+        <div class="dash-card">
+            <h3>Condition Rating Distribution</h3>
+            <canvas id="conditionChart"></canvas>
+        </div>
+
+        <div class="dash-card">
+            <h3>MCI Distribution</h3>
+            <canvas id="mciChart"></canvas>
+        </div>
+
+        <div class="dash-card wide">
+            <h3>Road Length by Administrative Zone</h3>
+            <canvas id="zoneLengthChart"></canvas>
+        </div>
+
+        <div class="dash-card wide">
+            <h3>Maintenance Priority Summary</h3>
+            <canvas id="priorityChart"></canvas>
+        </div>
+
     </div>
 
-    <div class="panel">
-        <h2>Road Network Overview</h2>
-        <div id="roadMap"></div>
-    </div>
-
+    {% if sections %}
     <section class="section-browser">
         <div class="section-browser__header">
             <h2>Browse data</h2>
@@ -71,17 +66,120 @@
                     </ul>
                 </article>
             {% empty %}
-                {# Fallback to the stock app list if grouping is unavailable #}
                 {% include "admin/app_list.html" with app_list=app_list show_changelinks=True %}
             {% endfor %}
         </div>
     </section>
+    {% endif %}
 
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-{{ grms_data|json_script:"grms-data" }}
-<script src="{% static 'grms/dashboard.js' %}"></script>
+
+<script>
+const surfaceCtx = document.getElementById("surfaceChart");
+if (surfaceCtx) {
+    new Chart(surfaceCtx, {
+        type: "pie",
+        data: {
+            labels: ["Gravel", "Paved"],
+            datasets: [{ data: {{ surface_distribution|safe }} }]
+        },
+        options: {
+            plugins: { legend: { position: "bottom" } }
+        }
+    });
+}
+
+const trafficCtx = document.getElementById("trafficChart");
+if (trafficCtx) {
+    new Chart(trafficCtx, {
+        type: "bar",
+        data: {
+            labels: {{ traffic_labels|safe }},
+            datasets: [{
+                label: "ADT",
+                data: {{ traffic_data|safe }},
+                backgroundColor: "#4e79a7"
+            }]
+        },
+        options: {
+            scales: { y: { beginAtZero: true } },
+            plugins: { legend: { display: false } }
+        }
+    });
+}
+
+const conditionCtx = document.getElementById("conditionChart");
+if (conditionCtx) {
+    new Chart(conditionCtx, {
+        type: "pie",
+        data: {
+            labels: ["Good", "Fair", "Poor", "Bad"],
+            datasets: [{ data: {{ condition_distribution|safe }} }]
+        },
+        options: {
+            plugins: { legend: { position: "bottom" } }
+        }
+    });
+}
+
+const mciCtx = document.getElementById("mciChart");
+if (mciCtx) {
+    new Chart(mciCtx, {
+        type: "bar",
+        data: {
+            labels: {{ mci_bins|safe }},
+            datasets: [{
+                label: "Road Count",
+                data: {{ mci_counts|safe }},
+                backgroundColor: "#f28e2b"
+            }]
+        },
+        options: {
+            plugins: { legend: { display: false } },
+            scales: { y: { beginAtZero: true } }
+        }
+    });
+}
+
+const zoneCtx = document.getElementById("zoneLengthChart");
+if (zoneCtx) {
+    new Chart(zoneCtx, {
+        type: "bar",
+        data: {
+            labels: {{ zone_labels|safe }},
+            datasets: [{
+                label: "Total KM",
+                data: {{ zone_lengths|safe }},
+                backgroundColor: "#59a14f"
+            }]
+        },
+        options: {
+            indexAxis: "y",
+            plugins: { legend: { display: false } },
+            scales: { x: { beginAtZero: true } }
+        }
+    });
+}
+
+const priorityCtx = document.getElementById("priorityChart");
+if (priorityCtx) {
+    new Chart(priorityCtx, {
+        type: "bar",
+        data: {
+            labels: ["High", "Medium", "Low"],
+            datasets: [{
+                data: {{ priority_counts|safe }},
+                backgroundColor: ["#d62728", "#ffbf00", "#2ca02c"]
+            }]
+        },
+        options: {
+            plugins: { legend: { display: false } },
+            scales: { y: { beginAtZero: true } }
+        }
+    });
+}
+</script>
 
 {% endblock %}
