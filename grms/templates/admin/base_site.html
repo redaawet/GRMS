@@ -1,20 +1,46 @@
 {% extends "admin/base.html" %}
 {% load static %}
 
-{# Custom GRMS styling for dashboard + grouped sidebar (loaded globally in base.html) #}
+{% block title %}{{ site_title }}{% endblock %}
+
 {% block extrastyle %}
   {{ block.super }}
+  <link rel="stylesheet" href="{% static 'grms/css/dashboard.css' %}">
+  <link rel="stylesheet" href="{% static 'grms/css/sidebar_custom.css' %}">
 {% endblock %}
 
-{# Accordion behaviour for grouped sidebar #}
 {% block extrahead %}
   {{ block.super }}
-  <script src="{% static 'grms/js/custom_sidebar.js' %}"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="{% static 'grms/js/dashboard.js' %}"></script>
+  <script src="{% static 'grms/js/sidebar_custom.js' %}"></script>
 {% endblock %}
 
-{# Render the grouped sidebar menu from the custom AdminSite context #}
+{# Override nav sidebar to display custom menu #}
 {% block nav-sidebar %}
-  {% if not is_popup and is_nav_sidebar_enabled %}
-    {% include "admin/custom_sidebar.html" %}
-  {% endif %}
+  <nav id="nav-sidebar" class="sidebar" aria-label="Admin navigation">
+    {% for section in sections %}
+      <div class="group">
+        <button
+          class="sidebar-group-title"
+          type="button"
+          aria-expanded="true"
+          aria-controls="section-{{ forloop.counter }}"
+        >
+          <span>{{ section.title }}</span>
+          <span class="toggle-icon" aria-hidden="true">▾</span>
+        </button>
+        <ul id="section-{{ forloop.counter }}" class="sidebar-items open">
+          {% for model in section.models %}
+            <li class="sidebar-item">
+              <a href="{{ model.admin_url }}">{{ model.name }}</a>
+            </li>
+          {% endfor %}
+        </ul>
+      </div>
+    {% empty %}
+      {# Fallback to the stock app list if grouping is unavailable #}
+      {% include "admin/app_list.html" with app_list=app_list show_changelinks=True %}
+    {% endfor %}
+  </nav>
 {% endblock %}
