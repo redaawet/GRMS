@@ -8,6 +8,7 @@
 {% block extrastyle %}
   {{ block.super }}
   <link rel="stylesheet" href="{% static 'admin/css/grms_admin.css' %}">
+  <link rel="stylesheet" href="{% static 'grms/css/dashboard.css' %}">
   <link rel="stylesheet" href="{% static 'grms/css/sidebar_custom.css' %}">
   <link rel="stylesheet" href="{% static 'grms/css/custom_admin.css' %}">
 {% endblock %}
@@ -25,8 +26,6 @@
 
 {% block content %}
   <div class="grms-main-content">
-    {% block grms_main_content %}
-      {{ block.super }}
-    {% endblock %}
+    {{ block.super }}
   </div>
 {% endblock %}
