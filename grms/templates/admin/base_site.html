@@ -7,44 +7,13 @@
 
 {% block extrastyle %}
   {{ block.super }}
+  <link rel="stylesheet" href="{% static 'grms/css/grms_admin.css' %}">
   <link rel="stylesheet" href="{% static 'grms/css/dashboard.css' %}">
   <link rel="stylesheet" href="{% static 'grms/css/sidebar_custom.css' %}">
 {% endblock %}
 
 {% block extrahead %}
   {{ block.super }}
-  <style>
-    body {
-      margin: 0 !important;
-      padding: 0 !important;
-    }
-
-    /* Sidebar wrapper fix */
-    #grms-sidebar {
-      width: 260px;
-      background: #f7f7f7;
-      border-right: 1px solid #ddd;
-      position: fixed;
-      top: 0;
-      bottom: 0;
-      overflow-y: auto;
-      z-index: 2000;
-    }
-
-    /* Main admin content shift */
-    .grms-main-content {
-      margin-left: 260px !important;
-      padding: 20px;
-    }
-
-    /* Login page centering fix */
-    .login #content {
-        max-width: 360px !important;
-        margin: 80px auto !important;
-        float: none !important;
-    }
-
-  </style>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="{% static 'grms/js/dashboard.js' %}"></script>
   <script src="{% static 'grms/js/sidebar_custom.js' %}"></script>
