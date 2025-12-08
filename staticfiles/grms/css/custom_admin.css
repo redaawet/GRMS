@@ -63,19 +63,6 @@
     color: #1e3a8a;
 }
 
-/* Ensure main content shifts right correctly */
-#grms-main-content {
-    margin-left: var(--grms-sidebar-width) !important;
-    padding: 20px 30px;
-    width: 100%;
-}
-
-/* Fix list-display pages (changelist) */
-body.change-list #content,
-body.change-form #content {
-    margin-left: var(--grms-sidebar-width) !important;
-}
-
 /* Header styling fix */
 #header {
     position: fixed;
@@ -114,16 +101,6 @@ body.change-form #content {
         top: 0;
     }
 
-    #grms-main-content,
-    body #container,
-    #content,
-    #content-main,
-    .breadcrumbs {
-        margin-left: 0 !important;
-        padding-left: 15px;
-        padding-right: 15px;
-    }
-
     #header {
         height: auto;
         position: fixed;
@@ -131,7 +108,7 @@ body.change-form #content {
     }
 }
 
-/* --- FIX SIDEBAR LAYOUT --- */
+/* Support optional class-based sidebar styling */
 .grms-sidebar {
     position: fixed;
     top: 52px; /* below admin header */
@@ -145,7 +122,6 @@ body.change-form #content {
     z-index: 1001;
 }
 
-/* Sidebar items */
 .grms-sidebar .menu-group-title {
     font-weight: 600;
     padding: 12px 18px 6px;
@@ -163,76 +139,9 @@ body.change-form #content {
     background: #e9ecef;
 }
 
-/* --- FIX CONTENT SHIFTING --- */
-#content, .content, .module, .dashboard-container {
-    margin-left: 260px !important;
-    padding: 20px 30px;
-}
-
-/* Fix changelist (list view) screens */
-.change-list, .changeform-wrapper, .change-form {
-    margin-left: 260px !important;
-}
-
-/* Prevent horizontal scrolling */
 body, html {
     overflow-x: hidden !important;
-}
-
-/* Content wrapper alignment for custom layout */
-#content-wrapper {
-    display: block;
-    width: 100%;
-}
-
-/* GRMS Final Layout Fix — shift main content next to the sidebar */
-:root {
-    --grms-sidebar-width: 260px;
-}
-
-/* Main content area (dashboard only) */
-body.dashboard-index #content,
-body.dashboard-index .content,
-body.dashboard-index .main,
-body.dashboard-index .dashboard-container {
-    margin-left: var(--grms-sidebar-width) !important;
-    width: calc(100% - var(--grms-sidebar-width)) !important;
-    padding: 20px 30px !important;
-}
-
-/* Header and breadcrumbs offset (dashboard only) */
-body.dashboard-index #header,
-body.dashboard-index .breadcrumbs,
-body.dashboard-index .page-header,
-body.dashboard-index .dashboard-cards,
-body.dashboard-index .dashboard-main {
-    margin-left: var(--grms-sidebar-width) !important;
-}
-
-/* Reset offsets for non-dashboard pages */
-body:not(.dashboard-index) #container,
-body:not(.dashboard-index) #content,
-body:not(.dashboard-index) #content-main,
-body:not(.dashboard-index) .content,
-body:not(.dashboard-index) .main,
-body:not(.dashboard-index) .dashboard-container,
-body:not(.dashboard-index) #header,
-body:not(.dashboard-index) .breadcrumbs,
-body:not(.dashboard-index) .page-header {
-    margin-left: 0 !important;
-    width: 100% !important;
-}
-
-/* Remove unintended left padding from Django admin body */
-body {
     padding-left: 0 !important;
-    overflow-x: hidden !important;
-}
-
-/* Login page should not shift */
-.login #content, .login #container {
-    margin-left: 0 !important;
-    width: auto !important;
 }
 
 /* Responsive adjustments */
@@ -261,17 +170,5 @@ body {
         min-width: 100%;
         border-right: none;
         border-bottom: 1px solid #ddd;
-    }
-
-    #content, .content, .main, .dashboard-container,
-    #container, #wrapper, .dashboard-wrapper,
-    #header, .breadcrumbs, .page-header,
-    .dashboard-cards, .dashboard-main {
-        margin-left: 0 !important;
-        width: 100% !important;
-    }
-
-    #content, .content, .main, .dashboard-container {
-        padding: 16px 18px !important;
     }
 }
