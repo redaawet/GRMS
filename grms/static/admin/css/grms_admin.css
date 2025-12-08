@@ -3,18 +3,19 @@
     --grms-header-height: 70px;
 }
 
-/* Fix header */
-#header, .module-header {
+#header,
+.module-header {
     position: fixed;
     top: 0;
     left: 0;
     right: 0;
     height: var(--grms-header-height);
     line-height: var(--grms-header-height);
-    z-index: 1100;
+    z-index: 2000;
+    background: #f1f5f9;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
 }
 
-/* Fix sidebar alignment */
 #grms-sidebar {
     position: fixed;
     top: var(--grms-header-height);
@@ -25,23 +26,32 @@
     border-right: 1px solid #ddd;
     overflow-y: auto;
     z-index: 1000;
+    padding-top: 10px;
 }
 
-/* Fix main content width and shift */
 #container {
     margin-left: var(--grms-sidebar-width) !important;
     padding-top: var(--grms-header-height) !important;
     padding-left: 20px !important;
     width: calc(100% - var(--grms-sidebar-width)) !important;
+    display: block;
     box-sizing: border-box;
 }
 
 #content,
 #content-main,
 .dashboard-wrapper {
-    margin-left: 0 !important;
-    padding-left: 0 !important;
-    width: 100% !important;
+    margin-top: 20px !important;
+    padding: 0 30px !important;
+    max-width: 1200px;
+    width: 100%;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+/* Ensure the main container sits below the fixed header */
+#main {
+    padding-top: 20px;
 }
 
 body.login #container,
