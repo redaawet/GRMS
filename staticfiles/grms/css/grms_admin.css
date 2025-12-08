@@ -1,0 +1,60 @@
+/* Normalize main admin layout offset to match sidebar width */
+:root {
+    --sidebar-width: 240px; /* Adjust to your actual sidebar width */
+}
+
+/* Main content alignment fix (dashboard only) */
+body.dashboard-index #content,
+body.dashboard-index #content-main,
+body.dashboard-index .change-list,
+body.dashboard-index .dashboard,
+body.dashboard-index .content {
+    margin-left: var(--sidebar-width) !important;
+    padding-left: 20px !important;
+}
+
+/* Reset margins for non-dashboard pages */
+body:not(.dashboard-index) #content,
+body:not(.dashboard-index) #content-main,
+body:not(.dashboard-index) .change-list,
+body:not(.dashboard-index) .dashboard,
+body:not(.dashboard-index) .content {
+    margin-left: 0 !important;
+}
+
+/* Header alignment fixes */
+#header,
+#branding,
+#user-tools {
+    margin-left: var(--sidebar-width) !important;
+}
+
+/* Ensure dashboard modules do not overflow */
+.dashboard #content-main {
+    max-width: 95%;
+    margin: auto;
+}
+
+/* Responsive adjustments */
+@media (max-width: 1024px) {
+    :root {
+        --sidebar-width: 220px;
+    }
+}
+
+@media (max-width: 768px) {
+    :root {
+        --sidebar-width: 100%;
+    }
+
+    #content, .content, #changelist-form, .dashboard,
+    #container, #content-main,
+    #header, #user-tools, #branding {
+        margin-left: 0 !important;
+        width: 100% !important;
+    }
+
+    #content, .content, #changelist-form, .dashboard {
+        padding: 16px 18px !important;
+    }
+}
