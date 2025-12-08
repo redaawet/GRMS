@@ -198,7 +198,7 @@ class GRMSAdminSite(AdminSite):
 
     def index(self, request, extra_context=None):
         app_list = self.get_app_list(request)
-        base_ctx = self.each_context(request)
+        base_ctx = self.each_context(request) or {}
 
         total_roads = models.Road.objects.count()
         total_road_km = (
