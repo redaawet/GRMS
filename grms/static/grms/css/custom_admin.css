@@ -2,21 +2,10 @@
    GRMS Sidebar – Clean Django-like design
 -------------------------------------------- */
 
-/* Set fixed sidebar */
-#grms-sidebar {
-    position: fixed;
-    top: var(--grms-header-height, 55px);
-    left: 0;
-    width: 240px;
-    height: calc(100% - var(--grms-header-height, 55px));
-    overflow-y: auto;
-
-    background: #f8fafc;
-    border-right: 1px solid #d6dce5;
-
-    padding: 0;
-    margin: 0;
-    z-index: 1000;
+/* Wrapper for admin layout */
+#grms-layout {
+    display: flex;
+    min-height: 100vh;
 }
 
 /* Sidebar items */
@@ -54,70 +43,14 @@
     color: #1e3a8a;
 }
 
-/* -------------------------------------------
-   Main content alignment
--------------------------------------------- */
-
-body #container,
-#content,
-#content-main,
-.colM {
-    margin-left: 240px !important;
-    padding-left: 25px;
-    padding-right: 25px;
+body, html {
+    overflow-x: hidden !important;
+    padding-left: 0 !important;
 }
 
-/* Breadcrumbs */
-.breadcrumbs {
-    margin-left: 240px !important;
-}
-
-/* -------------------------------------------
-   Header styling fix
--------------------------------------------- */
-
-#header {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: var(--grms-header-height, 55px);
-    z-index: 1200;
-
-    display: flex;
-    align-items: center;
-
-    background: #25475d;
-    color: white;
-    padding: 0 20px !important;
-}
-
-/* -------------------------------------------
-   Responsive Behavior
--------------------------------------------- */
-
+/* Responsive Behavior */
 @media (max-width: 900px) {
-
-    #grms-sidebar {
-        position: relative;
-        width: 100%;
-        height: auto;
-        border-right: none;
-        border-bottom: 1px solid #d6dce5;
-    }
-
-    body #container,
-    #content,
-    #content-main,
-    .colM,
-    .breadcrumbs {
-        margin-left: 0 !important;
-        padding-left: 15px;
-        padding-right: 15px;
-    }
-
-    #header {
-        position: fixed;
-        padding-left: 15px !important;
+    #grms-layout {
+        display: block;
     }
 }

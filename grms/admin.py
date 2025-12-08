@@ -8,7 +8,7 @@ from decimal import Decimal, ROUND_HALF_UP
 from django import forms
 from django.contrib import admin
 from django.contrib.admin import AdminSite
-from django.db.models import Count, Sum
+from django.db.models import Sum
 from django.template.response import TemplateResponse
 from django.http import JsonResponse
 from django.shortcuts import redirect
@@ -17,7 +17,6 @@ from django.utils.html import format_html
 
 from . import models
 from .menu import MENU_GROUPS as DEFAULT_MENU_GROUPS
-from traffic.models import TrafficSurveyOverall
 from .gis_fields import LineStringField, PointField
 from .services import map_services, prioritization
 from .utils import make_point, point_to_lat_lng, utm_to_wgs84, wgs84_to_utm
@@ -199,80 +198,28 @@ class GRMSAdminSite(AdminSite):
     def index(self, request, extra_context=None):
         app_list = self.get_app_list(request)
         base_ctx = self.each_context(request)
+
         total_roads = models.Road.objects.count()
-        total_sections = models.RoadSection.objects.count()
-        total_segments = models.RoadSegment.objects.count()
-        planned_interventions = (
-            models.RoadSectionIntervention.objects.count()
-            + models.StructureIntervention.objects.count()
-        )
+        total_road_km = models.Road.objects.aggregate(km=Sum("total_length_km"))["km"] or 0
 
-        traffic_qs = (
-            TrafficSurveyOverall.objects.values("fiscal_year")
-            .annotate(total_adt=Sum("adt_total"))
-            .order_by("-fiscal_year")
-        )
-        latest_traffic_year = (
-            traffic_qs.first()["fiscal_year"] if traffic_qs.exists() else None
-        )
-        traffic_summary = list(traffic_qs[:5])
-        traffic_summary.reverse()
-        traffic_years = [entry["fiscal_year"] for entry in traffic_summary]
-        traffic_values = [float(entry["total_adt"]) for entry in traffic_summary]
+        gravel = models.Road.objects.filter(surface_type="Gravel").count()
+        paved = models.Road.objects.filter(surface_type="Paved").count()
 
-        surface_counts = (
-            models.Road.objects.values("surface_type")
-            .annotate(total=Count("id"))
-            .order_by()
+        extra_context = extra_context or {}
+        extra_context.update(
+            {
+                "total_roads": total_roads,
+                "total_road_km": total_road_km,
+                "surface_distribution": [gravel, paved],
+            }
         )
-        asphalt_count = gravel_count = dirt_count = 0
-        for item in surface_counts:
-            surface = item.get("surface_type") or ""
-            count = item.get("total", 0)
-            if surface in {"Paved", "Asphalt", "DBST", "Sealed"}:
-                asphalt_count += count
-            elif surface == "Gravel":
-                gravel_count += count
-            else:
-                dirt_count += count
-
-        road_locations = []
-        for road in models.Road.objects.exclude(road_start_coordinates__isnull=True):
-            coords = point_to_lat_lng(road.road_start_coordinates)
-            if coords:
-                road_locations.append(
-                    {"lat": coords["lat"], "lon": coords["lng"], "name": str(road)}
-                )
-
-        grms_data = {
-            "surface": {
-                "asphalt": asphalt_count,
-                "gravel": gravel_count,
-                "dirt": dirt_count,
-            },
-            "traffic_years": traffic_years,
-            "traffic_values": traffic_values,
-            "road_locations": road_locations,
-        }
 
         context = {
             **base_ctx,
-            **(extra_context or {}),
+            **extra_context,
             "title": "Gravel Road Management System",
             "app_list": app_list,
             "sections": base_ctx.get("sections", []),
-            "total_roads": total_roads,
-            "total_sections": total_sections,
-            "total_segments": total_segments,
-            "planned_interventions": planned_interventions,
-            "latest_traffic_year": latest_traffic_year,
-            "asphalt_count": asphalt_count,
-            "gravel_count": gravel_count,
-            "dirt_count": dirt_count,
-            "traffic_years": json.dumps(traffic_years),
-            "traffic_values": json.dumps(traffic_values),
-            "road_locations": json.dumps(road_locations),
-            "grms_data": grms_data,
         }
 
         return TemplateResponse(request, "admin/index.html", context)
