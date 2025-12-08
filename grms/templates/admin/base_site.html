@@ -1,12 +1,9 @@
 {% extends "admin/base.html" %}
 {% load static %}
 
-{# Custom GRMS styling for dashboard + grouped sidebar #}
+{# Custom GRMS styling for dashboard + grouped sidebar (loaded globally in base.html) #}
 {% block extrastyle %}
   {{ block.super }}
-  <link rel="stylesheet" href="{% static 'grms/global.css' %}">
-  <link rel="stylesheet" href="{% static 'grms/dashboard.css' %}">
-  <link rel="stylesheet" href="{% static 'grms/css/custom_sidebar.css' %}">
 {% endblock %}
 
 {# Accordion behaviour for grouped sidebar #}
