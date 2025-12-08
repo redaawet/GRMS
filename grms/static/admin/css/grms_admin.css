@@ -50,3 +50,36 @@ body.login #content {
     padding-top: 0 !important;
     width: auto !important;
 }
+
+.dashboard-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+    grid-gap: 20px;
+    margin-top: 20px;
+}
+
+.dash-card {
+    background: white;
+    padding: 20px;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+
+.dash-card.big {
+    text-align: center;
+}
+
+.dash-card.wide {
+    grid-column: span 2;
+}
+
+.dash-card h3 {
+    margin-bottom: 10px;
+    font-size: 1.2rem;
+}
+
+.dash-card .value {
+    font-size: 2rem;
+    font-weight: bold;
+    color: #417690;
+}
