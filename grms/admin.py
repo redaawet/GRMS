@@ -17,6 +17,7 @@ from django.utils.html import format_html
 
 from . import models
 from .menu import MENU_GROUPS as DEFAULT_MENU_GROUPS
+from traffic.models import TrafficSurveyOverall, TrafficSurveySummary
 from .gis_fields import LineStringField, PointField
 from .services import map_services, prioritization
 from .utils import make_point, point_to_lat_lng, utm_to_wgs84, wgs84_to_utm
@@ -200,18 +201,82 @@ class GRMSAdminSite(AdminSite):
         base_ctx = self.each_context(request)
 
         total_roads = models.Road.objects.count()
-        total_road_km = models.Road.objects.aggregate(km=Sum("total_length_km"))["km"] or 0
+        total_road_km = (
+            models.Road.objects.aggregate(km=Sum("length_km")).get("km") or 0
+        )
 
-        gravel = models.Road.objects.filter(surface_type="Gravel").count()
-        paved = models.Road.objects.filter(surface_type="Paved").count()
+        surface_distribution = json.dumps(
+            [
+                models.Road.objects.filter(surface_type="Gravel").count(),
+                models.Road.objects.filter(surface_type="Paved").count(),
+            ]
+        )
 
-        extra_context = extra_context or {}
-        extra_context.update(
-            {
-                "total_roads": total_roads,
-                "total_road_km": total_road_km,
-                "surface_distribution": [gravel, paved],
-            }
+        traffic_qs = (
+            TrafficSurveySummary.objects.values("vehicle_class")
+            .annotate(total=Sum("adt_final"))
+            .order_by("vehicle_class")
+        )
+        traffic_labels = [
+            entry.get("vehicle_class") or "Unspecified" for entry in traffic_qs
+        ]
+        traffic_data = [
+            float(entry.get("total") or 0)
+            for entry in traffic_qs
+        ]
+
+        condition_counts = {"good": 0, "fair": 0, "poor": 0, "bad": 0}
+        for mci in models.RoadConditionSurvey.objects.exclude(
+            calculated_mci__isnull=True
+        ).values_list("calculated_mci", flat=True):
+            value = float(mci)
+            if value >= 75:
+                condition_counts["good"] += 1
+            elif value >= 50:
+                condition_counts["fair"] += 1
+            elif value >= 25:
+                condition_counts["poor"] += 1
+            else:
+                condition_counts["bad"] += 1
+        condition_distribution = json.dumps(
+            [
+                condition_counts["good"],
+                condition_counts["fair"],
+                condition_counts["poor"],
+                condition_counts["bad"],
+            ]
+        )
+
+        mci_bins = [(0, 20), (21, 40), (41, 60), (61, 80), (81, 100)]
+        mci_counts = json.dumps(
+            [
+                models.RoadConditionSurvey.objects.filter(
+                    calculated_mci__gte=lower, calculated_mci__lte=upper
+                ).count()
+                for lower, upper in mci_bins
+            ]
+        )
+        mci_bins_labels = json.dumps([f"{lower}-{upper}" for lower, upper in mci_bins])
+
+        zone_lengths_qs = (
+            models.Road.objects.values("admin_zone__name")
+            .annotate(total=Sum("length_km"))
+            .order_by("admin_zone__name")
+        )
+        zone_labels = json.dumps(
+            [entry.get("admin_zone__name") or "Unspecified" for entry in zone_lengths_qs]
+        )
+        zone_lengths = json.dumps(
+            [float(entry.get("total") or 0) for entry in zone_lengths_qs]
+        )
+
+        priority_qs = models.PrioritizationResult.objects.exclude(priority_rank__isnull=True)
+        priority_counts = json.dumps(
+            [
+                priority_qs.filter(priority_rank__lte=5).count(),
+                priority_qs.filter(priority_rank__gt=5, priority_rank__lte=10).count(),
+                priority_qs.filter(priority_rank__gt=10).count(),
+            ]
         )
 
         context = {
@@ -220,6 +285,17 @@ class GRMSAdminSite(AdminSite):
             "title": "Gravel Road Management System",
             "app_list": app_list,
             "sections": base_ctx.get("sections", []),
+            "total_roads": total_roads,
+            "total_road_km": total_road_km,
+            "surface_distribution": surface_distribution,
+            "traffic_labels": json.dumps(traffic_labels),
+            "traffic_data": json.dumps(traffic_data),
+            "condition_distribution": condition_distribution,
+            "mci_bins": mci_bins_labels,
+            "mci_counts": mci_counts,
+            "zone_labels": zone_labels,
+            "zone_lengths": zone_lengths,
+            "priority_counts": priority_counts,
         }
 
         return TemplateResponse(request, "admin/index.html", context)
