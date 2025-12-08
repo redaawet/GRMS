@@ -243,62 +243,53 @@ body.sidebar-collapsed #grms-sidebar .ss-arrow {
    FIX BASED ON USER SCREENSHOTS
    =============================== */
 
-/* Force sidebar to attach LEFT, not center */
-#custom-sidebar,
-.sidebar-container {
-    position: fixed !important;
-    top: 0;
-    left: 0 !important;
-    width: 260px !important;
-    height: 100vh;
-    background: #ffffff;
-    border-right: 1px solid #e5e7eb;
-    overflow-y: auto;
-    z-index: 1001;
+:root {
+  --grms-sidebar-width: 260px;
 }
 
-/* REMOVE the huge white gap seen in screenshots */
-body,
-#container,
-#content,
-.grp-content,
-.dashboard-content {
-    margin-left: 260px !important;
+/* Pin the admin sidebar on the left and give it scroll */
+body.grms-has-sidebar #nav-sidebar.sidebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: var(--grms-sidebar-width);
+  height: 100vh;
+  background: #ffffff;
+  border-right: 1px solid #e5e7eb;
+  overflow-y: auto;
+  z-index: 1001;
+  padding: 12px 0;
 }
 
-/* Fix admin header alignment */
-#header {
-    left: 260px !important;
-    width: calc(100% - 260px) !important;
-    position: fixed;
-    top: 0;
-    z-index: 1100;
+/* Offset the main container once for the fixed sidebar */
+body.grms-has-sidebar #container {
+  margin-left: var(--grms-sidebar-width);
+  width: calc(100% - var(--grms-sidebar-width));
+  max-width: calc(100% - var(--grms-sidebar-width));
 }
 
-/* Prevent content from sliding under header */
-#content,
-.change-list,
-.change-form,
-.dashboard-content {
-    padding-top: 80px !important;
+/* Keep the admin header aligned with the content */
+body.grms-has-sidebar #header {
+  position: sticky;
+  top: 0;
+  z-index: 1100;
 }
 
 /* Sidebar group title spacing (clean professional spacing) */
 .sidebar-group-title {
-    padding: 14px 22px !important;
-    font-size: 14px;
-    font-weight: 600;
-    color: #2f3542;
+  padding: 14px 22px !important;
+  font-size: 14px;
+  font-weight: 600;
+  color: #2f3542;
 }
 
 /* Sidebar item spacing */
 .sidebar-items li {
-    padding: 10px 30px !important;
-    line-height: 1.4;
+  padding: 10px 30px !important;
+  line-height: 1.4;
 }
 
 /* Fix vertical alignment issues from screenshot */
-.sidebar-container ul,
 .sidebar-items {
-    margin-top: 10px !important;
+  margin-top: 10px !important;
 }
