@@ -202,6 +202,11 @@ class GRMSAdminSite(AdminSite):
         if not isinstance(base_ctx, dict):
             base_ctx = dict(base_ctx)
 
+        if extra_context is None:
+            extra_context = {}
+        elif not isinstance(extra_context, dict):
+            extra_context = dict(extra_context)
+
         def with_default(labels, data, default_label="No data"):
             labels = list(labels)
             data = list(data)
