@@ -1,0 +1,52 @@
+:root {
+    --grms-sidebar-width: 240px;
+    --grms-header-height: 70px;
+}
+
+/* Fix header */
+#header, .module-header {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: var(--grms-header-height);
+    line-height: var(--grms-header-height);
+    z-index: 1100;
+}
+
+/* Fix sidebar alignment */
+#grms-sidebar {
+    position: fixed;
+    top: var(--grms-header-height);
+    left: 0;
+    width: var(--grms-sidebar-width);
+    height: calc(100vh - var(--grms-header-height));
+    background: #fafafa;
+    border-right: 1px solid #ddd;
+    overflow-y: auto;
+    z-index: 1000;
+}
+
+/* Fix main content width and shift */
+#container {
+    margin-left: var(--grms-sidebar-width) !important;
+    padding-top: var(--grms-header-height) !important;
+    padding-left: 20px !important;
+    width: calc(100% - var(--grms-sidebar-width)) !important;
+    box-sizing: border-box;
+}
+
+#content,
+#content-main,
+.dashboard-wrapper {
+    margin-left: 0 !important;
+    padding-left: 0 !important;
+    width: 100% !important;
+}
+
+body.login #container,
+body.login #content {
+    margin-left: 0 !important;
+    padding-top: 0 !important;
+    width: auto !important;
+}

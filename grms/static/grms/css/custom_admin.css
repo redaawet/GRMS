@@ -2,20 +2,27 @@
    GRMS Sidebar – Clean Django-like design
 -------------------------------------------- */
 
-/* Set fixed sidebar */
+:root {
+    --grms-sidebar-width: 240px;
+    --grms-header-height: 70px;
+}
+
+/* Wrapper for admin layout */
+#grms-layout {
+    display: flex;
+    min-height: 100vh;
+}
+
+/* Fix sidebar pinned left */
 #grms-sidebar {
     position: fixed;
-    top: var(--grms-header-height, 55px);
+    top: var(--grms-header-height);
     left: 0;
-    width: 240px;
-    height: calc(100% - var(--grms-header-height, 55px));
+    width: var(--grms-sidebar-width);
+    height: calc(100vh - var(--grms-header-height));
+    background: #fafafa;
+    border-right: 1px solid #ddd;
     overflow-y: auto;
-
-    background: #f8fafc;
-    border-right: 1px solid #d6dce5;
-
-    padding: 0;
-    margin: 0;
     z-index: 1000;
 }
 
@@ -54,70 +61,125 @@
     color: #1e3a8a;
 }
 
-/* -------------------------------------------
-   Main content alignment
--------------------------------------------- */
+#container {
+    margin-left: var(--grms-sidebar-width) !important;
+    padding-top: var(--grms-header-height) !important;
+    padding-left: 20px !important;
+    width: calc(100% - var(--grms-sidebar-width)) !important;
+    box-sizing: border-box;
+}
 
-body #container,
 #content,
 #content-main,
-.colM {
-    margin-left: 240px !important;
-    padding-left: 25px;
-    padding-right: 25px;
+.change-list,
+.changeform-wrapper,
+.module {
+    margin-left: 0 !important;
+    padding-left: 0 !important;
+    width: 100% !important;
 }
 
-/* Breadcrumbs */
-.breadcrumbs {
-    margin-left: 240px !important;
+body.login #container,
+body.login #content {
+    margin-left: 0 !important;
+    padding-top: 0 !important;
+    width: auto !important;
 }
 
-/* -------------------------------------------
-   Header styling fix
--------------------------------------------- */
-
-#header {
+/* Header styling fix */
+#header, .module-header {
     position: fixed;
     top: 0;
     left: 0;
     right: 0;
-    height: var(--grms-header-height, 55px);
-    z-index: 1200;
-
-    display: flex;
-    align-items: center;
-
-    background: #25475d;
-    color: white;
-    padding: 0 20px !important;
+    height: var(--grms-header-height);
+    line-height: var(--grms-header-height);
+    z-index: 1100;
 }
 
-/* -------------------------------------------
-   Responsive Behavior
--------------------------------------------- */
+/* Optional: tighten sidebar spacing */
+#grms-sidebar .sidebar-item {
+    padding: 8px 18px;
+}
 
+/* Responsive Behavior */
 @media (max-width: 900px) {
+    #grms-layout {
+        display: block;
+    }
 
     #grms-sidebar {
         position: relative;
         width: 100%;
+        min-width: 0;
         height: auto;
         border-right: none;
         border-bottom: 1px solid #d6dce5;
-    }
-
-    body #container,
-    #content,
-    #content-main,
-    .colM,
-    .breadcrumbs {
-        margin-left: 0 !important;
-        padding-left: 15px;
-        padding-right: 15px;
+        top: 0;
     }
 
     #header {
+        height: auto;
         position: fixed;
         padding-left: 15px !important;
+    }
+}
+
+/* Support optional class-based sidebar styling */
+.grms-sidebar {
+    position: fixed;
+    top: var(--grms-header-height);
+    left: 0;
+    width: var(--grms-sidebar-width);
+    height: calc(100vh - var(--grms-header-height));
+    overflow-y: auto;
+    background: #f8f9fa;
+    border-right: 1px solid #ddd;
+    padding-top: 10px;
+    z-index: 1001;
+}
+
+.grms-sidebar .menu-group-title {
+    font-weight: 600;
+    padding: 12px 18px 6px;
+    font-size: 13px;
+    color: #444;
+}
+
+.grms-sidebar .menu-item {
+    padding: 8px 18px;
+    display: block;
+    color: #333;
+}
+
+.grms-sidebar .menu-item:hover {
+    background: #e9ecef;
+}
+
+body, html {
+    overflow-x: hidden !important;
+    padding-left: 0 !important;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    #grms-layout {
+        display: block;
+    }
+
+    #grms-sidebar {
+        position: relative;
+        top: 0;
+        height: auto;
+        width: 100%;
+        min-width: 0;
+        border-right: none;
+        border-bottom: 1px solid #ddd;
+    }
+
+    #container {
+        margin-left: 0 !important;
+        width: 100% !important;
+        padding-top: var(--grms-header-height) !important;
     }
 }
