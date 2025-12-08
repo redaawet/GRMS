@@ -235,3 +235,44 @@ body {
     margin-left: 0 !important;
     width: auto !important;
 }
+
+/* Responsive adjustments */
+@media (max-width: 1024px) {
+    :root {
+        --grms-sidebar-width: 220px;
+    }
+
+    #grms-sidebar {
+        width: var(--grms-sidebar-width);
+        min-width: var(--grms-sidebar-width);
+    }
+}
+
+@media (max-width: 768px) {
+    :root {
+        --grms-sidebar-width: 100%;
+    }
+
+    #grms-sidebar {
+        position: relative;
+        top: 0;
+        height: auto;
+        min-height: unset;
+        width: 100%;
+        min-width: 100%;
+        border-right: none;
+        border-bottom: 1px solid #ddd;
+    }
+
+    #content, .content, .main, .dashboard-container,
+    #container, #wrapper, .dashboard-wrapper,
+    #header, .breadcrumbs, .page-header,
+    .dashboard-cards, .dashboard-main {
+        margin-left: 0 !important;
+        width: 100% !important;
+    }
+
+    #content, .content, .main, .dashboard-container {
+        padding: 16px 18px !important;
+    }
+}

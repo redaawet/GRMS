@@ -24,3 +24,27 @@
     max-width: 95%;
     margin: auto;
 }
+
+/* Responsive adjustments */
+@media (max-width: 1024px) {
+    :root {
+        --sidebar-width: 220px;
+    }
+}
+
+@media (max-width: 768px) {
+    :root {
+        --sidebar-width: 100%;
+    }
+
+    #content, .content, #changelist-form, .dashboard,
+    #container, #content-main,
+    #header, #user-tools, #branding {
+        margin-left: 0 !important;
+        width: 100% !important;
+    }
+
+    #content, .content, #changelist-form, .dashboard {
+        padding: 16px 18px !important;
+    }
+}
