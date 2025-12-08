@@ -16,9 +16,19 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  width: 100%;
+  padding: 0.5rem 0;
   font-weight: 600;
   cursor: pointer;
-  padding: 0.5rem 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+}
+
+.sidebar-group-title:focus-visible {
+  outline: 2px solid #1b73e8;
+  border-radius: 6px;
 }
 
 .sidebar-group-title span {
