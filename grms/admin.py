@@ -8,7 +8,7 @@ from decimal import Decimal, ROUND_HALF_UP
 from django import forms
 from django.contrib import admin
 from django.contrib.admin import AdminSite
-from django.db.models import Count, Sum
+from django.db.models import Sum
 from django.template.response import TemplateResponse
 from django.http import JsonResponse
 from django.shortcuts import redirect
@@ -281,7 +281,7 @@ class GRMSAdminSite(AdminSite):
 
         context = {
             **base_ctx,
-            **(extra_context or {}),
+            **extra_context,
             "title": "Gravel Road Management System",
             "app_list": app_list,
             "sections": base_ctx.get("sections", []),
