@@ -8,7 +8,7 @@ from decimal import Decimal, ROUND_HALF_UP
 from django import forms
 from django.contrib import admin
 from django.contrib.admin import AdminSite
-from django.db.models import Sum
+from django.db.models import Count, Sum
 from django.template.response import TemplateResponse
 from django.http import JsonResponse
 from django.shortcuts import redirect
@@ -268,7 +268,9 @@ class GRMSAdminSite(AdminSite):
             ]
         )
         mci_bins_labels = json.dumps([f"{lower}-{upper}" for lower, upper in mci_bins])
-        mci_bins_labels, mci_counts = with_default(json.loads(mci_bins_labels), json.loads(mci_counts))
+        mci_bins_labels, mci_counts = with_default(
+            json.loads(mci_bins_labels), json.loads(mci_counts)
+        )
 
         zone_lengths_qs = (
             models.Road.objects.values("admin_zone__name")
@@ -296,7 +298,7 @@ class GRMSAdminSite(AdminSite):
 
         context = {
             **base_ctx,
-            **extra_context,
+            **(extra_context or {}),
             "title": "Gravel Road Management System",
             "app_list": app_list,
             "sections": base_ctx.get("sections", []),
