@@ -3,10 +3,8 @@
 -------------------------------------------- */
 
 :root {
-    /* Set consistent sidebar width */
+    /* unified sidebar width and header height */
     --grms-sidebar-width: 240px;
-
-    /* Define explicit header height */
     --grms-header-height: 70px;
 }
 
@@ -18,17 +16,16 @@
 
 /* Fix sidebar pinned left */
 #grms-sidebar {
-    width: var(--grms-sidebar-width);
-    min-width: var(--grms-sidebar-width);
-    background: var(--sidebar-bg, #fafafa);
-    border-right: 1px solid var(--sidebar-border, #ddd);
+    /* align sidebar directly under the header */
     position: fixed;
     top: var(--grms-header-height);
-    bottom: 0;
     left: 0;
+    width: var(--grms-sidebar-width);
+    height: calc(100vh - var(--grms-header-height));
     overflow-y: auto;
-    padding-top: 10px;
-    z-index: 2000;
+    background: #fafafa;
+    border-right: 1px solid #ddd;
+    z-index: 9998;
 }
 
 /* Sidebar items */
@@ -66,36 +63,37 @@
     color: #1e3a8a;
 }
 
-#container {
-    /* Only the main container should have the sidebar offset */
+/* Reset duplicate margins and apply a single offset to content */
+#container,
+#content,
+#content-main,
+.change-list,
+.changeform-wrapper,
+.module {
     margin-left: var(--grms-sidebar-width) !important;
-    padding-left: 0;
+    padding-left: 20px !important;
+    padding-top: var(--grms-header-height) !important;
+    width: calc(100% - var(--grms-sidebar-width)) !important;
+    box-sizing: border-box;
 }
 
-/* Reset any left margin on inner wrappers so content starts next to the container */
-#content-main,
-#content,
-.main {
+/* Prevent header overlap on the login page */
+body.login #container,
+body.login #content {
     margin-left: 0 !important;
-    width: 100% !important;
+    padding-top: 0 !important;
 }
 
 /* Header styling fix */
-#header {
+#header, .module-header {
+    /* fix header height and line height */
     position: fixed;
     top: 0;
     left: 0;
     right: 0;
     height: var(--grms-header-height);
     line-height: var(--grms-header-height);
-    z-index: 2000;
-
-    display: flex;
-    align-items: center;
-
-    background: #25475d;
-    color: white;
-    padding: 0 20px !important;
+    z-index: 9999;
 }
 
 /* Optional: tighten sidebar spacing */
