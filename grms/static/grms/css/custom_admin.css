@@ -2,21 +2,33 @@
    GRMS Sidebar – Clean Django-like design
 -------------------------------------------- */
 
-/* Set fixed sidebar */
+:root {
+    /* Set consistent sidebar width */
+    --grms-sidebar-width: 240px;
+
+    /* Define explicit header height */
+    --grms-header-height: 70px;
+}
+
+/* Wrapper for admin layout */
+#grms-layout {
+    display: flex;
+    min-height: 100vh;
+}
+
+/* Fix sidebar pinned left */
 #grms-sidebar {
+    width: var(--grms-sidebar-width);
+    min-width: var(--grms-sidebar-width);
+    background: var(--sidebar-bg, #fafafa);
+    border-right: 1px solid var(--sidebar-border, #ddd);
     position: fixed;
-    top: var(--grms-header-height, 55px);
+    top: var(--grms-header-height);
+    bottom: 0;
     left: 0;
-    width: 240px;
-    height: calc(100% - var(--grms-header-height, 55px));
     overflow-y: auto;
-
-    background: #f8fafc;
-    border-right: 1px solid #d6dce5;
-
-    padding: 0;
-    margin: 0;
-    z-index: 1000;
+    padding-top: 10px;
+    z-index: 2000;
 }
 
 /* Sidebar items */
@@ -54,35 +66,29 @@
     color: #1e3a8a;
 }
 
-/* -------------------------------------------
-   Main content alignment
--------------------------------------------- */
+#container {
+    /* Only the main container should have the sidebar offset */
+    margin-left: var(--grms-sidebar-width) !important;
+    padding-left: 0;
+}
 
-body #container,
-#content,
+/* Reset any left margin on inner wrappers so content starts next to the container */
 #content-main,
-.colM {
-    margin-left: 240px !important;
-    padding-left: 25px;
-    padding-right: 25px;
+#content,
+.main {
+    margin-left: 0 !important;
+    width: 100% !important;
 }
 
-/* Breadcrumbs */
-.breadcrumbs {
-    margin-left: 240px !important;
-}
-
-/* -------------------------------------------
-   Header styling fix
--------------------------------------------- */
-
+/* Header styling fix */
 #header {
     position: fixed;
     top: 0;
     left: 0;
     right: 0;
-    height: var(--grms-header-height, 55px);
-    z-index: 1200;
+    height: var(--grms-header-height);
+    line-height: var(--grms-header-height);
+    z-index: 2000;
 
     display: flex;
     align-items: center;
@@ -92,32 +98,95 @@ body #container,
     padding: 0 20px !important;
 }
 
-/* -------------------------------------------
-   Responsive Behavior
--------------------------------------------- */
+/* Optional: tighten sidebar spacing */
+#grms-sidebar .sidebar-item {
+    padding: 8px 18px;
+}
 
+/* Responsive Behavior */
 @media (max-width: 900px) {
+    #grms-layout {
+        display: block;
+    }
 
     #grms-sidebar {
         position: relative;
         width: 100%;
+        min-width: 0;
         height: auto;
         border-right: none;
         border-bottom: 1px solid #d6dce5;
-    }
-
-    body #container,
-    #content,
-    #content-main,
-    .colM,
-    .breadcrumbs {
-        margin-left: 0 !important;
-        padding-left: 15px;
-        padding-right: 15px;
+        top: 0;
     }
 
     #header {
+        height: auto;
         position: fixed;
         padding-left: 15px !important;
+    }
+}
+
+/* Support optional class-based sidebar styling */
+.grms-sidebar {
+    position: fixed;
+    top: 52px; /* below admin header */
+    left: 0;
+    width: 260px;
+    height: calc(100vh - 52px);
+    overflow-y: auto;
+    background: #f8f9fa;
+    border-right: 1px solid #ddd;
+    padding-top: 10px;
+    z-index: 1001;
+}
+
+.grms-sidebar .menu-group-title {
+    font-weight: 600;
+    padding: 12px 18px 6px;
+    font-size: 13px;
+    color: #444;
+}
+
+.grms-sidebar .menu-item {
+    padding: 8px 18px;
+    display: block;
+    color: #333;
+}
+
+.grms-sidebar .menu-item:hover {
+    background: #e9ecef;
+}
+
+body, html {
+    overflow-x: hidden !important;
+    padding-left: 0 !important;
+}
+
+/* Responsive adjustments */
+@media (max-width: 1024px) {
+    :root {
+        --grms-sidebar-width: 220px;
+    }
+
+    #grms-sidebar {
+        width: var(--grms-sidebar-width);
+        min-width: var(--grms-sidebar-width);
+    }
+}
+
+@media (max-width: 768px) {
+    :root {
+        --grms-sidebar-width: 100%;
+    }
+
+    #grms-sidebar {
+        position: relative;
+        top: 0;
+        height: auto;
+        min-height: unset;
+        width: 100%;
+        min-width: 100%;
+        border-right: none;
+        border-bottom: 1px solid #ddd;
     }
 }

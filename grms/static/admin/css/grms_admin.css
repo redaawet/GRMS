@@ -1,0 +1,35 @@
+:root {
+    --grms-sidebar-width: 260px;
+    --grms-header-height: 90px;
+}
+
+/* Fix header */
+#header, .module-header {
+    height: var(--grms-header-height);
+    line-height: var(--grms-header-height);
+    z-index: 9999;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+}
+
+/* Fix sidebar alignment */
+#grms-sidebar {
+    position: fixed;
+    top: var(--grms-header-height);
+    left: 0;
+    width: var(--grms-sidebar-width);
+    height: calc(100vh - var(--grms-header-height));
+    overflow-y: auto;
+    background: #fafafa;
+    border-right: 1px solid #ddd;
+    z-index: 9998;
+}
+
+/* Fix main content width and shift */
+#container, #content, #content-main, .dashboard-wrapper {
+    margin-left: var(--grms-sidebar-width) !important;
+    padding-top: var(--grms-header-height) !important;
+    width: calc(100% - var(--grms-sidebar-width));
+}
