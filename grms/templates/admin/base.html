@@ -18,11 +18,11 @@
 {% block extrastyle %}
 {{ block.super }}
 <link rel="stylesheet" href="{% static 'grms/css/sidebar.css' %}">
-<link rel="stylesheet" href="{% static 'grms/css/grms_admin.css' %}">
 <link rel="stylesheet" href="{% static 'grms/css/custom_admin.css' %}">
 <link rel="stylesheet" href="{% static 'grms/global.css' %}">
 <link rel="stylesheet" href="{% static 'grms/dashboard.css' %}">
 <link rel="stylesheet" href="{% static 'grms/css/custom_sidebar.css' %}">
+<link rel="stylesheet" href="{% static 'grms/css/sidebar_custom.css' %}">
 {% endblock %}
 {% if LANGUAGE_BIDI %}<link rel="stylesheet" href="{% block stylesheet_rtl %}{% static "admin/css/rtl.css" %}{% endblock %}">{% endif %}
 {% block extrahead %}
@@ -151,7 +151,6 @@
 {% if not is_popup and is_nav_sidebar_enabled %}
 <script src="{% static 'grms/js/sidebar.js' %}" defer></script>
 {% endif %}
-<script src="{% static 'grms/js/grms_admin.js' %}" defer></script>
 {% endblock extrabody %}
 {# END OF BASE.HTML #}
 </body>

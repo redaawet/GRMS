@@ -1,0 +1,50 @@
+/* Ensure main admin content aligns correctly beside the sidebar */
+:root {
+    --sidebar-width: 240px;   /* matches your real sidebar width */
+}
+
+/* Fix Django admin main content positioning */
+#content, .content, #changelist-form, .dashboard {
+    margin-left: var(--sidebar-width) !important;
+    padding-left: 20px !important;
+}
+
+/* Ensure wrapper does not push content too far right */
+#container, #content-main {
+    margin-left: var(--sidebar-width) !important;
+}
+
+/* Fix breadcrumb/header alignment */
+#header, #user-tools, #branding {
+    margin-left: var(--sidebar-width) !important;
+}
+
+/* OPTIONAL: Improve dashboard for aesthetic symmetry */
+.dashboard-module, .dashboard-widget {
+    max-width: 95%;
+    margin: auto;
+}
+
+/* Responsive adjustments */
+@media (max-width: 1024px) {
+    :root {
+        --sidebar-width: 220px;
+    }
+}
+
+@media (max-width: 768px) {
+    :root {
+        --sidebar-width: 100%;
+    }
+
+    #content, .content, #changelist-form, .dashboard,
+    #container, #content-main,
+    #header, #user-tools, #branding {
+        margin-left: 0 !important;
+        width: 100% !important;
+    }
+
+    #content, .content, #changelist-form, .dashboard {
+        padding: 16px 18px !important;
+    }
+}
