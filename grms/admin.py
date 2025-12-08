@@ -202,7 +202,8 @@ class GRMSAdminSite(AdminSite):
 
         total_roads = models.Road.objects.count()
         total_road_km = (
-            models.Road.objects.aggregate(km=Sum("length_km")).get("km") or 0
+            models.Road.objects.aggregate(km=Sum("total_length_km")).get("km")
+            or 0
         )
 
         surface_distribution = json.dumps(
@@ -260,7 +261,7 @@ class GRMSAdminSite(AdminSite):
 
         zone_lengths_qs = (
             models.Road.objects.values("admin_zone__name")
-            .annotate(total=Sum("length_km"))
+            .annotate(total=Sum("total_length_km"))
             .order_by("admin_zone__name")
         )
         zone_labels = json.dumps(
