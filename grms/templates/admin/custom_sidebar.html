@@ -1,17 +1,17 @@
 {% load admin_urls sidebar_tags %}
 
-<nav id="nav-sidebar">
+<nav id="nav-sidebar" class="sidebar">
   <ul class="nav-sidebar">
 
   {% for group_key, group_items in MENU_GROUPS.items %}
 
-    <li class="model-group">
-      <div class="group-header" data-group="{{ group_key|slugify }}">
+    <li class="model-group group">
+      <div class="group-header sidebar-group-title" data-group="{{ group_key|slugify }}">
         <span class="group-title">{{ group_key|underscore_to_space }}</span>
         <span class="toggle-icon">▸</span>
       </div>
 
-      <ul id="group-{{ group_key|slugify }}" class="group-items collapse">
+      <ul id="group-{{ group_key|slugify }}" class="group-items sidebar-items collapse">
 
         {% if group_items.items %}
           {# ----- SUBGROUPS (Boxed Style B) ----- #}
@@ -21,11 +21,11 @@
                 <span class="subgroup-title">{{ subgroup_name }}</span>
                 <span class="toggle-icon">▸</span>
               </div>
-              <ul id="subgroup-{{ subgroup_name|slugify }}" class="subgroup-items collapse">
+              <ul id="subgroup-{{ subgroup_name|slugify }}" class="subgroup-items sidebar-items collapse">
                 {% for model_name, display_name in subgroup_models %}
                   {% resolve_model model_name as model %}
                   {% if model %}
-                    <li class="model-item">
+                    <li class="model-item sidebar-item">
                       <a href="{% url model|admin_urlname:'changelist' %}">{{ display_name }}</a>
                     </li>
                   {% endif %}
@@ -39,9 +39,9 @@
           {% for model_name, display_name in group_items %}
             {% resolve_model model_name as model %}
             {% if model %}
-              <li class="model-item">
-                <a href="{% url model|admin_urlname:'changelist' %}">{{ display_name }}</a>
-              </li>
+            <li class="model-item sidebar-item">
+              <a href="{% url model|admin_urlname:'changelist' %}">{{ display_name }}</a>
+            </li>
             {% endif %}
           {% endfor %}
         {% endif %}
