@@ -15,6 +15,7 @@
 
 /* Fix sidebar pinned left */
 #grms-sidebar {
+    /* align sidebar directly under the header */
     position: fixed;
     top: var(--grms-header-height);
     left: 0;
