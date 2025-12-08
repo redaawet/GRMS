@@ -18,31 +18,6 @@
         <canvas id="surfaceChart"></canvas>
     </div>
 
-    <section class="section-browser">
-        <div class="section-browser__header">
-            <h2>Browse data</h2>
-            <p class="section-browser__hint">Jump into any part of the inventory, surveys, or reference data.</p>
-        </div>
-        <div class="section-grid">
-            {% for section in sections %}
-                <article class="section-card">
-                    <header class="section-card__header">
-                        <h3>{{ section.title }}</h3>
-                        <span class="section-card__meta">{{ section.models|length }} item{{ section.models|length|pluralize }}</span>
-                    </header>
-                    <ul class="section-card__links">
-                        {% for model in section.models %}
-                            <li><a href="{{ model.admin_url }}">{{ model.name }}</a></li>
-                        {% endfor %}
-                    </ul>
-                </article>
-            {% empty %}
-                {# Fallback to the stock app list if grouping is unavailable #}
-                {% include "admin/app_list.html" with app_list=app_list show_changelinks=True %}
-            {% endfor %}
-        </div>
-    </section>
-
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
