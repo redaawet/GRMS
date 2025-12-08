@@ -3,6 +3,8 @@
 
 {% block title %}{{ site_title }}{% endblock %}
 
+{% block bodyclass %}app-grms {{ block.super }}{% endblock %}
+
 {% block extrastyle %}
   {{ block.super }}
   <link rel="stylesheet" href="{% static 'grms/css/dashboard.css' %}">
@@ -16,31 +18,12 @@
   <script src="{% static 'grms/js/sidebar_custom.js' %}"></script>
 {% endblock %}
 
-{# Override nav sidebar to display custom menu #}
 {% block nav-sidebar %}
-  <nav id="nav-sidebar" class="sidebar" aria-label="Admin navigation">
-    {% for section in sections %}
-      <div class="group">
-        <button
-          class="sidebar-group-title"
-          type="button"
-          aria-expanded="true"
-          aria-controls="section-{{ forloop.counter }}"
-        >
-          <span>{{ section.title }}</span>
-          <span class="toggle-icon" aria-hidden="true">▾</span>
-        </button>
-        <ul id="section-{{ forloop.counter }}" class="sidebar-items open">
-          {% for model in section.models %}
-            <li class="sidebar-item">
-              <a href="{{ model.admin_url }}">{{ model.name }}</a>
-            </li>
-          {% endfor %}
-        </ul>
-      </div>
-    {% empty %}
-      {# Fallback to the stock app list if grouping is unavailable #}
-      {% include "admin/app_list.html" with app_list=app_list show_changelinks=True %}
-    {% endfor %}
-  </nav>
+  {% include "admin/sidebar.html" %}
+{% endblock %}
+
+{% block content %}
+  <div id="content-wrapper">
+    {{ block.super }}
+  </div>
 {% endblock %}
