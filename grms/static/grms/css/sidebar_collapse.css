@@ -5,29 +5,10 @@
   display: none;
 }
 
-/* Fix the sidebar width and ensure it doesn’t shrink */
-#nav-sidebar {
-  width: 240px;
-  max-width: 240px;
-  padding-right: 0.5rem;
-}
+/* Removed custom width and margin overrides to allow default admin layout */
 
-/* Make sure the search bar and toggle button fit inside the new width */
-#nav-sidebar input#nav-filter {
-  width: calc(100% - 1rem);
-}
-
-/* Reset margin so main content uses the remaining width */
-#main,
-body #container {
-  margin-left: 240px;
-}
-
-/* Optional: reduce left margin when nav is collapsed via collapse icon */
-body.nav-collapsed #nav-sidebar {
-  width: 60px;
-}
-body.nav-collapsed #main,
-body.nav-collapsed #container {
-  margin-left: 60px;
+/* The pointer styles for headings remain */
+#nav-sidebar caption,
+#nav-sidebar .group-header {
+  cursor: pointer;
 }
