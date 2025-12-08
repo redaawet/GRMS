@@ -1,20 +1,33 @@
 {% extends "admin/base.html" %}
 {% load static %}
 
-{# Custom GRMS styling for dashboard + grouped sidebar (loaded globally in base.html) #}
+{% block title %}{{ site_title }}{% endblock %}
+
+{% block bodyclass %}app-grms {% if not is_popup and cl is None %}dashboard-index {% endif %}{{ block.super }}{% endblock %}
+
 {% block extrastyle %}
   {{ block.super }}
+  <link rel="stylesheet" href="{% static 'admin/css/grms_admin.css' %}">
+  <link rel="stylesheet" href="{% static 'grms/dashboard.css' %}">
+  <link rel="stylesheet" href="{% static 'grms/css/sidebar_custom.css' %}">
+  <link rel="stylesheet" href="{% static 'grms/css/custom_admin.css' %}">
 {% endblock %}
 
-{# Accordion behaviour for grouped sidebar #}
 {% block extrahead %}
   {{ block.super }}
-  <script src="{% static 'grms/js/custom_sidebar.js' %}"></script>
+  <script src="{% static 'grms/js/sidebar_custom.js' %}"></script>
 {% endblock %}
 
-{# Render the grouped sidebar menu from the custom AdminSite context #}
 {% block nav-sidebar %}
-  {% if not is_popup and is_nav_sidebar_enabled %}
-    {% include "admin/custom_sidebar.html" %}
-  {% endif %}
+  <div id="grms-sidebar">
+    {% include "admin/sidebar.html" %}
+  </div>
+{% endblock %}
+
+{% block content %}
+  <div class="grms-main-content">
+    {% block grms_main_content %}
+      {{ block.super }}
+    {% endblock %}
+  </div>
 {% endblock %}
