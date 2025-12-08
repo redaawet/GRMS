@@ -239,3 +239,57 @@ body.sidebar-collapsed #grms-sidebar .ss-arrow {
     max-width: calc(100% - 220px);
   }
 }
+/* ===============================
+   FIX BASED ON USER SCREENSHOTS
+   =============================== */
+
+:root {
+  --grms-sidebar-width: 260px;
+}
+
+/* Pin the admin sidebar on the left and give it scroll */
+body.grms-has-sidebar #nav-sidebar.sidebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: var(--grms-sidebar-width);
+  height: 100vh;
+  background: #ffffff;
+  border-right: 1px solid #e5e7eb;
+  overflow-y: auto;
+  z-index: 1001;
+  padding: 12px 0;
+}
+
+/* Offset the main container once for the fixed sidebar */
+body.grms-has-sidebar #container {
+  margin-left: var(--grms-sidebar-width);
+  width: calc(100% - var(--grms-sidebar-width));
+  max-width: calc(100% - var(--grms-sidebar-width));
+}
+
+/* Keep the admin header aligned with the content */
+body.grms-has-sidebar #header {
+  position: sticky;
+  top: 0;
+  z-index: 1100;
+}
+
+/* Sidebar group title spacing (clean professional spacing) */
+.sidebar-group-title {
+  padding: 14px 22px !important;
+  font-size: 14px;
+  font-weight: 600;
+  color: #2f3542;
+}
+
+/* Sidebar item spacing */
+.sidebar-items li {
+  padding: 10px 30px !important;
+  line-height: 1.4;
+}
+
+/* Fix vertical alignment issues from screenshot */
+.sidebar-items {
+  margin-top: 10px !important;
+}
