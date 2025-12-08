@@ -71,6 +71,10 @@
     box-shadow: 0 1px 3px rgba(0,0,0,0.08);
 }
 
+.panel-map {
+    margin-bottom: 20px;
+}
+
 .panel-heading {
     display: flex;
     justify-content: space-between;
@@ -94,6 +98,44 @@
 #roadMap {
     height: 320px;
     border-radius: 10px;
+}
+
+.panel-empty {
+    margin-top: 10px;
+    padding: 12px 14px;
+    border: 1px dashed #d1d5db;
+    background: #f8fafc;
+    color: #4b5563;
+    border-radius: 8px;
+}
+
+.insight-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.insight-card {
+    background: #fff;
+    border-radius: 10px;
+    padding: 18px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+}
+
+.insight-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 10px;
+    color: #374151;
+    line-height: 1.5;
+}
+
+.suggestion-card {
+    background: linear-gradient(135deg, #eef2ff 0%, #ffffff 100%);
+    border: 1px solid #e0e7ff;
 }
 
 body.grms-dashboard-page #content {
