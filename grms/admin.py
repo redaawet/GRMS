@@ -199,6 +199,15 @@ class GRMSAdminSite(AdminSite):
     def index(self, request, extra_context=None):
         app_list = self.get_app_list(request)
         base_ctx = self.each_context(request) or {}
+        if not isinstance(base_ctx, dict):
+            base_ctx = dict(base_ctx)
+
+        def with_default(labels, data, default_label="No data"):
+            labels = list(labels)
+            data = list(data)
+            if not labels:
+                return json.dumps([default_label]), json.dumps([0])
+            return json.dumps(labels), json.dumps(data)
 
         total_roads = models.Road.objects.count()
         total_road_km = (
@@ -225,6 +234,7 @@ class GRMSAdminSite(AdminSite):
             float(entry.get("total") or 0)
             for entry in traffic_qs
         ]
+        traffic_labels, traffic_data = with_default(traffic_labels, traffic_data)
 
         condition_counts = {"good": 0, "fair": 0, "poor": 0, "bad": 0}
         for mci in models.RoadConditionSurvey.objects.exclude(
@@ -258,6 +268,7 @@ class GRMSAdminSite(AdminSite):
             ]
         )
         mci_bins_labels = json.dumps([f"{lower}-{upper}" for lower, upper in mci_bins])
+        mci_bins_labels, mci_counts = with_default(json.loads(mci_bins_labels), json.loads(mci_counts))
 
         zone_lengths_qs = (
             models.Road.objects.values("admin_zone__name")
@@ -269,6 +280,9 @@ class GRMSAdminSite(AdminSite):
         )
         zone_lengths = json.dumps(
             [float(entry.get("total") or 0) for entry in zone_lengths_qs]
+        )
+        zone_labels, zone_lengths = with_default(
+            json.loads(zone_labels), json.loads(zone_lengths)
         )
 
         priority_qs = models.PrioritizationResult.objects.exclude(priority_rank__isnull=True)
@@ -289,8 +303,8 @@ class GRMSAdminSite(AdminSite):
             "total_roads": total_roads,
             "total_road_km": total_road_km,
             "surface_distribution": surface_distribution,
-            "traffic_labels": json.dumps(traffic_labels),
-            "traffic_data": json.dumps(traffic_data),
+            "traffic_labels": traffic_labels,
+            "traffic_data": traffic_data,
             "condition_distribution": condition_distribution,
             "mci_bins": mci_bins_labels,
             "mci_counts": mci_counts,
