@@ -6,6 +6,9 @@ import json
 from decimal import Decimal, InvalidOperation
 from typing import Dict, List, Optional
 
+from django.contrib import admin
+from django.contrib.admin.views.decorators import staff_member_required
+
 try:
     from django.contrib.gis.geos import LineString
 except Exception:  # pragma: no cover - runtime fallback when GIS libs are missing
@@ -28,6 +31,15 @@ from . import models, serializers
 from .forms import RoadAlignmentForm, RoadBasicForm, RoadSectionBasicForm
 from .services import map_services
 from .utils import make_point, point_to_lat_lng, utm_to_wgs84
+
+
+@staff_member_required
+def dashboard_view(request):
+    """Display the grouped GRMS admin dashboard for staff users."""
+
+    response = admin.site.index(request)
+    response.template_name = "admin/dashboard.html"
+    return response
 
 
 class RoadViewSet(viewsets.ModelViewSet):
