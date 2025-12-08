@@ -239,3 +239,66 @@ body.sidebar-collapsed #grms-sidebar .ss-arrow {
     max-width: calc(100% - 220px);
   }
 }
+/* ===============================
+   FIX BASED ON USER SCREENSHOTS
+   =============================== */
+
+/* Force sidebar to attach LEFT, not center */
+#custom-sidebar,
+.sidebar-container {
+    position: fixed !important;
+    top: 0;
+    left: 0 !important;
+    width: 260px !important;
+    height: 100vh;
+    background: #ffffff;
+    border-right: 1px solid #e5e7eb;
+    overflow-y: auto;
+    z-index: 1001;
+}
+
+/* REMOVE the huge white gap seen in screenshots */
+body,
+#container,
+#content,
+.grp-content,
+.dashboard-content {
+    margin-left: 260px !important;
+}
+
+/* Fix admin header alignment */
+#header {
+    left: 260px !important;
+    width: calc(100% - 260px) !important;
+    position: fixed;
+    top: 0;
+    z-index: 1100;
+}
+
+/* Prevent content from sliding under header */
+#content,
+.change-list,
+.change-form,
+.dashboard-content {
+    padding-top: 80px !important;
+}
+
+/* Sidebar group title spacing (clean professional spacing) */
+.sidebar-group-title {
+    padding: 14px 22px !important;
+    font-size: 14px;
+    font-weight: 600;
+    color: #2f3542;
+}
+
+/* Sidebar item spacing */
+.sidebar-items li {
+    padding: 10px 30px !important;
+    line-height: 1.4;
+}
+
+/* Fix vertical alignment issues from screenshot */
+.sidebar-container ul,
+.sidebar-items {
+    margin-top: 10px !important;
+}
