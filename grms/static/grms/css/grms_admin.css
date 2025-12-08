@@ -1,0 +1,39 @@
+/* GRMS Custom Admin Layout */
+:root {
+    --grms-sidebar-width: 260px;
+}
+
+body, html {
+    margin: 0;
+    padding: 0;
+}
+
+/* Sidebar container */
+#grms-sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: var(--grms-sidebar-width);
+    height: 100vh;
+    background: #f8f9fa;
+    border-right: 1px solid #ddd;
+    padding-top: 70px;
+    overflow-y: auto;
+}
+
+/* Main content offset by sidebar width */
+.main, .content, #content {
+    margin-left: var(--grms-sidebar-width) !important;
+    padding: 20px;
+}
+
+/* Fix breadcrumbs alignment */
+.breadcrumbs {
+    margin-left: var(--grms-sidebar-width) !important;
+}
+
+/* Fix login page centering */
+#content-main form {
+    max-width: 420px;
+    margin: 80px auto !important;
+}
