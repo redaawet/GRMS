@@ -1,17 +1,8 @@
 document.addEventListener('DOMContentLoaded', function () {
   const dataScript = document.getElementById('grms-data');
-  const payload = dataScript ? JSON.parse(dataScript.textContent) : {};
-
-  const surfaceTotals = payload.surface || {};
-  const surfaceData = [
-    Number(surfaceTotals.asphalt || 0),
-    Number(surfaceTotals.gravel || 0),
-    Number(surfaceTotals.dirt || 0),
-  ];
-
-  const trafficYears = payload.traffic_years || [];
-  const trafficValues = payload.traffic_values || [];
-
+  if (!dataScript) {
+    return;
+  }
   const surfaceCtx = document.getElementById('surfaceChart');
   if (surfaceCtx && surfaceData.some((value) => value > 0)) {
     new Chart(surfaceCtx, {
