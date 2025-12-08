@@ -44,6 +44,7 @@ router.register(r"annual-work-plans", views.AnnualWorkPlanViewSet)
 
 
 urlpatterns = [
+    path("admin/dashboard/", views.dashboard_view, name="dashboard"),
     path("roads/create/basic", views.road_basic_info, name="road_basic_info"),
     path("roads/<int:road_id>/alignment", views.road_alignment, name="road_alignment"),
     path("roads/<int:road_id>", views.road_detail, name="road_detail"),

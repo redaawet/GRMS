@@ -1,20 +1,145 @@
 {% extends "admin/base.html" %}
 {% load static %}
 
-{# Custom GRMS styling for dashboard + grouped sidebar (loaded globally in base.html) #}
+{% block title %}{{ site_title }}{% endblock %}
+
 {% block extrastyle %}
   {{ block.super }}
+  <link rel="stylesheet" href="{% static 'grms/css/dashboard.css' %}">
+  <link rel="stylesheet" href="{% static 'grms/css/sidebar_custom.css' %}">
 {% endblock %}
 
-{# Accordion behaviour for grouped sidebar #}
 {% block extrahead %}
   {{ block.super }}
-  <script src="{% static 'grms/js/custom_sidebar.js' %}"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="{% static 'grms/js/dashboard.js' %}"></script>
+  <script src="{% static 'grms/js/sidebar_custom.js' %}"></script>
 {% endblock %}
 
-{# Render the grouped sidebar menu from the custom AdminSite context #}
+{# Override nav sidebar to display custom menu #}
 {% block nav-sidebar %}
-  {% if not is_popup and is_nav_sidebar_enabled %}
-    {% include "admin/custom_sidebar.html" %}
-  {% endif %}
+  <div class="sidebar">
+    <div class="group">
+      <div class="sidebar-group-title">
+        <i class="fas fa-road"></i> <span>Core Road Inventory</span>
+      </div>
+      <ul class="sidebar-items">
+        <li class="sidebar-item"><a href="{% url 'admin:grms_road_changelist' %}">Roads</a></li>
+        <li class="sidebar-item"><a href="{% url 'admin:grms_roadsection_changelist' %}">Road sections</a></li>
+        <li class="sidebar-item"><a href="{% url 'admin:grms_roadsegment_changelist' %}">Road segments</a></li>
+        <li class="sidebar-item"><a href="{% url 'admin:grms_roadsocioeconomic_changelist' %}">Road socio-economic</a></li>
+      </ul>
+    </div>
+    <div class="group">
+      <div class="sidebar-group-title">
+        <i class="fas fa-building"></i> <span>Structure Inventory</span>
+      </div>
+      <ul class="sidebar-items">
+        <li class="sidebar-item"><a href="{% url 'admin:grms_structureinventory_changelist' %}">Structure inventories</a></li>
+        <li class="sidebar-item"><a href="{% url 'admin:grms_bridgedetail_changelist' %}">Bridge details</a></li>
+        <li class="sidebar-item"><a href="{% url 'admin:grms_culvertdetail_changelist' %}">Culvert details</a></li>
+        <li class="sidebar-item"><a href="{% url 'admin:grms_forddetail_changelist' %}">Ford details</a></li>
+        <li class="sidebar-item"><a href="{% url 'admin:grms_retainingwalldetail_changelist' %}">Retaining wall details</a></li>
+        <li class="sidebar-item"><a href="{% url 'admin:grms_gabionwalldetail_changelist' %}">Gabion wall details</a></li>
+        <li class="sidebar-item"><a href="{% url 'admin:grms_furnitureinventory_changelist' %}">Furniture inventories</a></li>
+      </ul>
+    </div>
+    <div class="group">
+      <div class="sidebar-group-title">
+        <i class="fas fa-clipboard-list"></i> <span>Condition Surveys</span>
+      </div>
+      <ul class="sidebar-items">
+        <li class="sidebar-item"><a href="{% url 'admin:grms_roadconditionsurvey_changelist' %}">Road condition surveys</a></li>
+        <li class="sidebar-item"><a href="{% url 'admin:grms_structureconditionsurvey_changelist' %}">Structure condition surveys</a></li>
+        <li class="sidebar-item"><a href="{% url 'admin:grms_bridgeconditionsurvey_changelist' %}">Bridge condition surveys</a></li>
+        <li class="sidebar-item"><a href="{% url 'admin:grms_culvertconditionsurvey_changelist' %}">Culvert condition surveys</a></li>
+        <li class="sidebar-item"><a href="{% url 'admin:grms_otherstructureconditionsurvey_changelist' %}">Other structure condition surveys</a></li>
+        <li class="sidebar-item"><a href="{% url 'admin:grms_furnitureconditionsurvey_changelist' %}">Furniture condition surveys</a></li>
+      </ul>
+    </div>
+    <div class="group">
+      <div class="sidebar-group-title">
+        <i class="fas fa-chart-bar"></i> <span>Detailed Distress Surveys</span>
+      </div>
+      <ul class="sidebar-items">
+        <li class="sidebar-item"><a href="{% url 'admin:grms_roadconditiondetailedsurvey_changelist' %}">Road detailed surveys</a></li>
+        <li class="sidebar-item"><a href="{% url 'admin:grms_structureconditiondetailedsurvey_changelist' %}">Structured detailed surveys</a></li>
+        <li class="sidebar-item"><a href="{% url 'admin:grms_furnitureconditiondetailedsurvey_changelist' %}">Furniture detailed surveys</a></li>
+      </ul>
+    </div>
+    <div class="group">
+      <div class="sidebar-group-title">
+        <i class="fas fa-car"></i> <span>Traffic & Transport</span>
+      </div>
+      <ul class="sidebar-items">
+        <li class="sidebar-item"><a href="{% url 'grms_admin:traffic_trafficsurvey_changelist' %}">Traffic surveys</a></li>
+        <li class="sidebar-item"><a href="{% url 'grms_admin:traffic_trafficcountrecord_changelist' %}">Traffic counts</a></li>
+        <li class="sidebar-item"><a href="{% url 'grms_admin:traffic_nightadjustmentlookup_changelist' %}">Night adjustment lookup</a></li>
+        <li class="sidebar-item"><a href="{% url 'grms_admin:traffic_pculookup_changelist' %}">PCU lookup</a></li>
+        <li class="sidebar-item"><a href="{% url 'grms_admin:traffic_trafficcyclesummary_changelist' %}">Traffic cycle summaries</a></li>
+        <li class="sidebar-item"><a href="{% url 'grms_admin:traffic_trafficsurveysummary_changelist' %}">Traffic survey summaries</a></li>
+        <li class="sidebar-item"><a href="{% url 'grms_admin:traffic_trafficsurveyoverall_changelist' %}">Traffic survey overall</a></li>
+        <li class="sidebar-item"><a href="{% url 'grms_admin:traffic_trafficforprioritization_changelist' %}">Traffic prioritization</a></li>
+        <li class="sidebar-item"><a href="{% url 'grms_admin:traffic_trafficqc_changelist' %}">Traffic QC</a></li>
+      </ul>
+    </div>
+    <div class="group">
+      <div class="sidebar-group-title">
+        <i class="fas fa-tools"></i> <span>Maintenance & Planning</span>
+      </div>
+      <ul class="sidebar-items">
+        <li class="sidebar-item"><a href="{% url 'admin:grms_structureintervention_changelist' %}">Structure interventions</a></li>
+        <li class="sidebar-item"><a href="{% url 'admin:grms_roadsectionintervention_changelist' %}">Road section interventions</a></li>
+        <li class="sidebar-item"><a href="{% url 'admin:grms_benefitfactor_changelist' %}">Benefit factors</a></li>
+        <li class="sidebar-item"><a href="{% url 'admin:grms_prioritizationresult_changelist' %}">Prioritization results</a></li>
+        <li class="sidebar-item"><a href="{% url 'admin:grms_annualworkplan_changelist' %}">Annual work plans</a></li>
+      </ul>
+    </div>
+    <div class="group">
+      <div class="sidebar-group-title">
+        <i class="fas fa-database"></i> <span>Reference & Lookups</span>
+      </div>
+      <ul class="sidebar-items">
+        <li class="sidebar-item"><a href="{% url 'admin:grms_activitylookup_changelist' %}">Activity lookups</a></li>
+        <li class="sidebar-item"><a href="{% url 'admin:grms_interventionlookup_changelist' %}">Intervention lookups</a></li>
+        <li class="sidebar-item"><a href="{% url 'admin:grms_unitcost_changelist' %}">Unit costs</a></li>
+        <li class="sidebar-item"><a href="{% url 'admin:grms_conditionrating_changelist' %}">Condition ratings</a></li>
+        <li class="sidebar-item"><a href="{% url 'admin:grms_qastatus_changelist' %}">QA statuses</a></li>
+        <li class="sidebar-item"><a href="{% url 'admin:grms_distresstype_changelist' %}">Distress types</a></li>
+        <li class="sidebar-item"><a href="{% url 'admin:grms_distresscondition_changelist' %}">Distress conditions</a></li>
+        <li class="sidebar-item"><a href="{% url 'admin:grms_distressactivity_changelist' %}">Distress activities</a></li>
+        <li class="sidebar-item"><a href="{% url 'admin:grms_roadlinktypelookup_changelist' %}">Road link types</a></li>
+        <li class="sidebar-item"><a href="{% url 'admin:grms_adminzone_changelist' %}">Administrative zones</a></li>
+        <li class="sidebar-item"><a href="{% url 'admin:grms_adminworeda_changelist' %}">Administrative woredas</a></li>
+      </ul>
+    </div>
+    <div class="group">
+      <div class="sidebar-group-title">
+        <i class="fas fa-balance-scale"></i> <span>Prioritization & Benefit</span>
+      </div>
+      <ul class="sidebar-items">
+        <li class="sidebar-item"><a href="{% url 'admin:grms_benefitcategory_changelist' %}">Benefit categories</a></li>
+        <li class="sidebar-item"><a href="{% url 'admin:grms_benefitcriterion_changelist' %}">Benefit criteria</a></li>
+        <li class="sidebar-item"><a href="{% url 'admin:grms_benefitcriterionscale_changelist' %}">Benefit scales</a></li>
+        <li class="sidebar-item"><a href="{% url 'admin:grms_roadsocioeconomic_changelist' %}">Road socio-economic</a></li>
+      </ul>
+    </div>
+    <div class="group">
+      <div class="sidebar-group-title">
+        <i class="fas fa-user-shield"></i> <span>System Administration</span>
+      </div>
+      <ul class="sidebar-items">
+        <li class="sidebar-item"><a href="{% url 'admin:auth_user_changelist' %}">Users</a></li>
+        <li class="sidebar-item"><a href="{% url 'admin:auth_group_changelist' %}">Groups</a></li>
+      </ul>
+    </div>
+    <div class="group">
+      <div class="sidebar-group-title">
+        <i class="fas fa-tachometer-alt"></i> <span>Dashboard</span>
+      </div>
+      <ul class="sidebar-items">
+        <li class="sidebar-item"><a href="{% url 'dashboard' %}">View Dashboard</a></li>
+      </ul>
+    </div>
+  </div>
 {% endblock %}
