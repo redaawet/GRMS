@@ -2,29 +2,10 @@
    GRMS Sidebar – Clean Django-like design
 -------------------------------------------- */
 
-:root {
-    --grms-sidebar-width: 240px;
-    --grms-header-height: 70px;
-}
-
 /* Wrapper for admin layout */
 #grms-layout {
     display: flex;
     min-height: 100vh;
-}
-
-/* Fix sidebar pinned left */
-#grms-sidebar {
-    /* align sidebar directly under the header */
-    position: fixed;
-    top: var(--grms-header-height);
-    left: 0;
-    width: var(--grms-sidebar-width);
-    height: calc(100vh - var(--grms-header-height));
-    background: #fafafa;
-    border-right: 1px solid #ddd;
-    overflow-y: auto;
-    z-index: 1000;
 }
 
 /* Sidebar items */
@@ -62,125 +43,14 @@
     color: #1e3a8a;
 }
 
-#container {
-    margin-left: var(--grms-sidebar-width) !important;
-    padding-top: var(--grms-header-height) !important;
-    padding-left: 20px !important;
-    width: calc(100% - var(--grms-sidebar-width)) !important;
-    box-sizing: border-box;
-}
-
-#content,
-#content-main,
-.change-list,
-.changeform-wrapper,
-.module {
-    margin-left: 0 !important;
+body, html {
+    overflow-x: hidden !important;
     padding-left: 0 !important;
-    width: 100% !important;
-}
-
-body.login #container,
-body.login #content {
-    margin-left: 0 !important;
-    padding-top: 0 !important;
-    width: auto !important;
-}
-
-/* Header styling fix */
-#header, .module-header {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: var(--grms-header-height);
-    line-height: var(--grms-header-height);
-    z-index: 1100;
-}
-
-/* Optional: tighten sidebar spacing */
-#grms-sidebar .sidebar-item {
-    padding: 8px 18px;
 }
 
 /* Responsive Behavior */
 @media (max-width: 900px) {
     #grms-layout {
         display: block;
-    }
-
-    #grms-sidebar {
-        position: relative;
-        width: 100%;
-        min-width: 0;
-        height: auto;
-        border-right: none;
-        border-bottom: 1px solid #d6dce5;
-        top: 0;
-    }
-
-    #header {
-        height: auto;
-        position: fixed;
-        padding-left: 15px !important;
-    }
-}
-
-/* Support optional class-based sidebar styling */
-.grms-sidebar {
-    position: fixed;
-    top: var(--grms-header-height);
-    left: 0;
-    width: var(--grms-sidebar-width);
-    height: calc(100vh - var(--grms-header-height));
-    overflow-y: auto;
-    background: #f8f9fa;
-    border-right: 1px solid #ddd;
-    padding-top: 10px;
-    z-index: 1001;
-}
-
-.grms-sidebar .menu-group-title {
-    font-weight: 600;
-    padding: 12px 18px 6px;
-    font-size: 13px;
-    color: #444;
-}
-
-.grms-sidebar .menu-item {
-    padding: 8px 18px;
-    display: block;
-    color: #333;
-}
-
-.grms-sidebar .menu-item:hover {
-    background: #e9ecef;
-}
-
-body, html {
-    overflow-x: hidden !important;
-    padding-left: 0 !important;
-}
-
-/* Responsive adjustments */
-@media (max-width: 768px) {
-    #grms-layout {
-        display: block;
-    }
-
-    #grms-sidebar {
-        position: relative;
-        top: 0;
-        height: auto;
-        width: 100%;
-        min-width: 0;
-        border-right: none;
-        border-bottom: 1px solid #ddd;
-    }
-
-    #container {
-        margin-left: 0 !important;
-        width: 100% !important;
-        padding-top: var(--grms-header-height) !important;
     }
 }
