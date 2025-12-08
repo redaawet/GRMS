@@ -1,26 +1,27 @@
-/* Ensure main admin content aligns correctly beside the sidebar */
+/* Normalize main admin layout offset to match sidebar width */
 :root {
-    --sidebar-width: 240px;   /* matches your real sidebar width */
+    --sidebar-width: 240px; /* Adjust to your actual sidebar width */
 }
 
-/* Fix Django admin main content positioning */
-#content, .content, #changelist-form, .dashboard {
+/* Main content alignment fix */
+#content,
+#content-main,
+.change-list,
+.dashboard,
+.content {
     margin-left: var(--sidebar-width) !important;
     padding-left: 20px !important;
 }
 
-/* Ensure wrapper does not push content too far right */
-#container, #content-main {
+/* Header alignment fixes */
+#header,
+#branding,
+#user-tools {
     margin-left: var(--sidebar-width) !important;
 }
 
-/* Fix breadcrumb/header alignment */
-#header, #user-tools, #branding {
-    margin-left: var(--sidebar-width) !important;
-}
-
-/* OPTIONAL: Improve dashboard for aesthetic symmetry */
-.dashboard-module, .dashboard-widget {
+/* Ensure dashboard modules do not overflow */
+.dashboard #content-main {
     max-width: 95%;
     margin: auto;
 }
