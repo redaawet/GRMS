@@ -196,3 +196,42 @@ body, html {
     display: block;
     width: 100%;
 }
+
+/* GRMS Final Layout Fix — shift main content next to the sidebar */
+:root {
+    --grms-sidebar-width: 260px;
+}
+
+/* Main content area */
+#content, .content, .main, .dashboard-container {
+    margin-left: var(--grms-sidebar-width) !important;
+    width: calc(100% - var(--grms-sidebar-width)) !important;
+    padding: 20px 30px !important;
+}
+
+/* Global wrapper fix */
+#container, #wrapper, .dashboard-wrapper {
+    margin-left: var(--grms-sidebar-width) !important;
+}
+
+/* Header bar fix */
+#header, .breadcrumbs, .page-header {
+    margin-left: var(--grms-sidebar-width) !important;
+}
+
+/* Remove unintended left padding from Django admin body */
+body {
+    padding-left: 0 !important;
+    overflow-x: hidden !important;
+}
+
+/* Dashboard cards area */
+.dashboard-cards, .dashboard-main {
+    margin-left: var(--grms-sidebar-width) !important;
+}
+
+/* Login page should not shift */
+.login #content, .login #container {
+    margin-left: 0 !important;
+    width: auto !important;
+}
