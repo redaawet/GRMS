@@ -1,53 +1,55 @@
 {% load admin_urls sidebar_tags %}
 
-<ul class="nav-sidebar">
+<nav id="nav-sidebar">
+  <ul class="nav-sidebar">
 
-{% for group_key, group_items in MENU_GROUPS.items %}
+  {% for group_key, group_items in MENU_GROUPS.items %}
 
-  <li class="model-group">
-    <div class="group-header" data-group="{{ group_key|slugify }}">
-      <span class="group-title">{{ group_key|underscore_to_space }}</span>
-      <span class="toggle-icon">▸</span>
-    </div>
+    <li class="model-group">
+      <div class="group-header" data-group="{{ group_key|slugify }}">
+        <span class="group-title">{{ group_key|underscore_to_space }}</span>
+        <span class="toggle-icon">▸</span>
+      </div>
 
-    <ul id="group-{{ group_key|slugify }}" class="group-items collapse">
+      <ul id="group-{{ group_key|slugify }}" class="group-items collapse">
 
-      {% if group_items.items %}
-        {# ----- SUBGROUPS (Boxed Style B) ----- #}
-        {% for subgroup_name, subgroup_models in group_items.items %}
-          <li class="subgroup">
-            <div class="subgroup-header" data-subgroup="{{ subgroup_name|slugify }}">
-              <span class="subgroup-title">{{ subgroup_name }}</span>
-              <span class="toggle-icon">▸</span>
-            </div>
-            <ul id="subgroup-{{ subgroup_name|slugify }}" class="subgroup-items collapse">
-              {% for model_name, display_name in subgroup_models %}
-                {% resolve_model model_name as model %}
-                {% if model %}
-                  <li class="model-item">
-                    <a href="{% url model|admin_urlname:'changelist' %}">{{ display_name }}</a>
-                  </li>
-                {% endif %}
-              {% endfor %}
-            </ul>
-          </li>
-        {% endfor %}
-
-      {% else %}
-        {# ----- FLAT GROUP LIST ----- #}
-        {% for model_name, display_name in group_items %}
-          {% resolve_model model_name as model %}
-          {% if model %}
-            <li class="model-item">
-              <a href="{% url model|admin_urlname:'changelist' %}">{{ display_name }}</a>
+        {% if group_items.items %}
+          {# ----- SUBGROUPS (Boxed Style B) ----- #}
+          {% for subgroup_name, subgroup_models in group_items.items %}
+            <li class="subgroup">
+              <div class="subgroup-header" data-subgroup="{{ subgroup_name|slugify }}">
+                <span class="subgroup-title">{{ subgroup_name }}</span>
+                <span class="toggle-icon">▸</span>
+              </div>
+              <ul id="subgroup-{{ subgroup_name|slugify }}" class="subgroup-items collapse">
+                {% for model_name, display_name in subgroup_models %}
+                  {% resolve_model model_name as model %}
+                  {% if model %}
+                    <li class="model-item">
+                      <a href="{% url model|admin_urlname:'changelist' %}">{{ display_name }}</a>
+                    </li>
+                  {% endif %}
+                {% endfor %}
+              </ul>
             </li>
-          {% endif %}
-        {% endfor %}
-      {% endif %}
+          {% endfor %}
 
-    </ul>
-  </li>
+        {% else %}
+          {# ----- FLAT GROUP LIST ----- #}
+          {% for model_name, display_name in group_items %}
+            {% resolve_model model_name as model %}
+            {% if model %}
+              <li class="model-item">
+                <a href="{% url model|admin_urlname:'changelist' %}">{{ display_name }}</a>
+              </li>
+            {% endif %}
+          {% endfor %}
+        {% endif %}
 
-{% endfor %}
+      </ul>
+    </li>
 
-</ul>
+  {% endfor %}
+
+  </ul>
+</nav>
