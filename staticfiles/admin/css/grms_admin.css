@@ -44,14 +44,21 @@
     width: 100% !important;
 }
 
-/* Ensure the main container sits below the fixed header */
-#main {
-    padding-top: 20px;
+/*
+ * Changelist header layout: use the full horizontal space instead of
+ * leaving the search form floating on the right with a large empty gap.
+ */
+.change-list #toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+    justify-content: space-between;
 }
 
-body.login #container,
-body.login #content {
-    margin-left: 0 !important;
-    padding-top: 0 !important;
-    width: auto !important;
+.change-list #changelist-search {
+    order: 1;
+    margin: 0;
+    flex: 1 1 420px;
+    min-width: 320px;
 }
