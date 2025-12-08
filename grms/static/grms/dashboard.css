@@ -3,8 +3,10 @@
 /* Professional dashboard styling */
 
 .grms-dashboard {
-    padding: 30px;
+    padding: 32px 32px 40px;
     background: #f6f7f9;
+    max-width: 1280px;
+    margin: 0 auto;
 }
 
 .grms-hero {
@@ -122,4 +124,20 @@ body.grms-dashboard-page #content {
     font-size: 1.9rem;
     font-weight: 700;
     margin-top: 6px;
+}
+
+@media (max-width: 1024px) {
+    .grms-dashboard {
+        padding: 24px;
+    }
+}
+
+@media (max-width: 640px) {
+    .grms-dashboard {
+        padding: 18px;
+    }
+
+    .panel-row {
+        grid-template-columns: 1fr;
+    }
 }
