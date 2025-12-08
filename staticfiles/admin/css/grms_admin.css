@@ -49,6 +49,11 @@
     margin-right: auto;
 }
 
+/* Ensure the main container sits below the fixed header */
+#main {
+    padding-top: 20px;
+}
+
 body.login #container,
 body.login #content {
     margin-left: 0 !important;
