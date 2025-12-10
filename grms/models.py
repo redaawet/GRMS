@@ -726,8 +726,15 @@ class RoadSegment(models.Model):
         ],
         help_text="Terrain longitudinal slope",
     )
-    ditch_left_present = models.BooleanField(default=False)
-    ditch_right_present = models.BooleanField(default=False)
+    ditch_left_present = models.BooleanField(
+    default=False,
+    help_text="Indicates if left-side drainage/ditch exists."
+    )
+    ditch_right_present = models.BooleanField(
+        default=False,
+        help_text="Indicates if right-side drainage/ditch exists."
+    )
+
     shoulder_left_present = models.BooleanField(default=False)
     shoulder_right_present = models.BooleanField(default=False)
     carriageway_width_m = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
@@ -1428,62 +1435,315 @@ class OtherStructureConditionSurvey(models.Model):
 
     def __str__(self) -> str:  # pragma: no cover
         return f"Other structure survey details {self.structure_survey_id}"
+# ---------------------------------------------------------------------------
+# MCI Lookup models
+# ---------------------------------------------------------------------------
+
+class ConditionFactorLookup(models.Model):
+    FACTOR_TYPES = [
+        ("drainage", "Drainage Condition"),
+        ("shoulder", "Shoulder Condition"),
+        ("surface", "Surface Condition"),
+    ]
+
+    factor_type = models.CharField(max_length=20, choices=FACTOR_TYPES)
+    rating = models.PositiveSmallIntegerField()  
+    description = models.CharField(max_length=200)
+    factor_value = models.DecimalField(max_digits=4, decimal_places=2)
+
+    class Meta:
+        unique_together = ("factor_type", "rating")
+        ordering = ["factor_type", "rating"]
+
+    def __str__(self):
+        return f"{self.factor_type}: R{self.rating} → {self.factor_value}"
+
+
+class MCIWeightConfig(models.Model):
+    name = models.CharField(max_length=100)
+    effective_from = models.DateField()
+    effective_to = models.DateField(null=True, blank=True)
+
+    weight_drainage = models.DecimalField(max_digits=4, decimal_places=2, default=Decimal("0.40"))
+    weight_shoulder = models.DecimalField(max_digits=4, decimal_places=2, default=Decimal("0.20"))
+    weight_surface  = models.DecimalField(max_digits=4, decimal_places=2, default=Decimal("0.40"))
+
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ["-effective_from"]
+
+    def __str__(self):
+        return f"{self.name} ({self.effective_from} – {self.effective_to or 'Present'})"
 
 
 class RoadConditionSurvey(models.Model):
     road_segment = models.ForeignKey(RoadSegment, on_delete=models.CASCADE, related_name="condition_surveys")
-    drainage_condition_left = models.DecimalField(
-        max_digits=3,
-        decimal_places=1,
+    # Drainage condition (lookup-based)
+    drainage_left = models.ForeignKey(
+        ConditionFactorLookup,
         null=True,
         blank=True,
-        help_text="Left drainage condition (0–5 scale)",
+        on_delete=models.SET_NULL,
+        related_name="drainage_left_surveys",
+        limit_choices_to={"factor_type": "drainage"},
     )
-    drainage_condition_right = models.DecimalField(max_digits=3, decimal_places=1, null=True, blank=True)
-    shoulder_condition_left = models.DecimalField(max_digits=3, decimal_places=1, null=True, blank=True)
-    shoulder_condition_right = models.DecimalField(max_digits=3, decimal_places=1, null=True, blank=True)
-    surface_condition_factor = models.DecimalField(
-        max_digits=3,
-        decimal_places=1,
+    drainage_right = models.ForeignKey(
+        ConditionFactorLookup,
         null=True,
         blank=True,
-        help_text="Surface condition factor (e.g., 0–5 scale)",
+        on_delete=models.SET_NULL,
+        related_name="drainage_right_surveys",
+        limit_choices_to={"factor_type": "drainage"},
     )
+
+    # Shoulder condition
+    shoulder_left = models.ForeignKey(
+        ConditionFactorLookup,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="shoulder_left_surveys",
+        limit_choices_to={"factor_type": "shoulder"},
+    )
+    shoulder_right = models.ForeignKey(
+        ConditionFactorLookup,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="shoulder_right_surveys",
+        limit_choices_to={"factor_type": "shoulder"},
+    )
+
+    # Surface condition
+    surface_condition = models.ForeignKey(
+        ConditionFactorLookup,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="surface_surveys",
+        limit_choices_to={"factor_type": "surface"},
+    )
+
     is_there_bottleneck = models.BooleanField(default=False, help_text="Is there any bottleneck on this segment?")
     bottleneck_size_m = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
     comments = models.TextField(blank=True)
     inspected_by = models.CharField(max_length=150, blank=True)
     inspection_date = models.DateField(null=True, blank=True)
-    calculated_mci = models.DecimalField(
-        max_digits=4,
-        decimal_places=1,
-        null=True,
-        blank=True,
-        help_text="Maintenance Condition Index for this segment",
-    )
-    intervention_recommended = models.TextField(blank=True, help_text="Suggested intervention based on condition")
-
     class Meta:
         verbose_name = "Road condition survey"
-        verbose_name_plural = "Road condition surveys"
+        verbose_name_plural = "Road condition survey"
+    def clean(self):
+        seg = self.road_segment
+        errors = {}
 
-    def save(self, *args, **kwargs) -> None:
-        factors: Iterable[Optional[Decimal]] = (
-            self.surface_condition_factor,
-            self.drainage_condition_left,
-            self.drainage_condition_right,
-            self.shoulder_condition_left,
-            self.shoulder_condition_right,
+        # ---------------------------------------------------------
+        # Drainage validation (ditch = drainage)
+        # ---------------------------------------------------------
+        if not seg.ditch_left_present and self.drainage_left is not None:
+            errors["drainage_left"] = (
+                "Left drainage cannot be recorded because this segment has no left ditch."
+            )
+
+        if not seg.ditch_right_present and self.drainage_right is not None:
+            errors["drainage_right"] = (
+                "Right drainage cannot be recorded because this segment has no right ditch."
+            )
+
+        # ---------------------------------------------------------
+        # Shoulder validation
+        # ---------------------------------------------------------
+        if not seg.shoulder_left_present and self.shoulder_left is not None:
+            errors["shoulder_left"] = (
+                "Left shoulder condition cannot be recorded because this segment has no left shoulder."
+            )
+
+        if not seg.shoulder_right_present and self.shoulder_right is not None:
+            errors["shoulder_right"] = (
+                "Right shoulder condition cannot be recorded because this segment has no right shoulder."
+            )
+
+        if errors:
+            raise ValidationError(errors)
+
+# ---------------------------------------------------------------------------
+# Derived MCI model
+# ---------------------------------------------------------------------------
+
+class SegmentMCIResult(models.Model):
+
+    """
+    Final, derived Maintenance Condition Index (MCI) record.
+    Represents the weighted MCI for a specific RoadConditionSurvey.
+
+    A SegmentMCIResult is:
+    - One record per RoadConditionSurvey (OneToOne)
+    - Uses MCIWeightConfig to determine how factors are weighted
+    - Stores the computed MCI, plus factor-level weighted scores
+    """
+
+    road_segment = models.ForeignKey(
+        RoadSegment,
+        on_delete=models.CASCADE,
+        related_name="mci_results",
+    )
+
+    survey = models.OneToOneField(
+        RoadConditionSurvey,
+        on_delete=models.CASCADE,
+        related_name="mci_result",
+        help_text="The condition survey from which this MCI is derived",
+    )
+
+    weight_config = models.ForeignKey(
+        "MCIWeightConfig",
+        on_delete=models.PROTECT,
+        help_text="Weight configuration used at time of computation",
+    )
+
+    survey_date = models.DateField()
+
+    # Factor-level weighted results (already multiplied by weight)
+    drainage_factor = models.DecimalField(max_digits=4, decimal_places=2, null=True, blank=True)
+    shoulder_factor = models.DecimalField(max_digits=4, decimal_places=2, null=True, blank=True)
+    surface_factor = models.DecimalField(max_digits=4, decimal_places=2, null=True, blank=True)
+
+    # Final MCI (0–100)
+    mci_value = models.DecimalField(max_digits=6, decimal_places=2)
+
+    computed_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Segment MCI result"
+        verbose_name_plural = "Segment MCI results"
+        ordering = ["-survey_date", "road_segment"]
+
+    def __str__(self):
+        return f"MCI {self.mci_value} (Segment {self.road_segment_id}, Survey {self.survey_id})"
+
+    # ------------------------------------------------------------------
+    # Look up active weight configuration
+    # ------------------------------------------------------------------
+    @classmethod
+    def _get_active_config(cls, on_date=None):
+        """
+        Returns the most recent active MCIWeightConfig that covers the date.
+        Example: used when computing MCI for a survey.
+        """
+        from datetime import date
+        on_date = on_date or date.today()
+
+        return (
+            MCIWeightConfig.objects
+            .filter(is_active=True, effective_from__lte=on_date)
+            .filter(models.Q(effective_to__gte=on_date) | models.Q(effective_to__isnull=True))
+            .order_by("-effective_from")
+            .first()
         )
-        values = [float(v) for v in factors if v is not None]
-        if values:
-            avg_cond = sum(values) / len(values)
-            self.calculated_mci = round(avg_cond * 20.0, 1)
-        super().save(*args, **kwargs)
 
-    def __str__(self) -> str:  # pragma: no cover
-        return f"Road survey {self.id} for segment {self.road_segment_id}"
+    # ------------------------------------------------------------------
+    # Factory method to produce a SegmentMCIResult from survey data
+    # ------------------------------------------------------------------
+    @classmethod
+    def create_from_survey(cls, survey, config=None):
+        """
+        Creates or updates an MCI result based on RoadConditionSurvey.
 
+        Steps:
+        1. Resolve active weight config (if not provided)
+        2. Extract survey factor values
+        3. Multiply by weights
+        4. Compute final MCI = sum(weighted factors) * 20  (ERA scaling)
+        5. Save result
+
+        Returns: SegmentMCIResult instance
+        """
+
+        if survey is None:
+            raise ValueError("Survey cannot be None")
+
+        if config is None:
+            config = cls._get_active_config(survey.inspection_date)
+            if config is None:
+                raise ValueError("No active MCIWeightConfig found for this survey date")
+
+        # Extract raw survey values (0–5 or ERA scale)
+        s = survey  # readability
+
+        surface_raw = s.surface_condition_factor or 0
+        drainage_raw = cls._combine_drainage(s)
+        shoulder_raw = cls._combine_shoulder(s)
+
+        # Multiply by weights
+        surface_w = float(surface_raw) * float(config.surface_weight)
+        drainage_w = float(drainage_raw) * float(config.drainage_weight)
+        shoulder_w = float(shoulder_raw) * float(config.shoulder_weight)
+
+        # MCI computation (ERA normalization to 0–100)
+        # raw factors (0–5 scale) -> weighted -> normalize: * 20
+        final_mci = round((surface_w + drainage_w + shoulder_w) * 20, 2)
+
+        # Upsert (in case survey already has an MCI result)
+        obj, created = cls.objects.update_or_create(
+            survey=survey,
+            defaults={
+                "road_segment": survey.road_segment,
+                "weight_config": config,
+                "survey_date": survey.inspection_date,
+                "drainage_factor": drainage_w,
+                "shoulder_factor": shoulder_w,
+                "surface_factor": surface_w,
+                "mci_value": final_mci,
+            }
+        )
+
+        return obj
+
+    # ------------------------------------------------------------------
+    # Helper functions: drainage and shoulder factor combination
+    # ------------------------------------------------------------------
+    @staticmethod
+    def _combine_drainage(survey):
+        """
+        ERA interpretation:
+        If both sides exist → average
+        If one side is None → use existing side
+        If both None → 0
+        """
+
+        left = survey.drainage_condition_left
+        right = survey.drainage_condition_right
+
+        if left is None and right is None:
+            return 0
+
+        if left is None:
+            return float(right)
+
+        if right is None:
+            return float(left)
+
+        return (float(left) + float(right)) / 2
+
+    @staticmethod
+    def _combine_shoulder(survey):
+        """
+        Same ERA rule as drainage.
+        """
+
+        left = survey.shoulder_condition_left
+        right = survey.shoulder_condition_right
+
+        if left is None and right is None:
+            return 0
+
+        if left is None:
+            return float(right)
+
+        if right is None:
+            return float(left)
+
+        return (float(left) + float(right)) / 2
 
 class FurnitureConditionSurvey(models.Model):
     furniture = models.ForeignKey(FurnitureInventory, on_delete=models.CASCADE, related_name="surveys")

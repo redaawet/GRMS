@@ -1170,9 +1170,9 @@ class OtherStructureConditionSurveyAdmin(admin.ModelAdmin):
 
 @admin.register(models.RoadConditionSurvey, site=grms_admin_site)
 class RoadConditionSurveyAdmin(admin.ModelAdmin):
-    list_display = ("road_segment", "inspection_date", "calculated_mci", "is_there_bottleneck")
+    list_display = ("road_segment", "inspection_date", "is_there_bottleneck")
     list_filter = ("inspection_date", "is_there_bottleneck")
-    readonly_fields = ("calculated_mci",)
+    
     fieldsets = (
         (
             "Survey header",
@@ -1188,9 +1188,9 @@ class RoadConditionSurveyAdmin(admin.ModelAdmin):
             {
                 "description": "Capture field observations that drive the MCI calculation.",
                 "fields": (
-                    ("drainage_condition_left", "drainage_condition_right"),
-                    ("shoulder_condition_left", "shoulder_condition_right"),
-                    "surface_condition_factor",
+                    ("drainage_left", "drainage_right"),
+                    ("shoulder_left", "shoulder_right"),
+                    "surface_condition",
                 ),
             },
         ),
@@ -1208,8 +1208,6 @@ class RoadConditionSurveyAdmin(admin.ModelAdmin):
             {
                 "fields": (
                     "comments",
-                    "calculated_mci",
-                    "intervention_recommended",
                 )
             },
         ),
