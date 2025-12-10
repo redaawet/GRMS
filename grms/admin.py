@@ -8,12 +8,11 @@ from decimal import Decimal, ROUND_HALF_UP
 from django import forms
 from django.contrib import admin
 from django.contrib.admin import AdminSite
-from django.db.models import Count, Sum
+from django.db.models import Sum
 from django.template.response import TemplateResponse
 from django.http import JsonResponse
 from django.shortcuts import redirect
 from django.urls import path, reverse
-from django.utils.html import format_html
 
 from . import models
 from .menu import MENU_GROUPS as DEFAULT_MENU_GROUPS
@@ -155,10 +154,10 @@ class GRMSAdminSite(AdminSite):
         assigned: set[tuple[str | None, str]] = set()
         sections: List[Dict[str, object]] = []
 
-        for title, models in self.MENU_GROUPS.items():
+        for title, models_group in self.MENU_GROUPS.items():
             display_title = title.replace("_", " ").strip()
             grouped_models: List[Dict[str, object]] = []
-            for target in self._flatten_group_models(models):
+            for target in self._flatten_group_models(models_group):
                 lookup_label, display_name = self._parse_menu_target(target)
                 for model in lookup.get(self._normalise(lookup_label), []):
                     identifier = (model.get("app_label"), model["object_name"])
@@ -176,8 +175,8 @@ class GRMSAdminSite(AdminSite):
             (section for section in sections if section["title"] == "Other models"),
             None,
         )
-        for models in lookup.values():
-            for model in models:
+        for models_group in lookup.values():
+            for model in models_group:
                 identifier = (model.get("app_label"), model["object_name"])
                 if identifier not in assigned:
                     leftovers.append(model)
@@ -214,6 +213,9 @@ class GRMSAdminSite(AdminSite):
                 return json.dumps([default_label]), json.dumps([0])
             return json.dumps(labels), json.dumps(data)
 
+        # ------------------------------------------------------------------
+        # Simple KPIs
+        # ------------------------------------------------------------------
         total_roads = models.Road.objects.count()
         total_road_km = (
             models.Road.objects.aggregate(km=Sum("total_length_km")).get("km")
@@ -227,6 +229,9 @@ class GRMSAdminSite(AdminSite):
             ]
         )
 
+        # ------------------------------------------------------------------
+        # Traffic distribution by vehicle class
+        # ------------------------------------------------------------------
         traffic_qs = (
             TrafficSurveySummary.objects.values("vehicle_class")
             .annotate(total=Sum("adt_final"))
@@ -241,10 +246,11 @@ class GRMSAdminSite(AdminSite):
         ]
         traffic_labels, traffic_data = with_default(traffic_labels, traffic_data)
 
+        # ------------------------------------------------------------------
+        # Network condition distribution based on SegmentMCIResult
+        # ------------------------------------------------------------------
         condition_counts = {"good": 0, "fair": 0, "poor": 0, "bad": 0}
-        for mci in models.RoadConditionSurvey.objects.exclude(
-            calculated_mci__isnull=True
-        ).values_list("calculated_mci", flat=True):
+        for mci in models.SegmentMCIResult.objects.values_list("mci_value", flat=True):
             value = float(mci)
             if value >= 75:
                 condition_counts["good"] += 1
@@ -254,6 +260,7 @@ class GRMSAdminSite(AdminSite):
                 condition_counts["poor"] += 1
             else:
                 condition_counts["bad"] += 1
+
         condition_distribution = json.dumps(
             [
                 condition_counts["good"],
@@ -263,11 +270,12 @@ class GRMSAdminSite(AdminSite):
             ]
         )
 
+        # MCI histogram bins – counts of segments/surveys per MCI range
         mci_bins = [(0, 20), (21, 40), (41, 60), (61, 80), (81, 100)]
         mci_counts = json.dumps(
             [
-                models.RoadConditionSurvey.objects.filter(
-                    calculated_mci__gte=lower, calculated_mci__lte=upper
+                models.SegmentMCIResult.objects.filter(
+                    mci_value__gte=lower, mci_value__lte=upper
                 ).count()
                 for lower, upper in mci_bins
             ]
@@ -277,6 +285,9 @@ class GRMSAdminSite(AdminSite):
             json.loads(mci_bins_labels), json.loads(mci_counts)
         )
 
+        # ------------------------------------------------------------------
+        # Network length by zone
+        # ------------------------------------------------------------------
         zone_lengths_qs = (
             models.Road.objects.values("admin_zone__name")
             .annotate(total=Sum("total_length_km"))
@@ -292,6 +303,9 @@ class GRMSAdminSite(AdminSite):
             json.loads(zone_labels), json.loads(zone_lengths)
         )
 
+        # ------------------------------------------------------------------
+        # Prioritization summary
+        # ------------------------------------------------------------------
         priority_qs = models.PrioritizationResult.objects.exclude(priority_rank__isnull=True)
         priority_counts = json.dumps(
             [
@@ -552,9 +566,8 @@ class RoadAdmin(admin.ModelAdmin):
         if road_id:
             map_context_url = _reverse_or_empty("road_map_context", road_id)
         else:
-            from django.urls import reverse
-
-            map_context_url = reverse("road_map_context_default")
+            from django.urls import reverse as _reverse
+            map_context_url = _reverse("road_map_context_default")
         extra_context["road_admin_config"] = {
             "road_id": road_id,
             "api": {
@@ -578,6 +591,7 @@ class RoadSectionAdminForm(forms.ModelForm):
             "end_easting",
             "end_northing",
         )
+
 
 grms_admin_site.register(models.Road, RoadAdmin)
 
@@ -607,6 +621,13 @@ class AdminWoredaAdmin(admin.ModelAdmin):
     fieldsets = (("Woreda", {"fields": ("name", "zone")}),)
 
 
+@admin.register(models.ConditionFactorLookup, site=grms_admin_site)
+class ConditionFactorLookupAdmin(admin.ModelAdmin):
+    list_display = ("factor_type", "rating", "factor_value", "description")
+    list_filter = ("factor_type", "rating")
+    search_fields = ("description",)
+
+
 @admin.register(models.RoadSection, site=grms_admin_site)
 class RoadSectionAdmin(admin.ModelAdmin):
     form = RoadSectionAdminForm
@@ -619,9 +640,7 @@ class RoadSectionAdmin(admin.ModelAdmin):
     )
     list_filter = ("road", "admin_zone_override", "admin_woreda_override", "surface_type")
     search_fields = ("road__road_name_from", "road__road_name_to", "name")
-    readonly_fields = (
-        "length_km",
-    )
+    readonly_fields = ("length_km",)
     change_form_template = "admin/roadsection_change_form.html"
     fieldsets = (
         ("Parent road", {"fields": ("road",)}),
@@ -1172,7 +1191,7 @@ class OtherStructureConditionSurveyAdmin(admin.ModelAdmin):
 class RoadConditionSurveyAdmin(admin.ModelAdmin):
     list_display = ("road_segment", "inspection_date", "is_there_bottleneck")
     list_filter = ("inspection_date", "is_there_bottleneck")
-    
+
     fieldsets = (
         (
             "Survey header",
@@ -1443,15 +1462,17 @@ class RoadSocioEconomicAdmin(admin.ModelAdmin):
             },
         ),
     )
+
     def get_readonly_fields(self, request, obj=None):
         readonly = list(super().get_readonly_fields(request, obj))
         if obj:
             has_overall = TrafficSurveyOverall.objects.filter(
-            road=obj.road
+                road=obj.road
             ).exists()
             if has_overall:
                 readonly.append("adt_override")
         return readonly
+
 
 @admin.register(models.BenefitCategory, site=grms_admin_site)
 class BenefitCategoryAdmin(admin.ModelAdmin):
@@ -1602,6 +1623,8 @@ class RoadSectionInterventionAdmin(admin.ModelAdmin):
         "section__road__road_name_to",
     )
 
+
+# Register supporting models without custom admins
 # Register supporting models without custom admins
 for model in [
     models.QAStatus,
@@ -1609,11 +1632,12 @@ for model in [
     models.DistressType,
     models.DistressCondition,
     models.DistressActivity,
-    models.ConditionRating,
+    # ConditionRating REMOVED – replaced by ConditionFactorLookup
     models.InterventionLookup,
     models.UnitCost,
     models.FordDetail,
     models.RetainingWallDetail,
     models.GabionWallDetail,
 ]:
-    grms_admin_site.register(model)
+    if not admin.site.is_registered(model):
+        grms_admin_site.register(model)

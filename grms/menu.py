@@ -58,7 +58,7 @@ MENU_GROUPS = {
             ("UnitCost", "Unit costs"),
         ],
         "Condition & Survey": [
-            ("ConditionRating", "Condition ratings"),
+            ("ConditionFactorLookup", "Condition factor lookup"),  # NEW
             ("QAStatus", "QA statuses"),
         ],
         "Distress Classification": [
@@ -72,6 +72,7 @@ MENU_GROUPS = {
             ("AdminWoreda", "Administrative woredas"),
         ],
     },
+
 
     "Prioritization_Benefit_Model": [
         ("BenefitCategory", "Benefit categories"),
