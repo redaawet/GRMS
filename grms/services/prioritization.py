@@ -26,8 +26,10 @@ def _resolve_range_score(criterion: models.BenefitCriterion, value) -> Decimal:
         raise ValidationError({criterion.code: "Value must be numeric."})
 
     for scale in criterion.scales.all():
-        min_ok = numeric_value >= scale.min_value
-        max_ok = scale.max_value is None or numeric_value <= scale.max_value
+        # Handle None boundaries correctly
+        min_ok = True if scale.min_value is None else numeric_value >= scale.min_value
+        max_ok = True if scale.max_value is None else numeric_value <= scale.max_value
+
         if min_ok and max_ok:
             return Decimal(scale.score)
 
@@ -64,10 +66,8 @@ def _criterion_inputs(road: models.Road, socioeconomic: models.RoadSocioEconomic
     }
 
 
-def compute_benefit_factor(
-    road: models.Road, fiscal_year: int
-) -> Optional[models.BenefitFactor]:
-    """Compute benefit factor scores using socio-economic inputs and lookups."""
+def compute_benefit_factor(road: models.Road, fiscal_year: int) -> Optional[models.BenefitFactor]:
+    """Compute benefit factor scores using socio-economic inputs and SRAD scoring tables."""
 
     socioeconomic = models.RoadSocioEconomic.objects.select_related(
         "road_link_type", "road"
@@ -77,13 +77,21 @@ def compute_benefit_factor(
 
     socioeconomic.full_clean(exclude=["road"])
 
+    # Inputs from socio-economic model
     inputs = _criterion_inputs(road, socioeconomic)
-    category_scores: Dict[str, Decimal] = {"BF1": Decimal("0"), "BF2": Decimal("0"), "BF3": Decimal("0")}
 
+    # Raw score totals per BF category
+    category_scores: Dict[str, Decimal] = {
+        "BF1": Decimal("0"),
+        "BF2": Decimal("0"),
+        "BF3": Decimal("0"),
+    }
+
+    # No weight multiplication — SRAD scores are already weighted
     criteria = models.BenefitCriterion.objects.select_related("category").prefetch_related("scales")
-    caps = {cat.code: Decimal(cat.weight) * Decimal("100") for cat in models.BenefitCategory.objects.all()}
     for criterion in criteria:
         raw_input = inputs.get(criterion.code)
+
         if criterion.scoring_method == models.BenefitCriterion.ScoringMethod.LOOKUP:
             if raw_input is None:
                 raise ValidationError({criterion.code: "Lookup value is required."})
@@ -91,12 +99,14 @@ def compute_benefit_factor(
         else:
             score = _resolve_range_score(criterion, raw_input)
 
-        weighted = score * Decimal(criterion.weight)
-        category_scores[criterion.category.code] += weighted
+        # Add raw SRAD score directly
+        category_scores[criterion.category.code] += score
 
-    bf1 = min(category_scores.get("BF1", Decimal("0")), caps.get("BF1", Decimal("40")))
-    bf2 = min(category_scores.get("BF2", Decimal("0")), caps.get("BF2", Decimal("30")))
-    bf3 = min(category_scores.get("BF3", Decimal("0")), caps.get("BF3", Decimal("30")))
+    # Hard-coded caps according to SRAD table
+    bf1 = min(category_scores.get("BF1", Decimal("0")), Decimal("40"))
+    bf2 = min(category_scores.get("BF2", Decimal("0")), Decimal("30"))
+    bf3 = min(category_scores.get("BF3", Decimal("0")), Decimal("30"))
+
     total = bf1 + bf2 + bf3
 
     benefit_factor, _ = models.BenefitFactor.objects.update_or_create(

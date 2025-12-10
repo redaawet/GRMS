@@ -1824,8 +1824,6 @@ class TrafficForPrioritization(models.Model):
 
 
 class BenefitCategory(models.Model):
-    """High-level benefit factor categories (BF1/BF2/BF3)."""
-
     code = models.CharField(max_length=10, unique=True)
     name = models.CharField(max_length=100, unique=True)
     weight = models.DecimalField(max_digits=4, decimal_places=2)
@@ -1833,15 +1831,20 @@ class BenefitCategory(models.Model):
     class Meta:
         verbose_name = "Benefit category"
         verbose_name_plural = "Benefit categories"
-        ordering = ["name"]
+        ordering = ["code"]
 
-    def __str__(self) -> str:  # pragma: no cover - simple repr
-        return self.name
+    def clean(self):
+        if not (Decimal("0") < self.weight <= Decimal("1")):
+            raise ValidationError({"weight": "Category weight must be between 0 and 1."})
 
+    @property
+    def max_score(self):
+        return int(self.weight * 100)
+
+    def __str__(self):
+        return f"{self.code} ({self.max_score} pts)"
 
 class BenefitCriterion(models.Model):
-    """Indicators within each benefit category (e.g. ADT, trading centres)."""
-
     class ScoringMethod(models.TextChoices):
         RANGE = "RANGE", "Range"
         LOOKUP = "LOOKUP", "Lookup"
@@ -1853,18 +1856,22 @@ class BenefitCriterion(models.Model):
     scoring_method = models.CharField(max_length=10, choices=ScoringMethod.choices)
 
     class Meta:
-        verbose_name = "Benefit criterion"
-        verbose_name_plural = "Benefit criteria"
-        ordering = ["category__code", "code"]
         unique_together = ("category", "code")
 
-    def __str__(self) -> str:  # pragma: no cover - simple repr
-        return f"{self.name} ({self.category.name})"
+    def clean(self):
+        if not (Decimal("0") < self.weight <= Decimal("1")):
+            raise ValidationError({"weight": "Criterion weight must be between 0 and 1."})
+
+    @property
+    def max_score(self):
+        """Criterion contributes weight*100 to the overall 100-point system."""
+        return int(self.weight * 100)
+
+    def __str__(self):
+        return f"{self.code}: {self.name} ({self.max_score} pts)"
 
 
 class BenefitCriterionScale(models.Model):
-    """Lookup rows mapping input values to scores for each criterion."""
-
     criterion = models.ForeignKey(BenefitCriterion, on_delete=models.CASCADE, related_name="scales")
     min_value = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     max_value = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
@@ -1872,42 +1879,42 @@ class BenefitCriterionScale(models.Model):
     description = models.CharField(max_length=200, blank=True)
 
     class Meta:
-        verbose_name = "Benefit criterion scale"
-        verbose_name_plural = "Benefit criterion scales"
         indexes = [
             models.Index(fields=["criterion", "min_value", "max_value"]),
         ]
 
-    def __str__(self) -> str:  # pragma: no cover - simple repr
-        return f"{self.criterion.name} -> {self.score}"
-
     def clean(self):
-        errors: dict[str, str] = {}
+        errors = {}
 
-        if self.criterion.scoring_method != BenefitCriterion.ScoringMethod.RANGE:
-            errors["criterion"] = "Scales can only be defined for range-based criteria."
+        if self.score > self.criterion.max_score:
+            errors["score"] = (
+                f"Score {self.score} exceeds criterion max score {self.criterion.max_score}."
+            )
 
+        # (Existing validation kept)
         if self.min_value is None and self.max_value is None:
-            errors["min_value"] = "At least one boundary must be provided."
+            errors["min_value"] = "At least one boundary is required."
 
-        if self.min_value is not None and self.max_value is not None and self.min_value > self.max_value:
-            errors["max_value"] = "Minimum value cannot exceed the maximum value."
+        if self.min_value and self.max_value and self.min_value > self.max_value:
+            errors["max_value"] = "min_value cannot exceed max_value."
 
+        # Overlap validation
         if self.criterion_id:
             overlapping = BenefitCriterionScale.objects.filter(criterion=self.criterion).exclude(pk=self.pk)
             for scale in overlapping:
-                min_a = self.min_value if self.min_value is not None else Decimal("-Infinity")
-                max_a = self.max_value if self.max_value is not None else Decimal("Infinity")
-                min_b = scale.min_value if scale.min_value is not None else Decimal("-Infinity")
-                max_b = scale.max_value if scale.max_value is not None else Decimal("Infinity")
+                min_a = self.min_value or Decimal("-Infinity")
+                max_a = self.max_value or Decimal("Infinity")
+                min_b = scale.min_value or Decimal("-Infinity")
+                max_b = scale.max_value or Decimal("Infinity")
                 if min_a <= max_b and min_b <= max_a:
-                    errors["min_value"] = "Ranges cannot overlap for the same criterion."
+                    errors["min_value"] = "Ranges for the same criterion cannot overlap."
                     break
 
         if errors:
             raise ValidationError(errors)
 
-
+    def __str__(self):
+        return f"{self.criterion.code}: {self.description} → {self.score}"
 class RoadSocioEconomic(models.Model):
     """Manual socio-economic inputs captured once per road."""
 

@@ -1445,15 +1445,15 @@ class RoadSocioEconomicAdmin(admin.ModelAdmin):
             },
         ),
     )
-
     def get_readonly_fields(self, request, obj=None):
         readonly = list(super().get_readonly_fields(request, obj))
         if obj:
-            has_survey = models.TrafficSurveySummary.objects.filter(road=obj.road).exists()
-            if has_survey:
+            has_overall = TrafficSurveyOverall.objects.filter(
+            road=obj.road
+            ).exists()
+            if has_overall:
                 readonly.append("adt_override")
         return readonly
-
 
 @admin.register(models.BenefitCategory, site=grms_admin_site)
 class BenefitCategoryAdmin(admin.ModelAdmin):
