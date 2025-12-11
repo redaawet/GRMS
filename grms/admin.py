@@ -735,7 +735,7 @@ class SegmentInterventionRecommendationAdmin(admin.ModelAdmin):
         if not obj.segment_id:
             return ""
         recommendations = (
-            obj.segment.segmentinterventionrecommendation_set.all()
+            obj.segment.intervention_recommendations.all()
             .select_related("recommended_item")
             .order_by("recommended_item__work_code")
         )
