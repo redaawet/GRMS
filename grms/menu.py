@@ -46,6 +46,7 @@ MENU_GROUPS = {
     "Maintenance_Planning": [
         ("StructureIntervention", "Structure interventions"),
         ("RoadSectionIntervention", "Road section interventions"),
+        ("SegmentInterventionRecommendation", "Road segment interventions"),
         ("BenefitFactor", "Benefit factors"),
         ("PrioritizationResult", "Prioritization results"),
         ("AnnualWorkPlan", "Annual work plans"),
@@ -55,6 +56,8 @@ MENU_GROUPS = {
     "Reference_Lookups": {
         "Asset Classification": [
             ("ActivityLookup", "Activity lookups"),
+            ("InterventionCategory", "Intervention categories"),
+            ("InterventionWorkItem", "Intervention work items"),
             ("InterventionLookup", "Intervention lookups"),
             ("UnitCost", "Unit costs"),
         ],
