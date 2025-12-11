@@ -776,7 +776,15 @@ def run_prioritization(request: Request) -> Response:
                 .order_by("-inspection_date")
                 .first()
             )
-            cs_norm = float(latest_survey.calculated_mci) if latest_survey and latest_survey.calculated_mci else 0.0
+            cs_norm = 0.0
+            if latest_survey:
+                try:
+                    result = getattr(latest_survey, "mci_result", None) or models.SegmentMCIResult.create_from_survey(
+                        latest_survey
+                    )
+                    cs_norm = float(result.mci_value) if result else 0.0
+                except ValueError:
+                    cs_norm = 0.0
 
             traffic_qs = traffic_models.TrafficForPrioritization.objects.filter(road=road)
             if fiscal_year:

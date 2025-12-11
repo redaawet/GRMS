@@ -174,7 +174,7 @@ Implement the SRAD-defined MCI formula using:
 - SRAD-defined weighting tables  
 
 Output:
-- `calculated_mci` in segment or survey tables  
+- Persisted MCI result linked to each survey
 
 Trigger recalculation on:
 - survey save  
