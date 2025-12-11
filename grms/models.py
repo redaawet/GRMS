@@ -1530,7 +1530,7 @@ class RoadConditionSurvey(models.Model):
         blank=True,
         on_delete=models.SET_NULL,
         related_name="drainage_left_surveys",
-        limit_choices_to={"factor_type": "drainage"},
+        limit_choices_to={"factor_type": ConditionFactorLookup.FactorType.DRAINAGE},
     )
     drainage_right = models.ForeignKey(
         ConditionFactorLookup,
@@ -1538,7 +1538,7 @@ class RoadConditionSurvey(models.Model):
         blank=True,
         on_delete=models.SET_NULL,
         related_name="drainage_right_surveys",
-        limit_choices_to={"factor_type": "drainage"},
+        limit_choices_to={"factor_type": ConditionFactorLookup.FactorType.DRAINAGE},
     )
 
     shoulder_left = models.ForeignKey(
@@ -1547,7 +1547,7 @@ class RoadConditionSurvey(models.Model):
         blank=True,
         on_delete=models.SET_NULL,
         related_name="shoulder_left_surveys",
-        limit_choices_to={"factor_type": "shoulder"},
+        limit_choices_to={"factor_type": ConditionFactorLookup.FactorType.SHOULDER},
     )
     shoulder_right = models.ForeignKey(
         ConditionFactorLookup,
@@ -1555,7 +1555,7 @@ class RoadConditionSurvey(models.Model):
         blank=True,
         on_delete=models.SET_NULL,
         related_name="shoulder_right_surveys",
-        limit_choices_to={"factor_type": "shoulder"},
+        limit_choices_to={"factor_type": ConditionFactorLookup.FactorType.SHOULDER},
     )
 
     surface_condition = models.ForeignKey(
@@ -1564,7 +1564,7 @@ class RoadConditionSurvey(models.Model):
         blank=True,
         on_delete=models.SET_NULL,
         related_name="surface_surveys",
-        limit_choices_to={"factor_type": "surface"},
+        limit_choices_to={"factor_type": ConditionFactorLookup.FactorType.SURFACE},
     )
 
     gravel_thickness_mm = models.DecimalField(max_digits=6, decimal_places=1, null=True, blank=True)
