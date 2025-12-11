@@ -782,7 +782,7 @@ def run_prioritization(request: Request) -> Response:
                     result = getattr(latest_survey, "mci_result", None) or models.SegmentMCIResult.create_from_survey(
                         latest_survey
                     )
-                    cs_norm = float(result.mci_value) if result else 0.0
+                    cs_norm = float(result.mci_value) * 20.0 if result else 0.0
                 except ValueError:
                     cs_norm = 0.0
 
@@ -812,26 +812,26 @@ def run_prioritization(request: Request) -> Response:
                 + weights["w5"] * tlm_norm
             )
 
-        models.PrioritizationResult.objects.filter(
-            road=road,
-            fiscal_year=fiscal_year or 0,
-        ).delete()
+            models.PrioritizationResult.objects.filter(
+                road=road,
+                fiscal_year=fiscal_year or 0,
+            ).delete()
 
-        result = models.PrioritizationResult.objects.create(
-            road=road,
-            fiscal_year=fiscal_year or 0,
-            population_served=road.socioeconomic.population_served if hasattr(road, "socioeconomic") else None,
-            benefit_score=Decimal(f"{ei:.2f}") if has_ei else None,
-            improvement_cost=Decimal("0"),
-            ranking_index=Decimal(f"{priority_score:.4f}"),
-            priority_rank=0,
-        )
-        created_results.append(result)
+            result = models.PrioritizationResult.objects.create(
+                road=road,
+                fiscal_year=fiscal_year or 0,
+                population_served=road.socioeconomic.population_served if hasattr(road, "socioeconomic") else None,
+                benefit_score=Decimal(f"{ei:.2f}") if has_ei else None,
+                improvement_cost=Decimal("0"),
+                ranking_index=Decimal(f"{priority_score:.4f}"),
+                priority_rank=0,
+            )
+            created_results.append(result)
 
-        created_results.sort(key=lambda item: item.ranking_index, reverse=True)
-        for rank, result in enumerate(created_results, start=1):
-            result.priority_rank = rank
-            result.save(update_fields=["priority_rank"])
+            created_results.sort(key=lambda item: item.ranking_index, reverse=True)
+            for rank, result in enumerate(created_results, start=1):
+                result.priority_rank = rank
+                result.save(update_fields=["priority_rank"])
 
     serializer = serializers.PrioritizationResultSerializer(created_results, many=True)
     return Response(serializer.data)
