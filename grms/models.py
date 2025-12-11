@@ -1431,15 +1431,35 @@ class OtherStructureConditionSurvey(models.Model):
 
 
 class ConditionFactorLookup(models.Model):
+    """Lookup table for converting 1–5 condition ratings to numeric factor values
+    used in MCI computation (drainage, shoulder, surface).
+    """
+
     class FactorType(models.TextChoices):
         DRAINAGE = "drainage", "Drainage condition"
         SHOULDER = "shoulder", "Shoulder condition"
-        SURFACE = "surface", "Surface condition"
+        SURFACE  = "surface",  "Surface condition"
 
-    factor_type = models.CharField(max_length=20, choices=FACTOR_TYPES)
-    rating = models.PositiveSmallIntegerField()
-    factor_value = models.DecimalField(max_digits=4, decimal_places=2)
-    description = models.CharField(max_length=200)
+    factor_type = models.CharField(
+        max_length=20,
+        choices=FactorType.choices,
+    )
+
+    rating = models.PositiveSmallIntegerField(
+        help_text="Discrete survey rating 1–5"
+    )
+
+    factor_value = models.DecimalField(
+        max_digits=4,
+        decimal_places=2,
+        help_text="Normalized factor value used in MCI formula",
+    )
+
+    description = models.CharField(
+        max_length=200,
+        blank=True,
+        help_text="Optional descriptor for documentation",
+    )
 
     class Meta:
         unique_together = ("factor_type", "rating")
@@ -1447,8 +1467,8 @@ class ConditionFactorLookup(models.Model):
         verbose_name = "Condition factor"
         verbose_name_plural = "Condition factors"
 
-    def __str__(self):  # pragma: no cover
-        return f"{self.factor_type}: R{self.rating} → {self.factor_value}"
+    def __str__(self):
+        return f"{self.get_factor_type_display()} R{self.rating} → {self.factor_value}"
 
 
 class MCIWeightConfig(models.Model):
