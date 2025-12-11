@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from decimal import Decimal
-from typing import Iterable, Tuple
+from typing import Iterable
 
 from django.db import transaction
 
@@ -62,7 +62,7 @@ def recommend_intervention_for_segment(segment: RoadSegment) -> int:
     return len(recommendations)
 
 
-def recompute_interventions_for_segments(segments: Iterable[RoadSegment]) -> Tuple[int, int]:
+def recompute_interventions_for_segments(segments: Iterable[RoadSegment]) -> tuple[int, int]:
     processed_segments = 0
     created_recommendations = 0
 
@@ -73,6 +73,6 @@ def recompute_interventions_for_segments(segments: Iterable[RoadSegment]) -> Tup
     return processed_segments, created_recommendations
 
 
-def recompute_all_segment_interventions() -> Tuple[int, int]:
+def recompute_all_segment_interventions() -> tuple[int, int]:
     segments = RoadSegment.objects.all().iterator()
     return recompute_interventions_for_segments(segments)
