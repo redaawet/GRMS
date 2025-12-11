@@ -688,7 +688,9 @@ class SegmentInterventionRecommendationAdmin(admin.ModelAdmin):
         "recommended_item",
     )
     search_fields = (
-        "segment__section__road__name",
+        "segment__section__road__road_identifier",
+        "segment__section__road__road_name_from",
+        "segment__section__road__road_name_to",
         "segment__section__section_number",
         "segment__id",
         "recommended_item__work_code",
@@ -698,7 +700,10 @@ class SegmentInterventionRecommendationAdmin(admin.ModelAdmin):
     actions = ["recompute_intervention"]
 
     def road_name(self, obj):
-        return obj.segment.section.road.name if obj.segment_id else ""
+        if not obj.segment_id:
+            return ""
+        road = obj.segment.section.road
+        return f"{road.road_name_from} – {road.road_name_to}"
 
     def section_number(self, obj):
         return obj.segment.section.section_number if obj.segment_id else ""
