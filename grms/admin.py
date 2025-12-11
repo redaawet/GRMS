@@ -625,7 +625,35 @@ class AdminWoredaAdmin(admin.ModelAdmin):
 class ConditionFactorLookupAdmin(admin.ModelAdmin):
     list_display = ("factor_type", "rating", "factor_value", "description")
     list_filter = ("factor_type", "rating")
-    search_fields = ("description",)
+    search_fields = ("description", "factor_type")
+
+
+@admin.register(models.MCIWeightConfig, site=grms_admin_site)
+class MCIWeightConfigAdmin(admin.ModelAdmin):
+    list_display = ("name", "effective_from", "effective_to", "is_active")
+    list_filter = ("is_active",)
+
+
+@admin.register(models.MCICategoryLookup, site=grms_admin_site)
+class MCICategoryLookupAdmin(admin.ModelAdmin):
+    list_display = (
+        "name",
+        "code",
+        "mci_min",
+        "mci_max",
+        "severity_order",
+        "default_intervention",
+        "is_active",
+    )
+    list_filter = ("is_active", "severity_order")
+    search_fields = ("name", "code")
+
+
+@admin.register(models.SegmentMCIResult, site=grms_admin_site)
+class SegmentMCIResultAdmin(admin.ModelAdmin):
+    list_display = ("road_segment", "survey_date", "mci_value", "mci_category")
+    list_filter = ("survey_date", "mci_category")
+    readonly_fields = ("computed_at",)
 
 
 @admin.register(models.RoadSection, site=grms_admin_site)
@@ -1193,43 +1221,34 @@ class RoadConditionSurveyAdmin(admin.ModelAdmin):
     list_filter = ("inspection_date", "is_there_bottleneck")
 
     fieldsets = (
-        (
-            "Survey header",
-            {
-                "fields": (
-                    "road_segment",
-                    ("inspection_date", "inspected_by"),
-                )
-            },
-        ),
-        (
-            "Drainage & surface condition",
-            {
-                "description": "Capture field observations that drive the MCI calculation.",
-                "fields": (
-                    ("drainage_left", "drainage_right"),
-                    ("shoulder_left", "shoulder_right"),
-                    "surface_condition",
-                ),
-            },
-        ),
-        (
-            "Bottleneck assessment",
-            {
-                "fields": (
-                    "is_there_bottleneck",
-                    "bottleneck_size_m",
-                )
-            },
-        ),
-        (
-            "Insights & recommendations",
-            {
-                "fields": (
-                    "comments",
-                )
-            },
-        ),
+        ("Survey Info", {
+            "fields": (
+                "road_segment",
+                ("inspection_date", "inspected_by"),
+            )
+        }),
+        ("Drainage", {
+            "fields": (
+                ("drainage_left", "drainage_right"),
+            )
+        }),
+        ("Shoulders", {
+            "fields": (
+                ("shoulder_left", "shoulder_right"),
+            )
+        }),
+        ("Surface", {
+            "fields": ("surface_condition",),
+        }),
+        ("Gravel Thickness", {
+            "fields": ("gravel_thickness_mm",),
+        }),
+        ("Bottleneck", {
+            "fields": ("is_there_bottleneck", "bottleneck_size_m"),
+        }),
+        ("Comments", {
+            "fields": ("comments",),
+        }),
     )
 
 

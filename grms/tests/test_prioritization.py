@@ -80,26 +80,57 @@ class RoadNetworkMixin:
             cross_section="Cutting",
             terrain_transverse="Flat",
             terrain_longitudinal="Flat",
+            ditch_left_present=True,
+            ditch_right_present=True,
+            shoulder_left_present=True,
+            shoulder_right_present=True,
         )
         return road, section, segment
+
+    def make_factor(self, factor_type: str, value: Decimal, rating: int | None = None):
+        rating = rating or int(value * 10)
+        return models.ConditionFactorLookup.objects.get_or_create(
+            factor_type=factor_type,
+            rating=rating,
+            defaults={
+                "description": f"{factor_type} {value}",
+                "factor_value": value,
+            },
+        )[0]
 
 
 class RoadConditionSurveyTests(RoadNetworkMixin, TestCase):
     """Unit tests for the automatic MCI calculation."""
 
-    def test_save_populates_calculated_mci(self):
+    def setUp(self):
+        super().setUp()
+        self.weight_config = models.MCIWeightConfig.objects.create(
+            name="Default",
+            effective_from=date(2020, 1, 1),
+        )
+
+    def _factor(self, factor_type: str, value: Decimal, rating: int | None = None):
+        rating = rating or int(value * 10)
+        return models.ConditionFactorLookup.objects.create(
+            factor_type=factor_type,
+            rating=rating,
+            description=f"{factor_type} {value}",
+            factor_value=value,
+        )
+
+    def test_create_mci_result_from_survey(self):
         _, _, segment = self.create_network("MCI")
         survey = models.RoadConditionSurvey.objects.create(
             road_segment=segment,
-            surface_condition_factor=Decimal("3.5"),
-            drainage_condition_left=Decimal("4.0"),
-            drainage_condition_right=Decimal("3.0"),
-            shoulder_condition_left=Decimal("4.5"),
-            shoulder_condition_right=Decimal("2.0"),
+            surface_condition=self._factor("surface", Decimal("3.5")),
+            drainage_left=self._factor("drainage", Decimal("4.0")),
+            drainage_right=self._factor("drainage", Decimal("3.0"), rating=2),
+            shoulder_left=self._factor("shoulder", Decimal("4.5")),
+            shoulder_right=self._factor("shoulder", Decimal("2.0"), rating=2),
             inspection_date=date(2024, 1, 1),
         )
-        # Average of the five factors is 3.4 -> 68.0 after scaling.
-        self.assertEqual(survey.calculated_mci, Decimal("68.0"))
+        result = models.SegmentMCIResult.create_from_survey(survey, config=self.weight_config)
+        self.assertEqual(result.mci_value, Decimal("3.45"))
 
 
 class PrioritizationViewTests(RoadNetworkMixin, APITestCase):
@@ -111,18 +142,24 @@ class PrioritizationViewTests(RoadNetworkMixin, APITestCase):
         user = get_user_model().objects.create_user(username="tester", password="pass1234")
         self.client.force_authenticate(user=user)
         self.fiscal_year = 2024
+        self.weight_config = models.MCIWeightConfig.objects.create(
+            name="Default",
+            effective_from=date(2020, 1, 1),
+        )
 
     def _create_inputs(self, prefix: str, pcu_value: Decimal, benefit_score: Decimal, survey_values: list[Decimal]):
         road, _, segment = self.create_network(prefix)
         models.RoadConditionSurvey.objects.create(
             road_segment=segment,
-            surface_condition_factor=survey_values[0],
-            drainage_condition_left=survey_values[1],
-            drainage_condition_right=survey_values[2],
-            shoulder_condition_left=survey_values[3],
-            shoulder_condition_right=survey_values[4],
+            surface_condition=self.make_factor("surface", survey_values[0]),
+            drainage_left=self.make_factor("drainage", survey_values[1]),
+            drainage_right=self.make_factor("drainage", survey_values[2], rating=2),
+            shoulder_left=self.make_factor("shoulder", survey_values[3]),
+            shoulder_right=self.make_factor("shoulder", survey_values[4], rating=2),
             inspection_date=date(2024, 1, 1),
         )
+        latest_survey = models.RoadConditionSurvey.objects.filter(road_segment=segment).latest("inspection_date")
+        models.SegmentMCIResult.create_from_survey(latest_survey, config=self.weight_config)
         traffic_models.TrafficForPrioritization.objects.create(
             road=road,
             fiscal_year=self.fiscal_year,
@@ -173,8 +210,8 @@ class PrioritizationViewTests(RoadNetworkMixin, APITestCase):
         self.assertEqual([item["priority_rank"] for item in data], [1, 2])
         self.assertEqual(data[0]["road"], high.id)
 
-        surveys = models.RoadConditionSurvey.objects.order_by("road_segment__section__road__id")
-        cs_values = [float(s.calculated_mci) for s in surveys]
+        results = models.SegmentMCIResult.objects.order_by("road_segment__section__road__id")
+        cs_values = [float(r.mci_value) for r in results]
         pcu_values = [float(t.value) for t in traffic_models.TrafficForPrioritization.objects.all()]
         benefits = [float(b.total_benefit_score) for b in models.BenefitFactor.objects.all()]
 
@@ -202,6 +239,6 @@ class PrioritizationViewTests(RoadNetworkMixin, APITestCase):
         self.assertEqual(data[0]["priority_rank"], 1)
         self.assertEqual(data[0]["road"], road.id)
 
-        survey = models.RoadConditionSurvey.objects.get(road_segment__section__road=road)
-        expected = self._expected_score(float(survey.calculated_mci), 120.0, 55.0, weights, 120.0, 120.0)
+        result = models.SegmentMCIResult.objects.get(road_segment__section__road=road)
+        expected = self._expected_score(float(result.mci_value), 120.0, 55.0, weights, 120.0, 120.0)
         self.assertEqual(Decimal(data[0]["ranking_index"]), expected)
