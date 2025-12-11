@@ -114,6 +114,42 @@ class InterventionLookup(models.Model):
         return f"{self.intervention_code} - {self.name}"
 
 
+class InterventionCategory(models.Model):
+    """Category for intervention work items used in planning lookups."""
+
+    name = models.CharField(max_length=100, unique=True)
+
+    class Meta:
+        ordering = ["name"]
+        verbose_name = "Intervention category"
+        verbose_name_plural = "Intervention categories"
+
+    def __str__(self) -> str:  # pragma: no cover - simple repr
+        return self.name
+
+
+class InterventionWorkItem(models.Model):
+    """Lookup for intervention work items with optional default cost."""
+
+    category = models.ForeignKey(
+        InterventionCategory,
+        on_delete=models.PROTECT,
+        related_name="work_items",
+    )
+    work_code = models.CharField(max_length=5, unique=True)
+    description = models.CharField(max_length=255)
+    unit = models.CharField(max_length=30)
+    unit_cost = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+
+    class Meta:
+        ordering = ["work_code"]
+        verbose_name = "Intervention work item"
+        verbose_name_plural = "Intervention work items"
+
+    def __str__(self) -> str:  # pragma: no cover - simple repr
+        return f"{self.work_code} - {self.description}"
+
+
 class ActivityLookup(models.Model):
     """ERA maintenance activity codes used in detailed surveys."""
 
@@ -1492,7 +1528,8 @@ class MCICategoryLookup(models.Model):
     severity_order = models.PositiveSmallIntegerField(default=1)
 
     default_intervention = models.ForeignKey(
-        "InterventionLookup",
+        "InterventionWorkItem",
+        to_field="work_code",
         null=True,
         blank=True,
         on_delete=models.SET_NULL,
@@ -1636,7 +1673,8 @@ class SegmentMCIResult(models.Model):
     )
 
     recommended_intervention = models.ForeignKey(
-        "InterventionLookup",
+        "InterventionWorkItem",
+        to_field="work_code",
         null=True,
         blank=True,
         on_delete=models.SET_NULL,
@@ -1724,6 +1762,32 @@ class SegmentMCIResult(models.Model):
         Calls create_from_survey() which already does update_or_create().
         """
         return cls.create_from_survey(survey, config=config)
+
+
+class SegmentInterventionRecommendation(models.Model):
+    segment = models.ForeignKey(
+        "RoadSegment",
+        on_delete=models.CASCADE,
+        related_name="intervention_recommendations",
+    )
+    mci_value = models.DecimalField(max_digits=6, decimal_places=2)
+    recommended_item = models.ForeignKey(
+        "InterventionWorkItem",
+        on_delete=models.PROTECT,
+        related_name="segment_recommendations",
+    )
+    calculated_on = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["segment_id", "recommended_item__work_code"]
+        unique_together = ("segment", "recommended_item")
+        verbose_name = "Segment intervention recommendation"
+        verbose_name_plural = "Segment intervention recommendations"
+
+    def __str__(self) -> str:  # pragma: no cover - simple repr
+        code = getattr(self.recommended_item, "work_code", self.recommended_item_id)
+        return f"{self.segment_id} → {code}"
+
 
 class FurnitureConditionSurvey(models.Model):
     furniture = models.ForeignKey(FurnitureInventory, on_delete=models.CASCADE, related_name="surveys")
