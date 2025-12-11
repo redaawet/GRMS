@@ -1708,6 +1708,14 @@ class SegmentMCIResult(models.Model):
         )
 
         return obj
+    
+    @classmethod
+    def create_or_update_from_survey(cls, survey, config=None):
+        """
+        Wrapper required by compute_mci command.
+        Calls create_from_survey() which already does update_or_create().
+        """
+        return cls.create_from_survey(survey, config=config)
 
 class FurnitureConditionSurvey(models.Model):
     furniture = models.ForeignKey(FurnitureInventory, on_delete=models.CASCADE, related_name="surveys")
