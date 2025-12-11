@@ -49,6 +49,7 @@ MENU_GROUPS = {
         ("BenefitFactor", "Benefit factors"),
         ("PrioritizationResult", "Prioritization results"),
         ("AnnualWorkPlan", "Annual work plans"),
+        ("SegmentMCIResult", "Segment MCI results"),
     ],
 
     "Reference_Lookups": {
@@ -58,7 +59,9 @@ MENU_GROUPS = {
             ("UnitCost", "Unit costs"),
         ],
         "Condition & Survey": [
-            ("ConditionFactorLookup", "Condition factor lookup"),  # NEW
+            ("ConditionFactorLookup", "Condition factors"),
+            ("MCIWeightConfig", "MCI weight configurations"),
+            ("MCICategoryLookup", "MCI categories"),
             ("QAStatus", "QA statuses"),
         ],
         "Distress Classification": [
