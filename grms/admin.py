@@ -8,7 +8,7 @@ from decimal import Decimal, ROUND_HALF_UP
 from django import forms
 from django.contrib import admin, messages
 from django.contrib.admin import AdminSite
-from django.db.models import Sum
+from django.db.models import Min, Sum
 from django.template.response import TemplateResponse
 from django.http import JsonResponse
 from django.shortcuts import redirect
@@ -679,9 +679,9 @@ class SegmentInterventionRecommendationAdmin(admin.ModelAdmin):
     list_display = (
         "road_name",
         "section_number",
-        "segment_label",
+        "segment_display",
         "mci_value",
-        "recommended_item",
+        "combined_recommendations",
     )
     list_select_related = (
         "segment__section__road",
@@ -699,16 +699,31 @@ class SegmentInterventionRecommendationAdmin(admin.ModelAdmin):
     readonly_fields = ("segment", "mci_value", "recommended_item", "calculated_on")
     actions = ["recompute_intervention"]
 
+    def get_queryset(self, request):
+        base_qs = super().get_queryset(request).select_related(
+            "segment__section__road",
+            "recommended_item",
+        )
+        min_ids = (
+            base_qs.values("segment")
+            .annotate(min_id=Min("id"))
+            .values_list("min_id", flat=True)
+        )
+        return base_qs.filter(id__in=min_ids)
+
     def road_name(self, obj):
         if not obj.segment_id:
             return ""
         road = obj.segment.section.road
+        name = getattr(road, "name", None)
+        if name:
+            return name
         return f"{road.road_name_from} – {road.road_name_to}"
 
     def section_number(self, obj):
         return obj.segment.section.section_number if obj.segment_id else ""
 
-    def segment_label(self, obj):
+    def segment_display(self, obj):
         if not obj.segment_id:
             return ""
         seg = obj.segment
@@ -716,9 +731,25 @@ class SegmentInterventionRecommendationAdmin(admin.ModelAdmin):
             return f"{seg.station_from_km}-{seg.station_to_km} km"
         return f"Segment {seg.id}" if seg.id else ""
 
+    def combined_recommendations(self, obj):
+        if not obj.segment_id:
+            return ""
+        recommendations = (
+            obj.segment.segmentinterventionrecommendation_set.all()
+            .select_related("recommended_item")
+            .order_by("recommended_item__work_code")
+        )
+        parts = []
+        for rec in recommendations:
+            item = rec.recommended_item
+            if item:
+                parts.append(f"{item.work_code} - {item.description}")
+        return ", ".join(parts)
+
     road_name.short_description = "Road name"
     section_number.short_description = "Section no."
-    segment_label.short_description = "Segment"
+    segment_display.short_description = "Segment"
+    combined_recommendations.short_description = "Recommendations"
 
     def recompute_intervention(self, request, queryset):
         segment_ids = queryset.values_list("segment_id", flat=True).distinct()
