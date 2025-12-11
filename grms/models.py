@@ -1436,10 +1436,10 @@ class ConditionFactorLookup(models.Model):
         SHOULDER = "shoulder", "Shoulder condition"
         SURFACE = "surface", "Surface condition"
 
-    factor_type = models.CharField(max_length=20, choices=FactorType.choices)
+    factor_type = models.CharField(max_length=20, choices=FACTOR_TYPES)
     rating = models.PositiveSmallIntegerField()
-    description = models.CharField(max_length=200)
     factor_value = models.DecimalField(max_digits=4, decimal_places=2)
+    description = models.CharField(max_length=200)
 
     class Meta:
         unique_together = ("factor_type", "rating")

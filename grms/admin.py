@@ -625,7 +625,35 @@ class AdminWoredaAdmin(admin.ModelAdmin):
 class ConditionFactorLookupAdmin(admin.ModelAdmin):
     list_display = ("factor_type", "rating", "factor_value", "description")
     list_filter = ("factor_type", "rating")
-    search_fields = ("description",)
+    search_fields = ("description", "factor_type")
+
+
+@admin.register(models.MCIWeightConfig, site=grms_admin_site)
+class MCIWeightConfigAdmin(admin.ModelAdmin):
+    list_display = ("name", "effective_from", "effective_to", "is_active")
+    list_filter = ("is_active",)
+
+
+@admin.register(models.MCICategoryLookup, site=grms_admin_site)
+class MCICategoryLookupAdmin(admin.ModelAdmin):
+    list_display = (
+        "name",
+        "code",
+        "mci_min",
+        "mci_max",
+        "severity_order",
+        "default_intervention",
+        "is_active",
+    )
+    list_filter = ("is_active", "severity_order")
+    search_fields = ("name", "code")
+
+
+@admin.register(models.SegmentMCIResult, site=grms_admin_site)
+class SegmentMCIResultAdmin(admin.ModelAdmin):
+    list_display = ("road_segment", "survey_date", "mci_value", "mci_category")
+    list_filter = ("survey_date", "mci_category")
+    readonly_fields = ("computed_at",)
 
 
 @admin.register(models.MCIWeightConfig, site=grms_admin_site)
