@@ -762,7 +762,12 @@ class RoadSegment(models.Model):
         return end - start
 
     def __str__(self) -> str:  # pragma: no cover
-        return f"Segment {self.id} ({self.station_from_km}-{self.station_to_km} km)"
+        road_name = self.section.road if self.section_id else "Road"
+        section_part = self.section.section_number if self.section_id else "Section"
+        return (
+            f"{road_name} – Section {section_part} – Segment {self.id} "
+            f"({self.station_from_km}-{self.station_to_km} km)"
+        )
 
 
 class StructureInventory(models.Model):
@@ -1499,6 +1504,9 @@ class MCICategoryLookup(models.Model):
     class Meta:
         ordering = ["severity_order", "mci_min"]
         unique_together = ("code", "mci_min", "mci_max")
+
+    def __str__(self):  # pragma: no cover
+        return f"{self.name} ({self.code})"
 
     @classmethod
     def match_for_mci(cls, value):
