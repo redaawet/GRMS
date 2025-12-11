@@ -656,6 +656,33 @@ class SegmentMCIResultAdmin(admin.ModelAdmin):
     readonly_fields = ("computed_at",)
 
 
+@admin.register(models.MCIWeightConfig, site=grms_admin_site)
+class MCIWeightConfigAdmin(admin.ModelAdmin):
+    list_display = ("name", "effective_from", "effective_to", "is_active")
+    list_filter = ("is_active",)
+
+
+@admin.register(models.MCICategoryLookup, site=grms_admin_site)
+class MCICategoryLookupAdmin(admin.ModelAdmin):
+    list_display = (
+        "name",
+        "code",
+        "mci_min",
+        "mci_max",
+        "severity_order",
+        "default_intervention",
+        "is_active",
+    )
+    list_filter = ("is_active",)
+
+
+@admin.register(models.SegmentMCIResult, site=grms_admin_site)
+class SegmentMCIResultAdmin(admin.ModelAdmin):
+    list_display = ("road_segment", "survey_date", "mci_value", "mci_category")
+    list_filter = ("survey_date", "mci_category")
+    readonly_fields = ("computed_at",)
+
+
 @admin.register(models.RoadSection, site=grms_admin_site)
 class RoadSectionAdmin(admin.ModelAdmin):
     form = RoadSectionAdminForm
