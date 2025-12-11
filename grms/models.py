@@ -1430,14 +1430,18 @@ class OtherStructureConditionSurvey(models.Model):
 # ---------------------------------------------------------------------------
 
 
-CONDITION_FACTOR_TYPES = [
-    ("drainage", "Drainage Condition"),
-    ("shoulder", "Shoulder Condition"),
-    ("surface", "Surface Condition"),
-]
-
-
 class ConditionFactorLookup(models.Model):
+    class FactorType(models.TextChoices):
+        DRAINAGE = "drainage", "Drainage Condition"
+        SHOULDER = "shoulder", "Shoulder Condition"
+        SURFACE = "surface", "Surface Condition"
+
+    CONDITION_FACTOR_TYPES = [
+        (FactorType.DRAINAGE, FactorType.DRAINAGE.label),
+        (FactorType.SHOULDER, FactorType.SHOULDER.label),
+        (FactorType.SURFACE, FactorType.SURFACE.label),
+    ]
+
     FACTOR_TYPES = CONDITION_FACTOR_TYPES
 
     factor_type = models.CharField(max_length=20, choices=FACTOR_TYPES)
