@@ -1430,15 +1430,15 @@ class OtherStructureConditionSurvey(models.Model):
 # ---------------------------------------------------------------------------
 
 
-class ConditionFactorLookup(models.Model):
-    """Lookup table for converting 1–5 condition ratings to numeric factor values
-    used in MCI computation (drainage, shoulder, surface).
-    """
+CONDITION_FACTOR_TYPES = [
+    ("drainage", "Drainage Condition"),
+    ("shoulder", "Shoulder Condition"),
+    ("surface", "Surface Condition"),
+]
 
-    class FactorType(models.TextChoices):
-        DRAINAGE = "drainage", "Drainage condition"
-        SHOULDER = "shoulder", "Shoulder condition"
-        SURFACE  = "surface",  "Surface condition"
+
+class ConditionFactorLookup(models.Model):
+    FACTOR_TYPES = CONDITION_FACTOR_TYPES
 
     factor_type = models.CharField(max_length=20, choices=FACTOR_TYPES)
     rating = models.PositiveSmallIntegerField()
