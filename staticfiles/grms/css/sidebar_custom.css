@@ -36,14 +36,14 @@
 }
 
 .sidebar-items {
-  max-height: 0;
-  overflow: hidden;
-  transition: max-height 0.2s ease-out;
+  max-height: none;
+  overflow: visible;
+  transition: none;
 }
 
 .sidebar-items.open,
 .sidebar-items.show {
-  max-height: 500px; /* large enough for content */
+  max-height: none;
 }
 
 .sidebar-item a {
