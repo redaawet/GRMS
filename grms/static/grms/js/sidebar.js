@@ -91,6 +91,25 @@
     });
   }
 
+  function enforceSingleOpenGroup() {
+    document.addEventListener("click", (event) => {
+      const summary = event.target.closest("#grms-sidebar details.sidebar-group > summary");
+      if (!summary) return;
+
+      const currentGroup = summary.parentElement;
+
+      // Allow the native toggle to happen before closing others
+      setTimeout(() => {
+        if (!currentGroup?.open) return;
+        document
+          .querySelectorAll("#grms-sidebar details.sidebar-group[open]")
+          .forEach((group) => {
+            if (group !== currentGroup) group.removeAttribute("open");
+          });
+      }, 0);
+    });
+  }
+
   document.addEventListener("DOMContentLoaded", () => {
     if (document.body.classList.contains("popup")) return;
     const sidebar = document.getElementById("grms-sidebar");
@@ -99,5 +118,6 @@
     markActiveLinks();
     handleSearch();
     handleCollapseToggle();
+    enforceSingleOpenGroup();
   });
 })();

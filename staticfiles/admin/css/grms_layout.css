@@ -1,0 +1,6 @@
+:root {
+  --grms-header-height: 64px; /* Will be synced to the actual header height via JS */
+  --grms-sidebar-width: 280px;
+  --grms-content-gutter: 16px;
+  --grms-group-max: 240px;
+}
