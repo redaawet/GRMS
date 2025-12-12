@@ -2,8 +2,9 @@
 
 <style>
   :root{
-    --grms-header-height: 64px; /* adjust if needed */
+    --grms-header-height: 64px;          /* adjust if your header is taller */
     --grms-sidebar-width: 280px;
+    --grms-group-max: 240px;             /* per-group list max height */
   }
 
   /* Sidebar sits under header */
@@ -15,12 +16,23 @@
     height: calc(100vh - var(--grms-header-height));
     display: flex;
     flex-direction: column;
-    overflow: hidden;
+    overflow: hidden;                    /* IMPORTANT: no whole-sidebar scroll */
     z-index: 20;
   }
+  summary.sg-header::-webkit-details-marker{ display:none; }
+
+  .sg-content{ padding: .25rem 0 .75rem; background: #fff; border-radius: 0 0 10px 10px; }
+  .sg-content a.menu-item{ display:block; padding: .6rem .9rem; text-decoration:none; color: inherit; }
+  .sg-content a.menu-item:hover{ background: #f4f7fb; }
 
   .sidebar-header{ flex: 0 0 auto; padding: .75rem; }
-  .sidebar-nav{ flex: 1 1 auto; overflow-y: auto; overflow-x: hidden; padding: 0 .5rem 1rem; }
+
+  /* IMPORTANT: allow groups to be visible; do not force nav to scroll */
+  .sidebar-nav{
+    flex: 1 1 auto;
+    overflow: hidden;                    /* IMPORTANT: no whole-nav scroll */
+    padding: 0 .5rem 1rem;
+  }
 
   /* Native accordion visuals (keep your existing classes if you have styling elsewhere) */
   details.sidebar-group{ margin: .5rem 0; border-radius: 10px; background: #eef3f7; }
@@ -36,79 +48,50 @@
   }
   summary.sg-header::-webkit-details-marker{ display:none; }
 
-  .sg-content{ padding: .25rem 0 .75rem; background: #fff; border-radius: 0 0 10px 10px; }
-  .sg-content a.menu-item{ display:block; padding: .6rem .9rem; text-decoration:none; color: inherit; }
+  details.sidebar-group .sg-content{
+    padding: .25rem 0 .75rem;
+    background: #fff;
+    border-radius: 0 0 10px 10px;
+    overflow: hidden;
+  }
+
+  details.sidebar-group[open] .sg-content{
+    max-height: var(--grms-group-max);
+    overflow-y: auto;                    /* per-group scrollbar */
+    overflow-x: hidden;
+  }
+
+  .sg-content a.menu-item{
+    display: block;
+    padding: .6rem .9rem;
+    text-decoration: none;
+    color: inherit;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
   .sg-content a.menu-item:hover{ background: #f4f7fb; }
-
-  /* push page below the header */
-  #container, #content, #content-main{
-    padding-top: var(--grms-header-height);
-  }
-
-  /* keep content to the right of sidebar */
-  #content, #content-main{
-    margin-left: var(--grms-sidebar-width);
-  }
-
-  .sidebar-group {
-    position: relative;
-    display: flex;
-    flex-direction: column;
-    gap: 0.35rem;
-    margin-bottom: 0.5rem;
-  }
-
-  .sg-header {
-    flex: 0 0 auto;
-  }
-
-  .sg-content {
-    position: static;
-    overflow: visible;
-  }
-
-  .sg-list {
-    display: flex;
-    flex-direction: column;
-    gap: 0.35rem;
-  }
-
-  #content,
-  #content-main {
-    margin-left: var(--grms-sidebar-width);
-  }
 </style>
 
-<div id="grms-sidebar" class="sidebar">
-  <div class="sidebar-header">
-    <button id="sidebar-toggle" class="sidebar-toggle" type="button" aria-label="Collapse sidebar">▸</button>
-    <input id="sidebar-search" class="sidebar-search" type="search" placeholder="Search menu…" aria-label="Search menu"/>
-  </div>
+<div class="sidebar-header">
+  <button id="sidebar-toggle" class="sidebar-toggle" type="button" aria-label="Collapse sidebar">▸</button>
+  <input id="sidebar-search" class="sidebar-search" type="search" placeholder="Search menu…" aria-label="Search menu"/>
+</div>
 
-  <nav class="sidebar-nav" aria-label="GRMS admin navigation">
-    {% for group_title, group_items in MENU_GROUPS.items %}
+<nav class="sidebar-nav" aria-label="GRMS admin navigation">
+  {% for group_title, group_items in MENU_GROUPS.items %}
 
-      <details class="sidebar-group" data-group="{{ group_title|slugify }}">
-        <summary class="sg-header">
-          <span class="sg-title">{{ group_title }}</span>
-          <span class="sg-arrow" aria-hidden="true">▸</span>
-        </summary>
+    <details class="sidebar-group" data-group="{{ group_title|slugify }}">
+      <summary class="sg-header">
+        <span class="sg-title">{{ group_title }}</span>
+        <span class="sg-arrow" aria-hidden="true">▸</span>
+      </summary>
 
-        <div class="sg-content">
-          {# group_items can be list OR dict-of-subgroups #}
-          {% if group_items.items %}
-            {% for subgroup_title, subgroup_items in group_items.items %}
-              {% for model_name, display_name in subgroup_items %}
-                {% resolve_model model_name as model %}
-                {% if model %}
-                  <a class="menu-item" href="{% url model|admin_urlname:'changelist' %}">
-                    {{ display_name }}
-                  </a>
-                {% endif %}
-              {% endfor %}
-            {% endfor %}
-          {% else %}
-            {% for model_name, display_name in group_items %}
+      <div class="sg-content">
+        {# group_items can be list OR dict-of-subgroups #}
+        {% if group_items.items %}
+          {% for subgroup_title, subgroup_items in group_items.items %}
+            {% for model_name, display_name in subgroup_items %}
               {% resolve_model model_name as model %}
               {% if model %}
                 <a class="menu-item" href="{% url model|admin_urlname:'changelist' %}">
@@ -116,10 +99,19 @@
                 </a>
               {% endif %}
             {% endfor %}
-          {% endif %}
-        </div>
-      </details>
+          {% endfor %}
+        {% else %}
+          {% for model_name, display_name in group_items %}
+            {% resolve_model model_name as model %}
+            {% if model %}
+              <a class="menu-item" href="{% url model|admin_urlname:'changelist' %}">
+                {{ display_name }}
+              </a>
+            {% endif %}
+          {% endfor %}
+        {% endif %}
+      </div>
+    </details>
 
-    {% endfor %}
-  </nav>
-</div>
+  {% endfor %}
+</nav>
