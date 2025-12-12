@@ -53,6 +53,11 @@ MENU_GROUPS = {
         ("SegmentMCIResult", "Segment MCI results"),
     ],
 
+    "Maintenance_Planning_Rules": [
+        ("MCICategoryLookup", "MCI categories"),
+        ("MCIRoadMaintenanceRule", "Road maintenance rules"),
+    ],
+
     "Reference_Lookups": {
         "Asset Classification": [
             ("ActivityLookup", "Activity lookups"),
@@ -64,7 +69,6 @@ MENU_GROUPS = {
         "Condition & Survey": [
             ("ConditionFactorLookup", "Condition factors"),
             ("MCIWeightConfig", "MCI weight configurations"),
-            ("MCICategoryLookup", "MCI categories"),
             ("QAStatus", "QA statuses"),
         ],
         "Distress Classification": [

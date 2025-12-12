@@ -667,6 +667,22 @@ class MCICategoryLookupAdmin(admin.ModelAdmin):
     search_fields = ("name", "code")
 
 
+@admin.register(models.MCIRoadMaintenanceRule, site=grms_admin_site)
+class MCIRoadMaintenanceRuleAdmin(admin.ModelAdmin):
+    list_display = (
+        "mci_min",
+        "mci_max",
+        "routine",
+        "periodic",
+        "rehabilitation",
+        "priority",
+        "is_active",
+    )
+    list_filter = ("is_active", "routine", "periodic", "rehabilitation")
+    search_fields = ("mci_min", "mci_max")
+    ordering = ("priority", "mci_min")
+
+
 @admin.register(models.SegmentMCIResult, site=grms_admin_site)
 class SegmentMCIResultAdmin(admin.ModelAdmin):
     list_display = ("road_segment", "survey_date", "mci_value", "mci_category")

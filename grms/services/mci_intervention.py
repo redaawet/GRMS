@@ -1,21 +1,18 @@
 from __future__ import annotations
 
-from decimal import Decimal
 from typing import Iterable
 
 from django.db import transaction
 
 from grms.models import (
     InterventionWorkItem,
+    MCIRoadMaintenanceRule,
     RoadSegment,
     SegmentInterventionRecommendation,
     SegmentMCIResult,
 )
 
 
-RECOMMENDED_CODES_LOW = ["01"]
-RECOMMENDED_CODES_MEDIUM = ["01", "02"]
-RECOMMENDED_CODES_HIGH = ["05"]
 BOTTLENECK_ROAD_CODES = ["101", "102"]
 
 
@@ -23,14 +20,18 @@ def _latest_mci_result(segment: RoadSegment) -> SegmentMCIResult | None:
     return segment.mci_results.order_by("-survey_date", "-computed_at", "-id").first()
 
 
-def _codes_for_mci(mci_value: Decimal | None) -> list[str]:
-    if mci_value is None:
+def _codes_for_rule(rule: MCIRoadMaintenanceRule | None) -> list[str]:
+    if not rule:
         return []
-    if mci_value < Decimal("1.5"):
-        return RECOMMENDED_CODES_LOW
-    if mci_value <= Decimal("2.5"):
-        return RECOMMENDED_CODES_MEDIUM
-    return RECOMMENDED_CODES_HIGH
+
+    codes: list[str] = []
+    if rule.routine:
+        codes.append("01")
+    if rule.periodic:
+        codes.append("02")
+    if rule.rehabilitation:
+        codes.append("05")
+    return codes
 
 
 def _segment_has_bottleneck(segment: RoadSegment) -> bool:
@@ -45,10 +46,11 @@ def recommend_intervention_for_segment(segment: RoadSegment) -> int:
     mci_result = _latest_mci_result(segment)
     SegmentInterventionRecommendation.objects.filter(segment=segment).delete()
 
-    if mci_result is None:
+    if mci_result is None or mci_result.mci_value is None:
         return 0
 
-    base_codes = _codes_for_mci(mci_result.mci_value)
+    rule = MCIRoadMaintenanceRule.match_for_mci(mci_result.mci_value)
+    base_codes = _codes_for_rule(rule)
     if not base_codes:
         return 0
 

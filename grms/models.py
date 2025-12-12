@@ -1558,6 +1558,74 @@ class MCICategoryLookup(models.Model):
         )
 
 
+class MCIRoadMaintenanceRule(models.Model):
+    mci_min = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    mci_max = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+
+    routine = models.BooleanField(default=False)
+    periodic = models.BooleanField(default=False)
+    rehabilitation = models.BooleanField(default=False)
+
+    priority = models.PositiveSmallIntegerField(default=1)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ["priority", "mci_min"]
+        verbose_name = "MCI road maintenance rule"
+        verbose_name_plural = "MCI road maintenance rules"
+
+    def __str__(self):  # pragma: no cover - simple admin label
+        return f"MCI {self.mci_min or '-inf'} – {self.mci_max or 'inf'}"
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+
+        if self.mci_min is not None and self.mci_max is not None and self.mci_min >= self.mci_max:
+            raise ValidationError("mci_min must be less than mci_max")
+
+        if not self.is_active:
+            return
+
+        qs = MCIRoadMaintenanceRule.objects.filter(is_active=True)
+        if self.pk:
+            qs = qs.exclude(pk=self.pk)
+
+        overlaps = []
+        for other in qs:
+            if self._overlaps(other):
+                overlaps.append(other)
+
+        if overlaps:
+            raise ValidationError("Active rule ranges cannot overlap.")
+
+    def _overlaps(self, other: "MCIRoadMaintenanceRule") -> bool:
+        """Half-open range overlap check allowing touching boundaries."""
+
+        lower_a = self.mci_min
+        upper_a = self.mci_max
+        lower_b = other.mci_min
+        upper_b = other.mci_max
+
+        lower_a = lower_a if lower_a is not None else Decimal("-Infinity")
+        upper_a = upper_a if upper_a is not None else Decimal("Infinity")
+        lower_b = lower_b if lower_b is not None else Decimal("-Infinity")
+        upper_b = upper_b if upper_b is not None else Decimal("Infinity")
+
+        return lower_a < upper_b and lower_b < upper_a
+
+    @classmethod
+    def match_for_mci(cls, value: Decimal):
+        return (
+            cls.objects.filter(
+                models.Q(mci_min__lte=value) | models.Q(mci_min__isnull=True),
+                models.Q(mci_max__gt=value) | models.Q(mci_max__isnull=True),
+                is_active=True,
+            )
+            .order_by("priority", "mci_min")
+            .first()
+        )
+
+
 class RoadConditionSurvey(models.Model):
     road_segment = models.ForeignKey("RoadSegment", on_delete=models.CASCADE, related_name="condition_surveys")
 
