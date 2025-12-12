@@ -1,6 +1,6 @@
 :root {
-    --grms-sidebar-width: 240px;
-    --grms-header-height: 60px;
+    --grms-sidebar-width: 280px;
+    --grms-header-height: 64px;
 }
 
 /* Fix header */
@@ -21,27 +21,25 @@
     left: 0;
     width: var(--grms-sidebar-width);
     height: calc(100vh - var(--grms-header-height));
+    display: flex;
+    flex-direction: column;
     background: #fafafa;
     border-right: 1px solid #ddd;
-    overflow-y: auto;
+    overflow: hidden;
     z-index: 1000;
 }
 
 /* Fix main content width and shift */
-#container {
-    margin-left: var(--grms-sidebar-width) !important;
+#container, #content, #content-main {
     padding-top: var(--grms-header-height) !important;
-    padding-left: 20px !important;
-    width: calc(100% - var(--grms-sidebar-width)) !important;
-    box-sizing: border-box;
 }
 
 #content,
 #content-main,
 .dashboard-wrapper {
-    margin-left: 0 !important;
+    margin-left: var(--grms-sidebar-width) !important;
     padding-left: 0 !important;
-    width: 100% !important;
+    width: calc(100% - var(--grms-sidebar-width)) !important;
 }
 
 body.login #container,
@@ -103,8 +101,6 @@ body.login #content {
 @media (max-width: 900px) {
     /* Let content fill the screen when space is tight */
     #container {
-        margin-left: 0 !important;
-        width: 100% !important;
         padding-left: 16px !important;
         padding-right: 16px !important;
     }
