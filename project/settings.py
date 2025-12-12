@@ -109,6 +109,15 @@ else:
         }
     }
 
+    class DisableMigrations(dict):
+        def __contains__(self, item):  # pragma: no cover - test helper
+            return True
+
+        def __getitem__(self, item):  # pragma: no cover - test helper
+            return None
+
+    MIGRATION_MODULES = DisableMigrations()
+
 AUTH_PASSWORD_VALIDATORS = []
 
 LANGUAGE_CODE = 'en-us'
