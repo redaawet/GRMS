@@ -49,38 +49,11 @@
     color: #1e3a8a;
 }
 
-body.grms-has-sidebar #container,
-body.grms-has-sidebar .main,
-body.grms-has-sidebar #content,
-body.grms-has-sidebar .content,
-body.grms-has-sidebar #content-main {
-    padding-top: var(--grms-header-height);
-    box-sizing: border-box;
-}
-
-#container,
-#content,
-#content-main {
-    margin-left: var(--grms-sidebar-width);
-    box-sizing: border-box;
-}
-
 body.login #container,
 body.login #content {
     margin-left: 0 !important;
     padding-top: 0 !important;
     width: auto !important;
-}
-
-/* Header styling fix */
-#header, .module-header {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: var(--grms-header-height);
-    line-height: var(--grms-header-height);
-    z-index: 1100;
 }
 
 /* Optional: tighten sidebar spacing */
