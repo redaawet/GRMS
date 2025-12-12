@@ -18,6 +18,11 @@ body.login #container {
     padding-top: 0;
 }
 
+#container {
+    display: flex;
+    flex-direction: column;
+}
+
 /* Reset default Django sidebar offsets */
 body.nav-sidebar #content,
 body.has-nav-sidebar #content {
@@ -27,10 +32,9 @@ body.has-nav-sidebar #content {
 /* Single horizontal shift for main content */
 body.grms-has-sidebar:not(.login) #content {
     margin-left: var(--grms-sidebar-width);
-    width: calc(100% - var(--grms-sidebar-width));
-    padding-left: var(--grms-gutter);
-    padding-right: var(--grms-gutter);
+    padding: var(--grms-content-gutter);
     box-sizing: border-box;
+    flex: 1;
 }
 
 /* Prevent nested containers from re-shifting */

@@ -1,10 +1,11 @@
 (function () {
-  function syncHeaderHeight() {
-    const header = document.getElementById("header");
+  document.addEventListener("DOMContentLoaded", () => {
+    const header = document.querySelector("#header");
     if (!header) return;
-    document.documentElement.style.setProperty("--grms-header-height", `${header.offsetHeight}px`);
-  }
 
-  window.addEventListener("load", syncHeaderHeight);
-  window.addEventListener("resize", syncHeaderHeight);
+    document.documentElement.style.setProperty(
+      "--grms-header-height",
+      `${header.offsetHeight}px`
+    );
+  });
 })();
