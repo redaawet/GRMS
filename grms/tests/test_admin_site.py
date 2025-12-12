@@ -4,6 +4,7 @@ from django.test import Client, RequestFactory, TestCase
 from django.urls import reverse
 
 from grms.admin import grms_admin_site
+from grms.menu import GROUP_ORDER
 
 
 class GRMSAdminSiteTests(TestCase):
@@ -24,7 +25,7 @@ class GRMSAdminSiteTests(TestCase):
 
         sections = response.context["sections"]
         self.assertTrue(sections)
-        self.assertTrue(any(section["title"] == "Inventories" for section in sections))
+        self.assertTrue(any(section["title"] == "Road Network" for section in sections))
         self.assertTrue(
             any(model["object_name"] == "Road" for section in sections for model in section["models"])
         )
@@ -57,27 +58,15 @@ class GRMSAdminSiteTests(TestCase):
         request = self.factory.get("/admin/")
         request.user = self.user
 
-        original_groups = grms_admin_site.MENU_GROUPS
-        grms_admin_site.MENU_GROUPS = {"Only roads": (("Road", "Roads"),)}
-        self.addCleanup(setattr, grms_admin_site, "MENU_GROUPS", original_groups)
+        original_groups = grms_admin_site._get_menu_groups
+        grms_admin_site._get_menu_groups = lambda: {"Only roads": (("Road", "Roads"),)}
+        self.addCleanup(setattr, grms_admin_site, "_get_menu_groups", original_groups)
 
         sections = grms_admin_site._build_sections(request)
 
         self.assertTrue(any(section["title"] == "Other models" for section in sections))
         other_section = next(section for section in sections if section["title"] == "Other models")
         self.assertTrue(any(model["object_name"] == "RoadSection" for model in other_section["models"]))
-
-    def test_section_builder_excludes_traffic_prioritization_values(self):
-        request = self.factory.get("/admin/")
-        request.user = self.user
-
-        sections = grms_admin_site._build_sections(request)
-
-        model_names = [model["name"] for section in sections for model in section["models"]]
-        object_names = [model["object_name"] for section in sections for model in section["models"]]
-
-        self.assertNotIn("Traffic values for prioritization", model_names)
-        self.assertNotIn("TrafficForPrioritization", object_names)
 
     def test_section_builder_includes_models_with_duplicate_names_across_apps(self):
         request = self.factory.get("/admin/")
@@ -125,3 +114,42 @@ class GRMSAdminSiteTests(TestCase):
             identifiers,
             {("app_one", "SharedModel"), ("app_two", "SharedModel")},
         )
+
+    def test_menu_groups_respect_expected_titles(self):
+        menu_groups = grms_admin_site._get_menu_groups()
+        self.assertTrue(menu_groups)
+        for title in menu_groups.keys():
+            self.assertIn(title, GROUP_ORDER)
+
+    def test_registered_models_appear_once_in_menu_groups(self):
+        menu_groups = grms_admin_site._get_menu_groups()
+        menu_models = {
+            model_name
+            for models in menu_groups.values()
+            for model_name, _ in models
+        }
+
+        registered_models = {model._meta.object_name for model in grms_admin_site._registry}
+        self.assertTrue(registered_models.issubset(menu_models))
+
+    def test_menu_group_labels_are_normalised(self):
+        menu_groups = grms_admin_site._get_menu_groups()
+
+        def find_entry(target_name):
+            for group_title, models in menu_groups.items():
+                for model_name, label in models:
+                    if model_name == target_name:
+                        return group_title, label
+            return None, None
+
+        distress_group, distress_label = find_entry("RoadConditionDetailedSurvey")
+        self.assertEqual(distress_group, "Distress")
+        self.assertEqual(distress_label, "Road distress")
+
+        traffic_group, traffic_label = find_entry("TrafficForPrioritization")
+        self.assertEqual(traffic_group, "Traffic")
+        self.assertEqual(traffic_label, "Traffic priority")
+
+        planning_group, planning_label = find_entry("BenefitCriterion")
+        self.assertEqual(planning_group, "Maintenance & Planning")
+        self.assertEqual(planning_label, "Benefit criteria")
