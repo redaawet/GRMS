@@ -5,6 +5,15 @@ import django.utils.timezone
 from django.db import migrations, models
 
 
+def drop_population_constraint(apps, schema_editor):
+    if schema_editor.connection.vendor == "sqlite":
+        return
+
+    schema_editor.execute(
+        "ALTER TABLE grms_roadsocioeconomic DROP CONSTRAINT IF EXISTS grms_roadsocioeconomic_population_served_65d455e0_check;"
+    )
+
+
 class Migration(migrations.Migration):
 
     dependencies = [
@@ -26,12 +35,5 @@ class Migration(migrations.Migration):
             name='link_type',
             field=models.ForeignKey(blank=True, null=True, help_text='Functional road class used for connectivity/prioritization (Trunk, Link, Main access, Collector, Feeder).', on_delete=django.db.models.deletion.PROTECT, related_name='roads', to='grms.roadlinktypelookup'),
         ),
-        migrations.RunSQL(
-            "ALTER TABLE grms_roadsocioeconomic DROP CONSTRAINT IF EXISTS grms_roadsocioeconomic_population_served_65d455e0_check;",
-            migrations.RunSQL.noop,
-        ),
-        migrations.RunSQL(
-            sql="SELECT 1;",
-            reverse_sql="SELECT 1;",
-        ),
+        migrations.RunPython(drop_population_constraint, migrations.RunPython.noop),
     ]
