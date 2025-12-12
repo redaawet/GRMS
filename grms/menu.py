@@ -19,6 +19,132 @@ GROUP_ORDER: Sequence[str] = (
     "System",
 )
 
+MODEL_GROUP_MAP: Dict[str, str] = {
+    # Road Network
+    "road": "Road Network",
+    "roadsection": "Road Network",
+    "roadsegment": "Road Network",
+    "roadsocioeconomic": "Road Network",
+    # Structures
+    "structureinventory": "Structures",
+    "bridgedetail": "Structures",
+    "culvertdetail": "Structures",
+    "forddetail": "Structures",
+    "retainingwalldetail": "Structures",
+    "gabionwalldetail": "Structures",
+    "furnitureinventory": "Structures",
+    # Condition
+    "roadconditionsurvey": "Condition",
+    "structureconditionsurvey": "Condition",
+    "bridgeconditionsurvey": "Condition",
+    "culvertconditionsurvey": "Condition",
+    "otherstructureconditionsurvey": "Condition",
+    "furnitureconditionsurvey": "Condition",
+    # Distress
+    "roadconditiondetailedsurvey": "Distress",
+    "structureconditiondetailedsurvey": "Distress",
+    "furnitureconditiondetailedsurvey": "Distress",
+    # Traffic
+    "trafficsurvey": "Traffic",
+    "trafficcountrecord": "Traffic",
+    "trafficcyclesummary": "Traffic",
+    "trafficsurveysummary": "Traffic",
+    "trafficsurveyoverall": "Traffic",
+    "trafficqc": "Traffic",
+    "nightadjustmentlookup": "Traffic",
+    "pculookup": "Traffic",
+    "trafficforprioritization": "Traffic",
+    # Maintenance & Planning
+    "segmentmciresult": "Maintenance & Planning",
+    "mciroadmaintenancerule": "Maintenance & Planning",
+    "segmentinterventionrecommendation": "Maintenance & Planning",
+    "roadsectionintervention": "Maintenance & Planning",
+    "structureintervention": "Maintenance & Planning",
+    "benefitcategory": "Maintenance & Planning",
+    "benefitcriterion": "Maintenance & Planning",
+    "benefitcriterionscale": "Maintenance & Planning",
+    "benefitfactor": "Maintenance & Planning",
+    "prioritizationresult": "Maintenance & Planning",
+    "annualworkplan": "Maintenance & Planning",
+    # Reference & Lookups
+    "activitylookup": "Reference & Lookups",
+    "interventioncategory": "Reference & Lookups",
+    "interventionworkitem": "Reference & Lookups",
+    "interventionlookup": "Reference & Lookups",
+    "unitcost": "Reference & Lookups",
+    "conditionfactorlookup": "Reference & Lookups",
+    "mciweightconfig": "Reference & Lookups",
+    "mcicategorylookup": "Reference & Lookups",
+    "distresstype": "Reference & Lookups",
+    "distresscondition": "Reference & Lookups",
+    "distressactivity": "Reference & Lookups",
+    "roadlinktypelookup": "Reference & Lookups",
+    "adminzone": "Reference & Lookups",
+    "adminworeda": "Reference & Lookups",
+    "qastatus": "Reference & Lookups",
+    # System
+    "user": "System",
+    "group": "System",
+}
+
+LABEL_OVERRIDES: Dict[str, str] = {
+    "road": "Roads",
+    "roadsection": "Sections",
+    "roadsegment": "Segments",
+    "roadsocioeconomic": "Socioeconomic",
+    "structureinventory": "Structures",
+    "bridgedetail": "Bridges",
+    "culvertdetail": "Culverts",
+    "forddetail": "Fords",
+    "retainingwalldetail": "Retaining walls",
+    "gabionwalldetail": "Gabion walls",
+    "furnitureinventory": "Furniture",
+    "roadconditionsurvey": "Road condition",
+    "structureconditionsurvey": "Structure condition",
+    "bridgeconditionsurvey": "Bridge condition",
+    "culvertconditionsurvey": "Culvert condition",
+    "otherstructureconditionsurvey": "Other structures",
+    "furnitureconditionsurvey": "Furniture condition",
+    "roadconditiondetailedsurvey": "Road distress",
+    "structureconditiondetailedsurvey": "Structure distress",
+    "furnitureconditiondetailedsurvey": "Furniture distress",
+    "trafficsurvey": "Traffic survey",
+    "trafficcountrecord": "Traffic count",
+    "trafficcyclesummary": "Traffic cycle",
+    "trafficsurveysummary": "Traffic summary",
+    "trafficsurveyoverall": "Traffic overall",
+    "trafficqc": "Traffic QC",
+    "nightadjustmentlookup": "Night adjust",
+    "pculookup": "PCU lookup",
+    "trafficforprioritization": "Traffic priority",
+    "segmentmciresult": "Segment MCI",
+    "mciroadmaintenancerule": "MCI rules",
+    "segmentinterventionrecommendation": "Segment plans",
+    "roadsectionintervention": "Section interventions",
+    "structureintervention": "Structure interventions",
+    "benefitcategory": "Benefit categories",
+    "benefitcriterion": "Benefit criteria",
+    "benefitcriterionscale": "Criterion scale",
+    "benefitfactor": "Benefit factors",
+    "prioritizationresult": "Priority results",
+    "annualworkplan": "Work plan",
+    "activitylookup": "Activities",
+    "interventioncategory": "Intervention categories",
+    "interventionworkitem": "Work items",
+    "interventionlookup": "Interventions",
+    "unitcost": "Unit costs",
+    "conditionfactorlookup": "Condition factors",
+    "mciweightconfig": "MCI weights",
+    "mcicategorylookup": "MCI categories",
+    "distresstype": "Distress types",
+    "distresscondition": "Distress conditions",
+    "distressactivity": "Distress actions",
+    "roadlinktypelookup": "Road links",
+    "adminzone": "Zones",
+    "adminworeda": "Woredas",
+    "qastatus": "QA status",
+}
+
 TAIL_WORDS = {
     "detail",
     "details",
@@ -75,93 +201,12 @@ def _clean_label(label: str, had_tail: bool) -> str:
     return " ".join(filtered[:2])
 
 
-def _classify(normalised_name: str, app_label: str) -> str | None:
-    road_network = {
-        "road",
-        "roadsection",
-        "roadsegment",
-        "roadsocioeconomic",
-    }
-    structures = {
-        "structureinventory",
-        "bridgedetail",
-        "culvertdetail",
-        "forddetail",
-        "retainingwalldetail",
-        "gabionwalldetail",
-        "furnitureinventory",
-    }
-    condition = {
-        "roadconditionsurvey",
-        "structureconditionsurvey",
-        "bridgeconditionsurvey",
-        "culvertconditionsurvey",
-        "otherstructureconditionsurvey",
-        "furnitureconditionsurvey",
-    }
-    distress = {
-        "roadconditiondetailedsurvey",
-        "structureconditiondetailedsurvey",
-        "furnitureconditiondetailedsurvey",
-        "distresstype",
-        "distresscondition",
-        "distressactivity",
-    }
-    traffic = {
-        "trafficsurvey",
-        "trafficcountrecord",
-        "trafficcyclesummary",
-        "trafficsurveysummary",
-        "trafficsurveyoverall",
-        "trafficqc",
-        "trafficforprioritization",
-        "nightadjustmentlookup",
-        "pculookup",
-    }
-    maintenance_planning = {
-        "segmentmciresult",
-        "segmentinterventionrecommendation",
-        "structureintervention",
-        "roadsectionintervention",
-        "benefitfactor",
-        "prioritizationresult",
-        "annualworkplan",
-        "mciroadmaintenancerule",
-        "mcicategorylookup",
-        "mciweightconfig",
-        "benefitcategory",
-        "benefitcriterion",
-        "benefitcriterionscale",
-    }
-    reference = {
-        "activitylookup",
-        "interventioncategory",
-        "interventionworkitem",
-        "interventionlookup",
-        "unitcost",
-        "conditionfactorlookup",
-        "qastatus",
-        "roadlinktypelookup",
-        "adminzone",
-        "adminworeda",
-    }
-    system = {"user", "group"}
-
-    if normalised_name in road_network:
-        return "Road Network"
-    if normalised_name in structures:
-        return "Structures"
-    if normalised_name in condition:
-        return "Condition"
-    if normalised_name in distress:
-        return "Distress"
-    if normalised_name in traffic or app_label == "traffic":
+def _classify(normalised_name: str, app_label: str) -> str:
+    if normalised_name in MODEL_GROUP_MAP:
+        return MODEL_GROUP_MAP[normalised_name]
+    if app_label == "traffic":
         return "Traffic"
-    if normalised_name in maintenance_planning:
-        return "Maintenance & Planning"
-    if normalised_name in reference:
-        return "Reference & Lookups"
-    if normalised_name in system:
+    if app_label == "auth":
         return "System"
     return "Reference & Lookups"
 
@@ -185,14 +230,16 @@ def build_menu_groups(admin_site) -> MenuGroup:
 
         normalised = _normalise(meta.object_name)
         group = _classify(normalised, meta.app_label)
-        if not group:
-            continue
 
-        label = _preferred_label(model)
-        has_tail = any(word.lower().rstrip("s") in TAIL_WORDS for word in label.split())
-        clean_label = _clean_label(label, has_tail)
+        label = LABEL_OVERRIDES.get(normalised)
+        if not label:
+            raw_label = _preferred_label(model)
+            has_tail = any(
+                word.lower().rstrip("s") in TAIL_WORDS for word in raw_label.split()
+            )
+            label = _clean_label(raw_label, has_tail)
 
-        entry = (meta.object_name, clean_label)
+        entry = (meta.object_name, label)
         if entry not in groups[group]:
             groups[group].append(entry)
 

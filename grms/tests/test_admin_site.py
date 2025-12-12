@@ -68,18 +68,6 @@ class GRMSAdminSiteTests(TestCase):
         other_section = next(section for section in sections if section["title"] == "Other models")
         self.assertTrue(any(model["object_name"] == "RoadSection" for model in other_section["models"]))
 
-    def test_section_builder_excludes_traffic_prioritization_values(self):
-        request = self.factory.get("/admin/")
-        request.user = self.user
-
-        sections = grms_admin_site._build_sections(request)
-
-        model_names = [model["name"] for section in sections for model in section["models"]]
-        object_names = [model["object_name"] for section in sections for model in section["models"]]
-
-        self.assertNotIn("Traffic values for prioritization", model_names)
-        self.assertNotIn("TrafficForPrioritization", object_names)
-
     def test_section_builder_includes_models_with_duplicate_names_across_apps(self):
         request = self.factory.get("/admin/")
         request.user = self.user
@@ -132,3 +120,36 @@ class GRMSAdminSiteTests(TestCase):
         self.assertTrue(menu_groups)
         for title in menu_groups.keys():
             self.assertIn(title, GROUP_ORDER)
+
+    def test_registered_models_appear_once_in_menu_groups(self):
+        menu_groups = grms_admin_site._get_menu_groups()
+        menu_models = {
+            model_name
+            for models in menu_groups.values()
+            for model_name, _ in models
+        }
+
+        registered_models = {model._meta.object_name for model in grms_admin_site._registry}
+        self.assertTrue(registered_models.issubset(menu_models))
+
+    def test_menu_group_labels_are_normalised(self):
+        menu_groups = grms_admin_site._get_menu_groups()
+
+        def find_entry(target_name):
+            for group_title, models in menu_groups.items():
+                for model_name, label in models:
+                    if model_name == target_name:
+                        return group_title, label
+            return None, None
+
+        distress_group, distress_label = find_entry("RoadConditionDetailedSurvey")
+        self.assertEqual(distress_group, "Distress")
+        self.assertEqual(distress_label, "Road distress")
+
+        traffic_group, traffic_label = find_entry("TrafficForPrioritization")
+        self.assertEqual(traffic_group, "Traffic")
+        self.assertEqual(traffic_label, "Traffic priority")
+
+        planning_group, planning_label = find_entry("BenefitCriterion")
+        self.assertEqual(planning_group, "Maintenance & Planning")
+        self.assertEqual(planning_label, "Benefit criteria")

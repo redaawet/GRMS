@@ -76,10 +76,7 @@ class GRMSAdminSite(AdminSite):
     index_template = "admin/index.html"
     site_url = "/"
 
-    EXCLUDED_MODEL_NAMES = {
-        "traffic values for prioritization",
-        "trafficforprioritization",
-    }
+    EXCLUDED_MODEL_NAMES = set()
 
     MENU_GROUPS: Dict[str, MenuGroup] = {}
 
