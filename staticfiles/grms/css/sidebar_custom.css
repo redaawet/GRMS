@@ -1,18 +1,15 @@
 /* Custom sidebar styling */
-.sidebar {
-  width: 250px;
+#grms-sidebar {
   background-color: #fafafa;
   padding: 1rem;
   border-right: 1px solid #e0e0e0;
-  height: 100%;
-  overflow-y: auto;
 }
 
-.sidebar .group {
+#grms-sidebar .group {
   margin-bottom: 1rem;
 }
 
-.sidebar-group-title {
+#grms-sidebar .sidebar-group-title {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -25,28 +22,27 @@
   color: inherit;
   text-align: left;
 }
-
-.sidebar-group-title:focus-visible {
+#grms-sidebar .sidebar-group-title:focus-visible {
   outline: 2px solid #1b73e8;
   border-radius: 6px;
 }
 
-.sidebar-group-title span {
+#grms-sidebar .sidebar-group-title span {
   margin-left: 0.25rem;
 }
 
-.sidebar-items {
+#grms-sidebar .sidebar-items {
   max-height: none;
   overflow: visible;
   transition: none;
 }
 
-.sidebar-items.open,
-.sidebar-items.show {
+#grms-sidebar .sidebar-items.open,
+#grms-sidebar .sidebar-items.show {
   max-height: none;
 }
 
-.sidebar-item a {
+#grms-sidebar .sidebar-item a {
   display: block;
   padding: 0.3rem 0;
   color: #555;
@@ -54,6 +50,6 @@
   transition: color 0.15s ease;
 }
 
-.sidebar-item a:hover {
+#grms-sidebar .sidebar-item a:hover {
   color: #007bff;
 }
