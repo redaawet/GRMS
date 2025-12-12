@@ -29,12 +29,7 @@ body.grms-has-sidebar #grms-sidebar {
     z-index: 1000;
 }
 
-/* Fix main content width and shift */
-body.grms-has-sidebar #container,
-body.grms-has-sidebar .main,
-body.grms-has-sidebar #content,
-body.grms-has-sidebar .content,
-body.grms-has-sidebar #content-main {
+#container {
     padding-top: var(--grms-header-height) !important;
 }
 
