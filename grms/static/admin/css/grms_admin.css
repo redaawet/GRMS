@@ -34,12 +34,16 @@ body.grms-has-sidebar #container,
 body.grms-has-sidebar .main,
 body.grms-has-sidebar #content,
 body.grms-has-sidebar .content,
-body.grms-has-sidebar #content-main {
+body.grms-has-sidebar #content-main,
+body.grms-has-sidebar #main,
+body.grms-has-sidebar .grms-main-content {
     padding-top: var(--grms-header-height) !important;
 }
 
 body.grms-has-sidebar #content,
 body.grms-has-sidebar #content-main,
+body.grms-has-sidebar #main,
+body.grms-has-sidebar .grms-main-content,
 body.grms-has-sidebar .dashboard-wrapper {
     margin-left: var(--grms-sidebar-width) !important;
     padding-left: 0 !important;
