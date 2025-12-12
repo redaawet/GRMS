@@ -16,6 +16,7 @@ from grms.models import (
 RECOMMENDED_CODES_LOW = ["01"]
 RECOMMENDED_CODES_MEDIUM = ["01", "02"]
 RECOMMENDED_CODES_HIGH = ["05"]
+BOTTLENECK_ROAD_CODES = ["101", "102"]
 
 
 def _latest_mci_result(segment: RoadSegment) -> SegmentMCIResult | None:
@@ -32,6 +33,11 @@ def _codes_for_mci(mci_value: Decimal | None) -> list[str]:
     return RECOMMENDED_CODES_HIGH
 
 
+def _segment_has_bottleneck(segment: RoadSegment) -> bool:
+    has_method = getattr(segment, "has_road_bottleneck", None)
+    return bool(has_method()) if callable(has_method) else False
+
+
 @transaction.atomic
 def recommend_intervention_for_segment(segment: RoadSegment) -> int:
     """Recompute recommendations for a single segment based on the latest MCI."""
@@ -42,11 +48,20 @@ def recommend_intervention_for_segment(segment: RoadSegment) -> int:
     if mci_result is None:
         return 0
 
-    codes = _codes_for_mci(mci_result.mci_value)
-    if not codes:
+    base_codes = _codes_for_mci(mci_result.mci_value)
+    if not base_codes:
         return 0
 
-    work_items = InterventionWorkItem.objects.in_bulk(codes, field_name="work_code")
+    if "05" in base_codes:
+        final_codes = ["05"]
+    else:
+        final_codes = list(base_codes)
+        if _segment_has_bottleneck(segment):
+            for code in BOTTLENECK_ROAD_CODES:
+                if code not in final_codes:
+                    final_codes.append(code)
+
+    work_items = InterventionWorkItem.objects.in_bulk(final_codes, field_name="work_code")
 
     recommendations = [
         SegmentInterventionRecommendation(
@@ -54,7 +69,7 @@ def recommend_intervention_for_segment(segment: RoadSegment) -> int:
             mci_value=mci_result.mci_value,
             recommended_item=work_items[code],
         )
-        for code in codes
+        for code in final_codes
         if code in work_items
     ]
 
