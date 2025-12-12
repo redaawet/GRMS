@@ -63,10 +63,10 @@
 }
 
 #grms-sidebar .sidebar-group {
+  position: static;
   background: #ffffff;
   border: 1px solid #e5e7eb;
   border-radius: 8px;
-  overflow: hidden;
 }
 
 #grms-sidebar .sg-header {
@@ -93,14 +93,13 @@
 }
 
 #grms-sidebar .sg-content {
-  max-height: 0;
-  overflow: hidden;
-  transition: max-height 0.25s ease;
+  position: static;
+  display: none;
   background: #ffffff;
 }
 
 #grms-sidebar .sidebar-group.open > .sg-content {
-  max-height: 1200px;
+  display: block;
 }
 
 #grms-sidebar .sidebar-subgroup {
@@ -190,7 +189,10 @@
   overflow-y: auto;
 }
 
-.sg-content,
+.sg-content {
+  min-height: 0;
+}
+
 .ss-list {
   min-height: 0;
   overflow-y: auto;
@@ -201,5 +203,13 @@
 .sg-content *,
 .ss-list * {
   overflow-anchor: auto;
+}
+
+/* Keep main content clear of the fixed header */
+body.grms-admin #container,
+body.grms-admin .main,
+body.grms-admin #content,
+body.grms-admin .content {
+  padding-top: 48px;
 }
 
