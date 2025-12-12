@@ -1,117 +1,98 @@
 {% load static admin_urls sidebar_tags %}
 
-<style>
-  :root{
-    --grms-header-height: 64px;          /* adjust if your header is taller */
-    --grms-sidebar-width: 280px;
-    --grms-group-max: 240px;             /* per-group list max height */
-  }
+<aside id="grms-sidebar" class="sidebar grms-sidebar" aria-label="GRMS admin sidebar">
+  <style>
+    #grms-sidebar {
+      position: fixed;
+      top: var(--grms-header-height, 60px);
+      left: 0;
+      width: 240px;
+      height: calc(100vh - var(--grms-header-height, 60px));
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      padding: 8px;
+      box-sizing: border-box;
+      overflow: hidden;
+    }
 
-  /* Sidebar sits under header */
-  #grms-sidebar{
-    position: fixed;
-    top: var(--grms-header-height);
-    left: 0;
-    width: var(--grms-sidebar-width);
-    height: calc(100vh - var(--grms-header-height));
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;                    /* IMPORTANT: no whole-sidebar scroll */
-    z-index: 20;
-  }
-  summary.sg-header::-webkit-details-marker{ display:none; }
+    #grms-sidebar .sidebar-nav {
+      padding: 0;
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      overflow-y: auto;
+    }
 
-  .sg-content{ padding: .25rem 0 .75rem; background: #fff; border-radius: 0 0 10px 10px; }
-  .sg-content a.menu-item{ display:block; padding: .6rem .9rem; text-decoration:none; color: inherit; }
-  .sg-content a.menu-item:hover{ background: #f4f7fb; }
+    #grms-sidebar .sg-content {
+      display: block;
+    }
 
-  .sidebar-header{ flex: 0 0 auto; padding: .75rem; }
+    #grms-sidebar .ss-list {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      padding: 2px 0 8px;
+    }
 
-  /* IMPORTANT: allow groups to be visible; do not force nav to scroll */
-  .sidebar-nav{
-    flex: 1 1 auto;
-    overflow: hidden;                    /* IMPORTANT: no whole-nav scroll */
-    padding: 0 .5rem 1rem;
-  }
+    /* Keep main content clear of the fixed header */
+    body.grms-admin #container,
+    body.grms-admin .main,
+    body.grms-admin #content,
+    body.grms-admin .content {
+      padding-top: var(--grms-header-height, 60px);
+    }
+  </style>
 
-  /* Native accordion visuals (keep your existing classes if you have styling elsewhere) */
-  details.sidebar-group{ margin: .5rem 0; border-radius: 10px; background: #eef3f7; }
-  summary.sg-header{
-    list-style: none;
-    cursor: pointer;
-    padding: .75rem .9rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-  }
-  summary.sg-header::-webkit-details-marker{ display:none; }
+  <div class="sidebar-header">
+    <button id="sidebar-toggle" class="sidebar-toggle" type="button" aria-label="Collapse sidebar">▸</button>
+    <input id="sidebar-search" class="sidebar-search" type="search" placeholder="Search menu…" aria-label="Search menu"/>
+  </div>
 
-  details.sidebar-group .sg-content{
-    padding: .25rem 0 .75rem;
-    background: #fff;
-    border-radius: 0 0 10px 10px;
-    overflow: hidden;
-  }
+  <nav class="sidebar-nav" aria-label="GRMS admin navigation">
+    {% for group_title, group_items in MENU_GROUPS.items %}
 
-  details.sidebar-group[open] .sg-content{
-    max-height: var(--grms-group-max);
-    overflow-y: auto;                    /* per-group scrollbar */
-    overflow-x: hidden;
-  }
+      <details class="sidebar-group" data-group="{{ group_title|slugify }}">
+        <summary class="sg-header">
+          <span class="sg-title">{{ group_title }}</span>
+          <span class="sg-arrow" aria-hidden="true">▸</span>
+        </summary>
 
-  .sg-content a.menu-item{
-    display: block;
-    padding: .6rem .9rem;
-    text-decoration: none;
-    color: inherit;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  .sg-content a.menu-item:hover{ background: #f4f7fb; }
-</style>
-
-<div class="sidebar-header">
-  <button id="sidebar-toggle" class="sidebar-toggle" type="button" aria-label="Collapse sidebar">▸</button>
-  <input id="sidebar-search" class="sidebar-search" type="search" placeholder="Search menu…" aria-label="Search menu"/>
-</div>
-
-<nav class="sidebar-nav" aria-label="GRMS admin navigation">
-  {% for group_title, group_items in MENU_GROUPS.items %}
-
-    <details class="sidebar-group" data-group="{{ group_title|slugify }}">
-      <summary class="sg-header">
-        <span class="sg-title">{{ group_title }}</span>
-        <span class="sg-arrow" aria-hidden="true">▸</span>
-      </summary>
-
-      <div class="sg-content">
-        {# group_items can be list OR dict-of-subgroups #}
-        {% if group_items.items %}
-          {% for subgroup_title, subgroup_items in group_items.items %}
-            {% for model_name, display_name in subgroup_items %}
+        <div class="sg-content">
+          {# group_items can be list OR dict-of-subgroups #}
+          {% if group_items.items %}
+            {% for subgroup_title, subgroup_items in group_items.items %}
+              <details class="sidebar-subgroup">
+                <summary class="ss-header">
+                  <span class="ss-title">{{ subgroup_title }}</span>
+                  <span class="ss-arrow" aria-hidden="true">▸</span>
+                </summary>
+                <div class="ss-list">
+                  {% for model_name, display_name in subgroup_items %}
+                    {% resolve_model model_name as model %}
+                    {% if model %}
+                      <a class="ss-link menu-item" href="{% url model|admin_urlname:'changelist' %}">
+                        {{ display_name }}
+                      </a>
+                    {% endif %}
+                  {% endfor %}
+                </div>
+              </details>
+            {% endfor %}
+          {% else %}
+            {% for model_name, display_name in group_items %}
               {% resolve_model model_name as model %}
               {% if model %}
-                <a class="menu-item" href="{% url model|admin_urlname:'changelist' %}">
+                <a class="ss-link menu-item" href="{% url model|admin_urlname:'changelist' %}">
                   {{ display_name }}
                 </a>
               {% endif %}
             {% endfor %}
-          {% endfor %}
-        {% else %}
-          {% for model_name, display_name in group_items %}
-            {% resolve_model model_name as model %}
-            {% if model %}
-              <a class="menu-item" href="{% url model|admin_urlname:'changelist' %}">
-                {{ display_name }}
-              </a>
-            {% endif %}
-          {% endfor %}
-        {% endif %}
-      </div>
-    </details>
+          {% endif %}
+        </div>
+      </details>
 
-  {% endfor %}
-</nav>
+    {% endfor %}
+  </nav>
+</aside>
