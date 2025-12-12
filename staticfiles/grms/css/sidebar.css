@@ -1,17 +1,8 @@
 #grms-sidebar {
-  position: fixed;
-  top: 48px;
-  left: 0;
-  width: 240px;
-  height: calc(100vh - 48px);
   background: #f9fafb;
   border-right: 1px solid #e5e7eb;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: 8px;
+  border-radius: 0 12px 12px 0;
   box-sizing: border-box;
-  z-index: 1000;
 }
 
 #grms-sidebar * {
@@ -54,7 +45,6 @@
 }
 
 #grms-sidebar .sidebar-nav {
-  overflow-y: auto;
   padding: 0;
   margin: 0;
   display: flex;
@@ -93,13 +83,8 @@
 }
 
 #grms-sidebar .sg-content {
-  position: static;
-  display: none;
   background: #ffffff;
-}
-
-#grms-sidebar .sidebar-group.open > .sg-content {
-  display: block;
+  padding-bottom: 8px;
 }
 
 #grms-sidebar .sidebar-subgroup {
@@ -108,11 +93,6 @@
 
 #grms-sidebar .sidebar-subgroup:first-child {
   border-top: none;
-}
-
-#grms-sidebar .sidebar-group.single-subgroup .ss-header,
-#grms-sidebar .sidebar-group.single-subgroup .ss-arrow {
-  display: none;
 }
 
 #grms-sidebar .ss-header {
@@ -132,20 +112,11 @@
 }
 
 #grms-sidebar .ss-list {
-  display: none;
   padding: 2px 0 8px;
   margin: 0;
   gap: 2px;
+  display: flex;
   flex-direction: column;
-}
-
-#grms-sidebar .sidebar-group.single-subgroup .ss-list {
-  display: flex;
-  padding-top: 6px;
-}
-
-#grms-sidebar .sidebar-subgroup.open > .ss-list {
-  display: flex;
 }
 
 #grms-sidebar .ss-link {
@@ -173,43 +144,13 @@
   color: #ffffff;
 }
 
-#grms-sidebar .sidebar-group.open > .sg-header .sg-arrow,
-#grms-sidebar .sidebar-subgroup.open > .ss-header .ss-arrow {
+#grms-sidebar details[open] > summary .sg-arrow,
+#grms-sidebar details[open] > summary .ss-arrow {
   transform: rotate(90deg);
 }
 
-/* Ensure sidebar content can scroll without clipping */
-.sidebar {
-  height: 100vh;
-  overflow-y: auto;
-}
-
-.sidebar-nav {
-  min-height: 0;
-  overflow-y: auto;
-}
-
-.sg-content {
-  min-height: 0;
-}
-
-.ss-list {
-  min-height: 0;
-  overflow-y: auto;
-  overflow-x: hidden;
-}
-
-.sidebar *,
-.sg-content *,
-.ss-list * {
+#grms-sidebar .sidebar *,
+#grms-sidebar .sg-content *,
+#grms-sidebar .ss-list * {
   overflow-anchor: auto;
 }
-
-/* Keep main content clear of the fixed header */
-body.grms-admin #container,
-body.grms-admin .main,
-body.grms-admin #content,
-body.grms-admin .content {
-  padding-top: 48px;
-}
-
