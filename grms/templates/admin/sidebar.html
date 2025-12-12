@@ -1,12 +1,24 @@
 {% load static admin_urls sidebar_tags %}
 <style>
-  .sidebar {
-    --sidebar-header-height: 56px;
-    --sidebar-section-padding: 16px;
+  :root {
+    --grms-header-height: 64px;
+    --grms-sidebar-width: 280px;
+  }
+
+  #grms-sidebar.sidebar {
+    position: fixed;
+    top: var(--grms-header-height);
+    left: 0;
+    width: var(--grms-sidebar-width);
+    height: calc(100vh - var(--grms-header-height));
     display: flex;
     flex-direction: column;
-    height: 100vh;
     overflow: hidden;
+    z-index: 10;
+  }
+
+  .sidebar-header {
+    flex: 0 0 auto;
   }
 
   .sidebar-header {
@@ -19,45 +31,40 @@
 
   .sidebar-nav {
     flex: 1 1 auto;
+    overflow-y: auto;
+    overflow-x: hidden;
     display: flex;
     flex-direction: column;
     gap: 0.75rem;
-    min-height: 0;
-    overflow-x: hidden;
-    overflow-y: auto;
-    padding-top: 0.5rem;
     padding-bottom: 1rem;
   }
 
   .sidebar-group {
+    position: relative;
     display: flex;
     flex-direction: column;
     gap: 0.35rem;
-    min-height: 0;
+    margin-bottom: 0.5rem;
   }
 
   .sg-header {
     flex: 0 0 auto;
   }
 
-  #grms-sidebar .sg-content {
-    max-height: 0;
-    min-height: 0;
-    overflow-x: hidden;
-    overflow-y: hidden;
-    transition: max-height 0.25s ease;
-  }
-
-  #grms-sidebar .sidebar-group.open > .sg-content {
-    max-height: 420px;
-    overflow-y: auto;
-    padding-bottom: 0.5rem;
+  .sg-content {
+    position: static;
+    overflow: visible;
   }
 
   .sg-list {
     display: flex;
     flex-direction: column;
     gap: 0.35rem;
+  }
+
+  #content,
+  #content-main {
+    margin-left: var(--grms-sidebar-width);
   }
 </style>
 <div id="grms-sidebar" class="sidebar">
