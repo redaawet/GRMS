@@ -16,8 +16,6 @@
 .nav-sidebar {
     background: var(--sidebar-bg);
     padding: 6px 8px;
-    max-height: calc(100vh - var(--grms-header-height, 64px));
-    overflow-y: auto;
 }
 
 #nav-sidebar .nav-collapsed {

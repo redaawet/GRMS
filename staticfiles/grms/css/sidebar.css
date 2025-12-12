@@ -1,9 +1,9 @@
 #grms-sidebar {
   position: fixed;
-  top: var(--grms-header-height);
+  top: var(--admin-header-height, var(--grms-header-height));
   left: 0;
   width: var(--grms-sidebar-width, 240px);
-  height: calc(100vh - var(--grms-header-height));
+  height: calc(100vh - var(--admin-header-height, var(--grms-header-height)));
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -166,11 +166,6 @@
 #grms-sidebar details[open] > .sg-header .sg-arrow,
 #grms-sidebar details[open] > .ss-header .ss-arrow {
   transform: rotate(90deg);
-}
-
-details.sidebar-group[open] > .sg-content {
-  max-height: var(--grms-group-max, 420px);
-  overflow-y: auto;
 }
 
 /* Ensure sidebar content can scroll without clipping */
