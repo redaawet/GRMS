@@ -13,10 +13,39 @@
 
   .sidebar-nav {
     flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    overflow: hidden;
+  }
+
+  .sidebar-group {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  .sidebar-group.open {
+    flex: 1 1 auto;
+  }
+
+  .sg-header {
+    flex: 0 0 auto;
+  }
+
+  .sg-content {
+    flex: 1 1 auto;
+    max-height: 100%;
     min-height: 0;
     overflow-y: auto;
     overflow-x: hidden;
     padding-bottom: 1rem;
+  }
+
+  .sg-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
   }
 </style>
 <div id="grms-sidebar" class="sidebar">
@@ -47,11 +76,7 @@
         </div>
         <div class="sg-content">
           <div class="sidebar-subgroup" data-sub="{{ group_title|slugify }}">
-            <div class="ss-header menu-group-title">
-              <span class="ss-title">{{ group_title }}</span>
-              <span class="ss-arrow" aria-hidden="true">▸</span>
-            </div>
-            <div class="ss-list">
+            <div class="ss-list sg-list">
               {% for model_name, display_name in group_items %}
                 {% resolve_model model_name as model %}
                 {% if model %}
