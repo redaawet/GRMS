@@ -1,32 +1,6 @@
 {% load static admin_urls sidebar_tags %}
 
 <aside id="grms-sidebar" class="sidebar grms-sidebar" aria-label="GRMS admin sidebar">
-  <style>
-    #grms-sidebar {
-      position: fixed;
-      top: var(--grms-header-height);
-      left: 0;
-      width: 240px;
-      height: calc(100vh - var(--grms-header-height));
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-      padding: 8px;
-      box-sizing: border-box;
-      background: #f9fafb;
-      border-right: 1px solid #e5e7eb;
-      z-index: 1000;
-      overflow: hidden;
-    }
-
-    /* Keep main content clear of the fixed header */
-    body.grms-admin #container,
-    body.grms-admin .main,
-    body.grms-admin #content,
-    body.grms-admin .content {
-      padding-top: var(--grms-header-height);
-    }
-  </style>
 
   <div class="sidebar-header">
     <button id="sidebar-toggle" class="sidebar-toggle" type="button" aria-label="Collapse sidebar">▸</button>
