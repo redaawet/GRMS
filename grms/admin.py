@@ -6,9 +6,9 @@ from typing import Dict, List, Sequence, Tuple
 from decimal import Decimal, ROUND_HALF_UP
 
 from django import forms
-from django.contrib import admin
+from django.contrib import admin, messages
 from django.contrib.admin import AdminSite
-from django.db.models import Sum
+from django.db.models import Min, Sum
 from django.template.response import TemplateResponse
 from django.http import JsonResponse
 from django.shortcuts import redirect
@@ -18,7 +18,7 @@ from . import models
 from .menu import MENU_GROUPS as DEFAULT_MENU_GROUPS
 from traffic.models import TrafficSurveyOverall, TrafficSurveySummary
 from .gis_fields import LineStringField, PointField
-from .services import map_services, prioritization
+from .services import map_services, mci_intervention, prioritization
 from .utils import make_point, point_to_lat_lng, utm_to_wgs84, wgs84_to_utm
 
 try:  # pragma: no cover - depends on spatial libs
@@ -621,6 +621,24 @@ class AdminWoredaAdmin(admin.ModelAdmin):
     fieldsets = (("Woreda", {"fields": ("name", "zone")}),)
 
 
+@admin.register(models.InterventionCategory, site=grms_admin_site)
+class InterventionCategoryAdmin(admin.ModelAdmin):
+    list_display = ("name",)
+    search_fields = ("name",)
+    fieldsets = (("Intervention category", {"fields": ("name",)}),)
+
+
+@admin.register(models.InterventionWorkItem, site=grms_admin_site)
+class InterventionWorkItemAdmin(admin.ModelAdmin):
+    list_display = ("work_code", "description", "category", "unit", "unit_cost")
+    list_filter = ("category",)
+    search_fields = ("work_code", "description", "category__name")
+    fieldsets = (
+        ("Work item", {"fields": ("category", "work_code", "description")}),
+        ("Measurement", {"fields": ("unit", "unit_cost")}),
+    )
+
+
 @admin.register(models.ConditionFactorLookup, site=grms_admin_site)
 class ConditionFactorLookupAdmin(admin.ModelAdmin):
     list_display = ("factor_type", "rating", "factor_value", "description")
@@ -649,11 +667,130 @@ class MCICategoryLookupAdmin(admin.ModelAdmin):
     search_fields = ("name", "code")
 
 
+@admin.register(models.MCIRoadMaintenanceRule, site=grms_admin_site)
+class MCIRoadMaintenanceRuleAdmin(admin.ModelAdmin):
+    list_display = (
+        "mci_min",
+        "mci_max",
+        "routine",
+        "periodic",
+        "rehabilitation",
+        "priority",
+        "is_active",
+    )
+    list_filter = ("is_active", "routine", "periodic", "rehabilitation")
+    search_fields = ("mci_min", "mci_max")
+    ordering = ("priority", "mci_min")
+
+
 @admin.register(models.SegmentMCIResult, site=grms_admin_site)
 class SegmentMCIResultAdmin(admin.ModelAdmin):
     list_display = ("road_segment", "survey_date", "mci_value", "mci_category")
     list_filter = ("survey_date", "mci_category")
     readonly_fields = ("computed_at",)
+
+
+@admin.register(models.SegmentInterventionRecommendation, site=grms_admin_site)
+class SegmentInterventionRecommendationAdmin(admin.ModelAdmin):
+    list_display = (
+        "road_name",
+        "section_number",
+        "segment_display",
+        "mci_value",
+        "combined_recommendations",
+    )
+    list_select_related = (
+        "segment__section__road",
+        "recommended_item",
+    )
+    search_fields = (
+        "segment__section__road__road_identifier",
+        "segment__section__road__road_name_from",
+        "segment__section__road__road_name_to",
+        "segment__section__section_number",
+        "segment__id",
+        "recommended_item__work_code",
+        "recommended_item__description",
+    )
+    readonly_fields = ("segment", "mci_value", "recommended_item", "calculated_on")
+    actions = ["recompute_intervention"]
+
+    def get_queryset(self, request):
+        base_qs = super().get_queryset(request).select_related(
+            "segment__section__road",
+            "recommended_item",
+        )
+        min_ids = (
+            base_qs.values("segment")
+            .annotate(min_id=Min("id"))
+            .values_list("min_id", flat=True)
+        )
+        return base_qs.filter(id__in=min_ids)
+
+    def road_name(self, obj):
+        if not obj.segment_id:
+            return ""
+        road = obj.segment.section.road
+        name = getattr(road, "name", None)
+        if name:
+            return name
+        return f"{road.road_name_from} – {road.road_name_to}"
+
+    def section_number(self, obj):
+        return obj.segment.section.section_number if obj.segment_id else ""
+
+    def segment_display(self, obj):
+        if not obj.segment_id:
+            return ""
+        seg = obj.segment
+        if seg.station_from_km is not None and seg.station_to_km is not None:
+            return f"{seg.station_from_km}-{seg.station_to_km} km"
+        return f"Segment {seg.id}" if seg.id else ""
+
+    def combined_recommendations(self, obj):
+        if not obj.segment_id:
+            return ""
+        recommendations = (
+            obj.segment.intervention_recommendations.all()
+            .select_related("recommended_item")
+            .order_by("recommended_item__work_code")
+        )
+        parts = []
+        for rec in recommendations:
+            item = rec.recommended_item
+            if item:
+                parts.append(f"{item.work_code} - {item.description}")
+        return ", ".join(parts)
+
+    road_name.short_description = "Road name"
+    section_number.short_description = "Section no."
+    segment_display.short_description = "Segment"
+    combined_recommendations.short_description = "Recommendations"
+
+    def recompute_intervention(self, request, queryset):
+        segment_ids = queryset.values_list("segment_id", flat=True).distinct()
+        segments = models.RoadSegment.objects.filter(id__in=segment_ids)
+        processed_segments, created = mci_intervention.recompute_interventions_for_segments(segments)
+        self.message_user(
+            request,
+            f"Recomputed interventions for {processed_segments} selected segment(s); "
+            f"created {created} recommendation(s).",
+            level=messages.SUCCESS,
+        )
+
+    recompute_intervention.short_description = "Recompute Intervention"
+
+    def response_action(self, request, queryset):
+        if request.POST.get("action") == "recompute_intervention" and not queryset.exists():
+            processed_segments, created = mci_intervention.recompute_all_segment_interventions()
+            self.message_user(
+                request,
+                f"Recomputed interventions for {processed_segments} segment(s); "
+                f"created {created} recommendation(s).",
+                level=messages.SUCCESS,
+            )
+            return None
+        return super().response_action(request, queryset)
 
 
 @admin.register(models.RoadSection, site=grms_admin_site)

@@ -46,22 +46,29 @@ MENU_GROUPS = {
     "Maintenance_Planning": [
         ("StructureIntervention", "Structure interventions"),
         ("RoadSectionIntervention", "Road section interventions"),
+        ("SegmentInterventionRecommendation", "Road segment interventions"),
         ("BenefitFactor", "Benefit factors"),
         ("PrioritizationResult", "Prioritization results"),
         ("AnnualWorkPlan", "Annual work plans"),
         ("SegmentMCIResult", "Segment MCI results"),
     ],
 
+    "Maintenance_Planning_Rules": [
+        ("MCICategoryLookup", "MCI categories"),
+        ("MCIRoadMaintenanceRule", "Road maintenance rules"),
+    ],
+
     "Reference_Lookups": {
         "Asset Classification": [
             ("ActivityLookup", "Activity lookups"),
+            ("InterventionCategory", "Intervention categories"),
+            ("InterventionWorkItem", "Intervention work items"),
             ("InterventionLookup", "Intervention lookups"),
             ("UnitCost", "Unit costs"),
         ],
         "Condition & Survey": [
             ("ConditionFactorLookup", "Condition factors"),
             ("MCIWeightConfig", "MCI weight configurations"),
-            ("MCICategoryLookup", "MCI categories"),
             ("QAStatus", "QA statuses"),
         ],
         "Distress Classification": [

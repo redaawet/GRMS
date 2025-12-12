@@ -114,6 +114,42 @@ class InterventionLookup(models.Model):
         return f"{self.intervention_code} - {self.name}"
 
 
+class InterventionCategory(models.Model):
+    """Category for intervention work items used in planning lookups."""
+
+    name = models.CharField(max_length=100, unique=True)
+
+    class Meta:
+        ordering = ["name"]
+        verbose_name = "Intervention category"
+        verbose_name_plural = "Intervention categories"
+
+    def __str__(self) -> str:  # pragma: no cover - simple repr
+        return self.name
+
+
+class InterventionWorkItem(models.Model):
+    """Lookup for intervention work items with optional default cost."""
+
+    category = models.ForeignKey(
+        InterventionCategory,
+        on_delete=models.PROTECT,
+        related_name="work_items",
+    )
+    work_code = models.CharField(max_length=5, unique=True)
+    description = models.CharField(max_length=255)
+    unit = models.CharField(max_length=30)
+    unit_cost = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+
+    class Meta:
+        ordering = ["work_code"]
+        verbose_name = "Intervention work item"
+        verbose_name_plural = "Intervention work items"
+
+    def __str__(self) -> str:  # pragma: no cover - simple repr
+        return f"{self.work_code} - {self.description}"
+
+
 class ActivityLookup(models.Model):
     """ERA maintenance activity codes used in detailed surveys."""
 
@@ -1492,7 +1528,8 @@ class MCICategoryLookup(models.Model):
     severity_order = models.PositiveSmallIntegerField(default=1)
 
     default_intervention = models.ForeignKey(
-        "InterventionLookup",
+        "InterventionWorkItem",
+        to_field="work_code",
         null=True,
         blank=True,
         on_delete=models.SET_NULL,
@@ -1517,6 +1554,74 @@ class MCICategoryLookup(models.Model):
                 mci_max__gte=value,
             )
             .order_by("severity_order")
+            .first()
+        )
+
+
+class MCIRoadMaintenanceRule(models.Model):
+    mci_min = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    mci_max = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+
+    routine = models.BooleanField(default=False)
+    periodic = models.BooleanField(default=False)
+    rehabilitation = models.BooleanField(default=False)
+
+    priority = models.PositiveSmallIntegerField(default=1)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ["priority", "mci_min"]
+        verbose_name = "MCI road maintenance rule"
+        verbose_name_plural = "MCI road maintenance rules"
+
+    def __str__(self):  # pragma: no cover - simple admin label
+        return f"MCI {self.mci_min or '-inf'} – {self.mci_max or 'inf'}"
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+
+        if self.mci_min is not None and self.mci_max is not None and self.mci_min >= self.mci_max:
+            raise ValidationError("mci_min must be less than mci_max")
+
+        if not self.is_active:
+            return
+
+        qs = MCIRoadMaintenanceRule.objects.filter(is_active=True)
+        if self.pk:
+            qs = qs.exclude(pk=self.pk)
+
+        overlaps = []
+        for other in qs:
+            if self._overlaps(other):
+                overlaps.append(other)
+
+        if overlaps:
+            raise ValidationError("Active rule ranges cannot overlap.")
+
+    def _overlaps(self, other: "MCIRoadMaintenanceRule") -> bool:
+        """Half-open range overlap check allowing touching boundaries."""
+
+        lower_a = self.mci_min
+        upper_a = self.mci_max
+        lower_b = other.mci_min
+        upper_b = other.mci_max
+
+        lower_a = lower_a if lower_a is not None else Decimal("-Infinity")
+        upper_a = upper_a if upper_a is not None else Decimal("Infinity")
+        lower_b = lower_b if lower_b is not None else Decimal("-Infinity")
+        upper_b = upper_b if upper_b is not None else Decimal("Infinity")
+
+        return lower_a < upper_b and lower_b < upper_a
+
+    @classmethod
+    def match_for_mci(cls, value: Decimal):
+        return (
+            cls.objects.filter(
+                models.Q(mci_min__lte=value) | models.Q(mci_min__isnull=True),
+                models.Q(mci_max__gt=value) | models.Q(mci_max__isnull=True),
+                is_active=True,
+            )
+            .order_by("priority", "mci_min")
             .first()
         )
 
@@ -1636,7 +1741,8 @@ class SegmentMCIResult(models.Model):
     )
 
     recommended_intervention = models.ForeignKey(
-        "InterventionLookup",
+        "InterventionWorkItem",
+        to_field="work_code",
         null=True,
         blank=True,
         on_delete=models.SET_NULL,
@@ -1724,6 +1830,32 @@ class SegmentMCIResult(models.Model):
         Calls create_from_survey() which already does update_or_create().
         """
         return cls.create_from_survey(survey, config=config)
+
+
+class SegmentInterventionRecommendation(models.Model):
+    segment = models.ForeignKey(
+        "RoadSegment",
+        on_delete=models.CASCADE,
+        related_name="intervention_recommendations",
+    )
+    mci_value = models.DecimalField(max_digits=6, decimal_places=2)
+    recommended_item = models.ForeignKey(
+        "InterventionWorkItem",
+        on_delete=models.PROTECT,
+        related_name="segment_recommendations",
+    )
+    calculated_on = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["segment_id", "recommended_item__work_code"]
+        unique_together = ("segment", "recommended_item")
+        verbose_name = "Segment intervention recommendation"
+        verbose_name_plural = "Segment intervention recommendations"
+
+    def __str__(self) -> str:  # pragma: no cover - simple repr
+        code = getattr(self.recommended_item, "work_code", self.recommended_item_id)
+        return f"{self.segment_id} → {code}"
+
 
 class FurnitureConditionSurvey(models.Model):
     furniture = models.ForeignKey(FurnitureInventory, on_delete=models.CASCADE, related_name="surveys")
