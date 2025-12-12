@@ -7,30 +7,75 @@
     overflow: hidden;
   }
 
+  .sidebar-header {
+    flex: 0 0 auto;
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: inherit;
+  }
+
   .sidebar-nav {
     flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
     min-height: 0;
-    overflow-y: auto;
     overflow-x: hidden;
+    overflow-y: auto;
+    padding-top: 0.5rem;
     padding-bottom: 1rem;
+  }
+
+  .sidebar-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    min-height: 0;
+  }
+
+  .sg-header {
+    flex: 0 0 auto;
+  }
+
+  #grms-sidebar .sg-content {
+    max-height: 0;
+    min-height: 0;
+    overflow-x: hidden;
+    overflow-y: hidden;
+    transition: max-height 0.25s ease;
+  }
+
+  #grms-sidebar .sidebar-group.open > .sg-content {
+    max-height: 420px;
+    overflow-y: auto;
+    padding-bottom: 0.5rem;
+  }
+
+  .sg-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
   }
 </style>
 <div id="grms-sidebar" class="sidebar">
-  <button
-    id="sidebar-toggle"
-    class="sidebar-toggle"
-    type="button"
-    aria-label="Collapse sidebar"
-  >
-    ▸
-  </button>
-  <input
-    id="sidebar-search"
-    class="sidebar-search"
-    type="search"
-    placeholder="Search menu…"
-    aria-label="Search menu"
-  />
+  <div class="sidebar-header">
+    <button
+      id="sidebar-toggle"
+      class="sidebar-toggle"
+      type="button"
+      aria-label="Collapse sidebar"
+    >
+      ▸
+    </button>
+    <input
+      id="sidebar-search"
+      class="sidebar-search"
+      type="search"
+      placeholder="Search menu…"
+      aria-label="Search menu"
+    />
+  </div>
 
   <nav class="sidebar-nav" aria-label="GRMS admin navigation">
     {% for group_title, group_items in MENU_GROUPS.items %}
@@ -40,21 +85,15 @@
           <span class="sg-arrow" aria-hidden="true">▸</span>
         </div>
         <div class="sg-content">
-          <div class="sidebar-subgroup" data-sub="{{ group_title|slugify }}">
-            <div class="ss-header menu-group-title">
-              <span class="ss-title">{{ group_title }}</span>
-              <span class="ss-arrow" aria-hidden="true">▸</span>
-            </div>
-            <div class="ss-list">
-              {% for model_name, display_name in group_items %}
-                {% resolve_model model_name as model %}
-                {% if model %}
-                  <a class="ss-link menu-item" href="{% url model|admin_urlname:'changelist' %}">
-                    <span class="link-label">{{ display_name }}</span>
-                  </a>
-                {% endif %}
-              {% endfor %}
-            </div>
+          <div class="ss-list sg-list">
+            {% for model_name, display_name in group_items %}
+              {% resolve_model model_name as model %}
+              {% if model %}
+                <a class="ss-link menu-item" href="{% url model|admin_urlname:'changelist' %}">
+                  <span class="link-label">{{ display_name }}</span>
+                </a>
+              {% endif %}
+            {% endfor %}
           </div>
         </div>
       </div>
