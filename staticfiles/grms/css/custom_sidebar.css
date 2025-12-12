@@ -16,7 +16,7 @@
 .nav-sidebar {
     background: var(--sidebar-bg);
     padding: 6px 8px;
-    max-height: calc(100vh - 60px);
+    max-height: calc(100vh - var(--grms-header-height, 64px));
     overflow-y: auto;
 }
 
@@ -74,14 +74,14 @@
 
 /* Subgroup items */
 .subgroup-items {
-    overflow: hidden;
-    max-height: 0;
-    transition: max-height 0.25s ease;
+    overflow: visible;
+    max-height: none;
+    transition: none;
     padding-left: 12px;
 }
 
 .subgroup-items.show {
-    max-height: 1200px;
+    max-height: none;
 }
 
 /* Model items */

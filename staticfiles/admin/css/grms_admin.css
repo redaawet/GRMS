@@ -1,5 +1,5 @@
 :root {
-    --grms-sidebar-width: 280px;
+    --grms-sidebar-width: 240px;
     --grms-header-height: 64px;
 }
 
@@ -15,7 +15,7 @@
 }
 
 /* Fix sidebar alignment */
-#grms-sidebar {
+body.grms-has-sidebar #grms-sidebar {
     position: fixed;
     top: var(--grms-header-height);
     left: 0;
@@ -25,18 +25,22 @@
     flex-direction: column;
     background: #fafafa;
     border-right: 1px solid #ddd;
-    overflow: hidden;
+    overflow-y: auto;
     z-index: 1000;
 }
 
 /* Fix main content width and shift */
-#container, #content, #content-main {
+body.grms-has-sidebar #container,
+body.grms-has-sidebar .main,
+body.grms-has-sidebar #content,
+body.grms-has-sidebar .content,
+body.grms-has-sidebar #content-main {
     padding-top: var(--grms-header-height) !important;
 }
 
-#content,
-#content-main,
-.dashboard-wrapper {
+body.grms-has-sidebar #content,
+body.grms-has-sidebar #content-main,
+body.grms-has-sidebar .dashboard-wrapper {
     margin-left: var(--grms-sidebar-width) !important;
     padding-left: 0 !important;
     width: calc(100% - var(--grms-sidebar-width)) !important;
