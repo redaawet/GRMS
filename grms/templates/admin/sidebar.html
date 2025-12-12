@@ -1,4 +1,20 @@
 {% load static admin_urls sidebar_tags %}
+<style>
+  .sidebar {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  .sidebar-nav {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding-bottom: 1rem;
+  }
+</style>
 <div id="grms-sidebar" class="sidebar">
   <button
     id="sidebar-toggle"
