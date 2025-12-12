@@ -7,6 +7,10 @@
     overflow: hidden;
   }
 
+  .sidebar-header {
+    flex: 0 0 auto;
+  }
+
   .sidebar-nav {
     flex: 1 1 auto;
     min-height: 0;
@@ -16,21 +20,23 @@
   }
 </style>
 <div id="grms-sidebar" class="sidebar">
-  <button
-    id="sidebar-toggle"
-    class="sidebar-toggle"
-    type="button"
-    aria-label="Collapse sidebar"
-  >
-    ▸
-  </button>
-  <input
-    id="sidebar-search"
-    class="sidebar-search"
-    type="search"
-    placeholder="Search menu…"
-    aria-label="Search menu"
-  />
+  <div class="sidebar-header">
+    <button
+      id="sidebar-toggle"
+      class="sidebar-toggle"
+      type="button"
+      aria-label="Collapse sidebar"
+    >
+      ▸
+    </button>
+    <input
+      id="sidebar-search"
+      class="sidebar-search"
+      type="search"
+      placeholder="Search menu…"
+      aria-label="Search menu"
+    />
+  </div>
 
   <nav class="sidebar-nav" aria-label="GRMS admin navigation">
     {% for group_title, group_items in MENU_GROUPS.items %}
