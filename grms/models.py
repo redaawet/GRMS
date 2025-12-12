@@ -805,6 +805,12 @@ class RoadSegment(models.Model):
             f"({self.station_from_km}-{self.station_to_km} km)"
         )
 
+    def has_road_bottleneck(self) -> bool:
+        """Return True when the latest survey reports a bottleneck."""
+
+        survey = self.condition_surveys.order_by("-inspection_date", "-id").first()
+        return bool(survey and survey.is_there_bottleneck)
+
 
 class StructureInventory(models.Model):
     """
@@ -1615,15 +1621,21 @@ class MCIRoadMaintenanceRule(models.Model):
 
     @classmethod
     def match_for_mci(cls, value: Decimal):
-        return (
+        matches = list(
             cls.objects.filter(
                 models.Q(mci_min__lte=value) | models.Q(mci_min__isnull=True),
-                models.Q(mci_max__gt=value) | models.Q(mci_max__isnull=True),
+                models.Q(mci_max__gte=value) | models.Q(mci_max__isnull=True),
                 is_active=True,
-            )
-            .order_by("priority", "mci_min")
-            .first()
+            ).order_by("priority", "mci_min")
         )
+
+        if len(matches) > 1:
+            conflicting = ", ".join(str(rule.pk) for rule in matches)
+            raise ValueError(
+                f"Multiple active MCI road maintenance rules match value {value}: {conflicting}"
+            )
+
+        return matches[0] if matches else None
 
 
 class RoadConditionSurvey(models.Model):

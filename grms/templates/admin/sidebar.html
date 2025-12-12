@@ -49,6 +49,34 @@
   #content, #content-main{
     margin-left: var(--grms-sidebar-width);
   }
+
+  .sidebar-group {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .sg-header {
+    flex: 0 0 auto;
+  }
+
+  .sg-content {
+    position: static;
+    overflow: visible;
+  }
+
+  .sg-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+  }
+
+  #content,
+  #content-main {
+    margin-left: var(--grms-sidebar-width);
+  }
 </style>
 
 <div id="grms-sidebar" class="sidebar">
