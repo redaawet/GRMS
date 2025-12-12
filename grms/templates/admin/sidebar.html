@@ -19,14 +19,15 @@
     flex-direction: column;
     gap: 0.75rem;
     min-height: 0;
-    overflow: hidden;
+    overflow-x: hidden;
+    overflow-y: auto;
+    padding-bottom: 1rem;
   }
 
   .sidebar-group {
     display: flex;
     flex-direction: column;
-    position: relative;
-    margin-bottom: 0.5rem;
+    gap: 0.35rem;
     min-height: 0;
   }
 
@@ -39,14 +40,13 @@
     min-height: 0;
     overflow-x: hidden;
     overflow-y: hidden;
-    padding-bottom: 0;
     transition: max-height 0.25s ease;
   }
 
   #grms-sidebar .sidebar-group.open > .sg-content {
-    max-height: calc(100vh - var(--sidebar-header-height) - var(--sidebar-section-padding));
+    max-height: 420px;
     overflow-y: auto;
-    padding-bottom: 1rem;
+    padding-bottom: 0.5rem;
   }
 
   .sg-list {
@@ -82,17 +82,15 @@
           <span class="sg-arrow" aria-hidden="true">▸</span>
         </div>
         <div class="sg-content">
-          <div class="sidebar-subgroup" data-sub="{{ group_title|slugify }}">
-            <div class="ss-list sg-list">
-              {% for model_name, display_name in group_items %}
-                {% resolve_model model_name as model %}
-                {% if model %}
-                  <a class="ss-link menu-item" href="{% url model|admin_urlname:'changelist' %}">
-                    <span class="link-label">{{ display_name }}</span>
-                  </a>
-                {% endif %}
-              {% endfor %}
-            </div>
+          <div class="ss-list sg-list">
+            {% for model_name, display_name in group_items %}
+              {% resolve_model model_name as model %}
+              {% if model %}
+                <a class="ss-link menu-item" href="{% url model|admin_urlname:'changelist' %}">
+                  <span class="link-label">{{ display_name }}</span>
+                </a>
+              {% endif %}
+            {% endfor %}
           </div>
         </div>
       </div>
