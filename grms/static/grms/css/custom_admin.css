@@ -4,7 +4,7 @@
 
 :root {
     --grms-sidebar-width: 240px;
-    --grms-header-height: 60px;
+    --grms-header-height: 64px;
     --grms-group-max: 420px;
 }
 
@@ -49,10 +49,18 @@
     color: #1e3a8a;
 }
 
+body.grms-has-sidebar #container,
+body.grms-has-sidebar .main,
+body.grms-has-sidebar #content,
+body.grms-has-sidebar .content,
+body.grms-has-sidebar #content-main {
+    padding-top: var(--grms-header-height);
+    box-sizing: border-box;
+}
+
 #container,
 #content,
 #content-main {
-    padding-top: var(--grms-header-height);
     margin-left: var(--grms-sidebar-width);
     box-sizing: border-box;
 }
