@@ -79,6 +79,7 @@
 
 #grms-sidebar .sg-content {
   background: #ffffff;
+  display: block;
 }
 
 #grms-sidebar .sidebar-subgroup {
