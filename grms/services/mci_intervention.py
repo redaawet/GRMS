@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from typing import Iterable
 
 from django.db import transaction
@@ -14,6 +15,8 @@ from grms.models import (
 
 
 BOTTLENECK_ROAD_CODES = ["101", "102"]
+
+logger = logging.getLogger(__name__)
 
 
 def _latest_mci_result(segment: RoadSegment) -> SegmentMCIResult | None:
@@ -50,9 +53,22 @@ def recommend_intervention_for_segment(segment: RoadSegment) -> int:
         return 0
 
     rule = MCIRoadMaintenanceRule.match_for_mci(mci_result.mci_value)
+    if rule is None:
+        message = (
+            "No active MCI road maintenance rule matches segment "
+            f"{segment.id} (MCI {mci_result.mci_value})."
+        )
+        logger.warning(message)
+        raise ValueError(message)
+
     base_codes = _codes_for_rule(rule)
     if not base_codes:
-        return 0
+        message = (
+            "Matched MCI road maintenance rule for segment "
+            f"{segment.id} but it defines no work codes."
+        )
+        logger.warning(message)
+        raise ValueError(message)
 
     if "05" in base_codes:
         final_codes = ["05"]
