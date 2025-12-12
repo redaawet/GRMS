@@ -27,6 +27,13 @@ def copy_population_to_road(apps, schema_editor):
         )
 
 
+def drop_population_column(apps, schema_editor):
+    if schema_editor.connection.vendor == "sqlite":
+        return
+
+    schema_editor.execute("ALTER TABLE grms_road DROP COLUMN IF EXISTS population_served;")
+
+
 class Migration(migrations.Migration):
 
     dependencies = [
@@ -45,10 +52,7 @@ class Migration(migrations.Migration):
         migrations.SeparateDatabaseAndState(
             # The column may already be missing on some databases; drop it only if present
             database_operations=[
-                migrations.RunSQL(
-                    sql="ALTER TABLE grms_road DROP COLUMN IF EXISTS population_served;",
-                    reverse_sql=migrations.RunSQL.noop,
-                )
+                migrations.RunPython(drop_population_column, migrations.RunPython.noop)
             ],
             state_operations=[
                 migrations.RemoveField(

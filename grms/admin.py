@@ -15,7 +15,7 @@ from django.shortcuts import redirect
 from django.urls import path, reverse
 
 from . import models
-from .menu import MENU_GROUPS as DEFAULT_MENU_GROUPS
+from .menu import build_menu_groups
 from traffic.models import TrafficSurveyOverall, TrafficSurveySummary
 from .gis_fields import LineStringField, PointField
 from .services import map_services, mci_intervention, prioritization
@@ -81,7 +81,12 @@ class GRMSAdminSite(AdminSite):
         "trafficforprioritization",
     }
 
-    MENU_GROUPS: Dict[str, MenuGroup] = DEFAULT_MENU_GROUPS
+    MENU_GROUPS: Dict[str, MenuGroup] = {}
+
+    def _get_menu_groups(self) -> Dict[str, MenuGroup]:
+        """Build menu groups dynamically from the registered admin models."""
+        self.MENU_GROUPS = build_menu_groups(self)
+        return self.MENU_GROUPS
 
     @staticmethod
     def _normalise(name: str) -> str:
@@ -148,13 +153,14 @@ class GRMSAdminSite(AdminSite):
                 lookup.setdefault(normalised, []).append(model_copy)
         return lookup
 
-    def _build_sections(self, request) -> List[Dict[str, object]]:
+    def _build_sections(self, request, menu_groups=None) -> List[Dict[str, object]]:
         app_list = self.get_app_list(request)
         lookup = self._build_model_lookup(app_list)
         assigned: set[tuple[str | None, str]] = set()
         sections: List[Dict[str, object]] = []
 
-        for title, models_group in self.MENU_GROUPS.items():
+        menu_groups = menu_groups or self._get_menu_groups()
+        for title, models_group in menu_groups.items():
             display_title = title.replace("_", " ").strip()
             grouped_models: List[Dict[str, object]] = []
             for target in self._flatten_group_models(models_group):
@@ -190,8 +196,9 @@ class GRMSAdminSite(AdminSite):
 
     def each_context(self, request):
         context = super().each_context(request)
-        context["sections"] = self._build_sections(request)
-        context["MENU_GROUPS"] = self.MENU_GROUPS
+        menu_groups = self._get_menu_groups()
+        context["sections"] = self._build_sections(request, menu_groups=menu_groups)
+        context["MENU_GROUPS"] = menu_groups
         context["get_model_by_name"] = self._resolve_model_by_name
         return context
 

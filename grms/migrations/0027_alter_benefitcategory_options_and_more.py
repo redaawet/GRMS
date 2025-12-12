@@ -62,6 +62,10 @@ def migrate_socio_fields(apps, schema_editor):
 
 def ensure_population_defaults(apps, schema_editor):
     Socio = apps.get_model("grms", "RoadSocioEconomic")
+    fields = {field.name for field in Socio._meta.get_fields()}
+    if "population_served" not in fields:
+        return
+
     Socio.objects.filter(population_served__isnull=True).update(population_served=0)
 
 
@@ -70,10 +74,17 @@ def noop_reverse(apps, schema_editor):
     pass
 
 
+def drop_road_population_column(apps, schema_editor):
+    if schema_editor.connection.vendor == "sqlite":
+        return
+
+    schema_editor.execute("ALTER TABLE grms_road DROP COLUMN IF EXISTS population_served;")
+
+
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("grms", "0026_seed_benefit_scoring"),
+        ("grms", "0027_merge_20251202_1150"),
     ]
 
     operations = [
@@ -148,10 +159,7 @@ class Migration(migrations.Migration):
         migrations.SeparateDatabaseAndState(
             # The column may already be absent on some databases; drop it only if present
             database_operations=[
-                migrations.RunSQL(
-                    sql="ALTER TABLE grms_road DROP COLUMN IF EXISTS population_served;",
-                    reverse_sql=migrations.RunSQL.noop,
-                )
+                migrations.RunPython(drop_road_population_column, noop_reverse)
             ],
             state_operations=[],
         ),

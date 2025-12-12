@@ -4,6 +4,9 @@ from django.db import migrations, models
 
 
 def drop_population_served(apps, schema_editor):
+    if schema_editor.connection.vendor == "sqlite":
+        return
+
     table = 'grms_road'
     column = 'population_served'
     with schema_editor.connection.cursor() as cursor:
