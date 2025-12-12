@@ -1,42 +1,47 @@
-:root {
-    --grms-sidebar-width: 240px;
-    --admin-header-height: 64px;
-    --grms-header-height: var(--admin-header-height);
-}
-
-/* Fix header */
+/* Header sizing/positioning */
 #header, .module-header {
     position: fixed;
     top: 0;
     left: 0;
     right: 0;
-    height: var(--admin-header-height);
-    line-height: var(--admin-header-height);
+    height: var(--grms-header-height);
+    line-height: var(--grms-header-height);
     z-index: 1100;
 }
 
-/* Fix main content width and shift */
-#container {
-    margin-top: var(--admin-header-height);
-    padding-top: 0 !important;
+/* Apply header offset once */
+body:not(.login) #container {
+    padding-top: var(--grms-header-height);
 }
 
-body.grms-has-sidebar #content,
-body.grms-has-sidebar #content-main,
-body.grms-has-sidebar .dashboard-wrapper,
-body.grms-has-sidebar #content-start {
-    margin-left: var(--grms-sidebar-width) !important;
-    padding-left: 0 !important;
-    padding-top: 0 !important;
-    margin-top: var(--admin-header-height);
-    width: calc(100% - var(--grms-sidebar-width)) !important;
+body.login #container {
+    padding-top: 0;
 }
 
-body.login #container,
+/* Reset default Django sidebar offsets */
+body.nav-sidebar #content,
+body.has-nav-sidebar #content {
+    margin-left: 0 !important;
+}
+
+/* Single horizontal shift for main content */
+body.grms-has-sidebar:not(.login) #content {
+    margin-left: var(--grms-sidebar-width);
+    width: calc(100% - var(--grms-sidebar-width));
+    padding-left: var(--grms-gutter);
+    padding-right: var(--grms-gutter);
+    box-sizing: border-box;
+}
+
+/* Prevent nested containers from re-shifting */
+#content-main {
+    margin-left: 0 !important;
+    width: auto !important;
+    padding: 0;
+}
+
 body.login #content {
     margin-left: 0 !important;
-    margin-top: 0 !important;
-    padding-top: 0 !important;
     width: auto !important;
 }
 
@@ -94,6 +99,11 @@ body.login #content {
     #container {
         padding-left: 16px !important;
         padding-right: 16px !important;
+    }
+
+    body.grms-has-sidebar:not(.login) #content {
+        margin-left: 0;
+        width: 100%;
     }
 
     /* Stack cards vertically and allow the sidebar to flow inline */
