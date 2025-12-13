@@ -17,7 +17,7 @@
 {% endif %}
 {% block extrastyle %}
 {{ block.super }}
-<link rel="stylesheet" href="{% static 'grms/css/admin_layout.css' %}">
+<link rel="stylesheet" href="{% static 'grms/admin_layout.css' %}">
 <link rel="stylesheet" href="{% static 'grms/css/sidebar_custom.css' %}">
 <link rel="stylesheet" href="{% static 'grms/global.css' %}">
 {% endblock %}
@@ -28,7 +28,6 @@
         href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
         integrity="sha512-SnH5WK+bZxgPHs44uWIX+LLJAJ9/2PkPKZ5QiAj6Ta86w+fsb2TkcmfRyVX3pBnMFcV7oQPJkl9QevSCWr3W6A=="
         crossorigin="anonymous" referrerpolicy="no-referrer">
-  <script src="{% static 'grms/js/admin_layout.js' %}" defer></script>
 {% endblock %}
 
 {% block responsive %}
@@ -43,15 +42,13 @@
 <body class="{% if is_popup %}popup {% endif %}{% block bodyclass %}{{ block.super }}{% if not is_popup and is_nav_sidebar_enabled %} grms-has-sidebar{% endif %}{% endblock %}"
   data-admin-utc-offset="{% now "Z" %}">
 <a href="#grms-main" class="skip-to-content-link">{% translate 'Skip to main content' %}</a>
-<!-- Container -->
-<div id="container">
 
-    {% if not is_popup %}
-    <!-- Header -->
-    {% block header %}
-      <header id="header">
+{% if not is_popup %}
+  {% block header %}
+    <header id="grms-header">
+      <div class="header-inner">
         <div id="branding">
-        {% block branding %}{% endblock %}
+          {% block branding %}{% endblock %}
         </div>
         {% block usertools %}
         {% if has_permission %}
@@ -87,55 +84,77 @@
         {% endif %}
         {% endblock %}
         {% block nav-global %}{% endblock %}
-      </header>
-    {% endblock %}
-    <!-- END Header -->
-    {% block nav-breadcrumbs %}
-      <nav aria-label="{% translate 'Breadcrumbs' %}">
-        {% block breadcrumbs %}
-          <div class="breadcrumbs">
-            <a href="{% url 'admin:index' %}">{% translate 'Home' %}</a>
-            {% if title %} &rsaquo; {{ title }}{% endif %}
-          </div>
-        {% endblock %}
-      </nav>
-    {% endblock %}
+      </div>
+    </header>
+  {% endblock %}
+
+  <div id="grms-layout">
+    {% if is_nav_sidebar_enabled %}
+      {% block nav-sidebar %}
+        {% include "admin/sidebar.html" %}
+      {% endblock %}
     {% endif %}
 
-    <div class="main" id="main">
-        {% if not is_popup and is_nav_sidebar_enabled %}
-          {% block nav-sidebar %}
-          {% include "admin/sidebar.html" %}
+    <main id="grms-main" class="content" tabindex="-1">
+      {% block nav-breadcrumbs %}
+        <nav aria-label="{% translate 'Breadcrumbs' %}">
+          {% block breadcrumbs %}
+            <div class="breadcrumbs">
+              <a href="{% url 'admin:index' %}">{% translate 'Home' %}</a>
+              {% if title %} &rsaquo; {{ title }}{% endif %}
+            </div>
           {% endblock %}
+        </nav>
+      {% endblock %}
+
+      {% block messages %}
+        {% if messages %}
+          <ul class="messagelist">{% for message in messages %}
+            <li{% if message.tags %} class="{{ message.tags }}"{% endif %}>{{ message|capfirst }}</li>
+          {% endfor %}</ul>
         {% endif %}
-      <main id="grms-main" class="content" tabindex="-1">
-        {% block messages %}
-          {% if messages %}
-            <ul class="messagelist">{% for message in messages %}
-              <li{% if message.tags %} class="{{ message.tags }}"{% endif %}>{{ message|capfirst }}</li>
-            {% endfor %}</ul>
-          {% endif %}
-        {% endblock messages %}
-        <!-- Content -->
-        <div id="content" class="{% block coltype %}colM{% endblock %}">
-          {% block pretitle %}{% endblock %}
-          {% block content_title %}{% if title %}<h1>{{ title }}</h1>{% endif %}{% endblock %}
-          {% block content_subtitle %}{% if subtitle %}<h2>{{ subtitle }}</h2>{% endif %}{% endblock %}
-          {% block content %}
-          <div class="grms-content">
-            {% block object-tools %}{% endblock %}
-            {{ content }}
-          </div>
-          {% endblock %}
-          {% block sidebar %}{% endblock %}
-          <br class="clear">
+      {% endblock messages %}
+
+      <div id="content" class="{% block coltype %}colM{% endblock %}">
+        {% block pretitle %}{% endblock %}
+        {% block content_title %}{% if title %}<h1>{{ title }}</h1>{% endif %}{% endblock %}
+        {% block content_subtitle %}{% if subtitle %}<h2>{{ subtitle }}</h2>{% endif %}{% endblock %}
+        {% block content %}
+        <div class="grms-content">
+          {% block object-tools %}{% endblock %}
+          {{ content }}
         </div>
-        <!-- END Content -->
-      </main>
+        {% endblock %}
+        {% block sidebar %}{% endblock %}
+        <br class="clear">
+      </div>
+    </main>
+  </div>
+  <footer id="footer">{% block footer %}{% endblock %}</footer>
+{% else %}
+  <main id="grms-main" class="content" tabindex="-1">
+    {% block messages %}
+      {% if messages %}
+        <ul class="messagelist">{% for message in messages %}
+          <li{% if message.tags %} class="{{ message.tags }}"{% endif %}>{{ message|capfirst }}</li>
+        {% endfor %}</ul>
+      {% endif %}
+    {% endblock messages %}
+    <div id="content" class="{% block coltype %}colM{% endblock %}">
+      {% block pretitle %}{% endblock %}
+      {% block content_title %}{% if title %}<h1>{{ title }}</h1>{% endif %}{% endblock %}
+      {% block content_subtitle %}{% if subtitle %}<h2>{{ subtitle }}</h2>{% endif %}{% endblock %}
+      {% block content %}
+      <div class="grms-content">
+        {% block object-tools %}{% endblock %}
+        {{ content }}
+      </div>
+      {% endblock %}
+      {% block sidebar %}{% endblock %}
+      <br class="clear">
     </div>
-    <footer id="footer">{% block footer %}{% endblock %}</footer>
-</div>
-<!-- END Container -->
+  </main>
+{% endif %}
 
 <!-- SVGs -->
 <svg xmlns="http://www.w3.org/2000/svg" class="base-svgs">
