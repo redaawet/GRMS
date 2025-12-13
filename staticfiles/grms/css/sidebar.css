@@ -1,4 +1,6 @@
 #grms-sidebar {
+  display: flex;
+  flex-direction: column;
   gap: 6px;
   padding: 8px;
   box-sizing: border-box;
@@ -9,6 +11,14 @@
 
 #grms-sidebar * {
   box-sizing: border-box;
+}
+
+#grms-sidebar .sidebar-header {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: #f9fafb;
+  padding-bottom: 6px;
 }
 
 #grms-sidebar .sidebar-toggle {
@@ -28,10 +38,6 @@
 
 #grms-sidebar .sidebar-toggle:hover {
   background: #e5e7eb;
-}
-
-#grms-sidebar .sidebar-header {
-  flex: 0 0 auto;
 }
 
 #grms-sidebar .sidebar-search {
@@ -92,8 +98,8 @@
 }
 
 #grms-sidebar .sg-content {
-  background: #ffffff;
   display: block;
+  background: #ffffff;
   overflow: hidden;
 }
 

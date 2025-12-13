@@ -1,54 +1,3 @@
-/* Header sizing/positioning */
-#header, .module-header {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: var(--grms-header-height);
-    line-height: var(--grms-header-height);
-    z-index: 1100;
-}
-
-/* Apply header offset once */
-body:not(.login) #container {
-    padding-top: var(--grms-header-height);
-}
-
-body.login #container {
-    padding-top: 0;
-}
-
-#container {
-    display: flex;
-    flex-direction: column;
-}
-
-/* Reset default Django sidebar offsets */
-body.nav-sidebar #content,
-body.has-nav-sidebar #content {
-    margin-left: 0 !important;
-}
-
-/* Single horizontal shift for main content */
-body.grms-has-sidebar:not(.login) #content {
-    margin-left: var(--grms-sidebar-width);
-    padding: var(--grms-content-gutter);
-    box-sizing: border-box;
-    flex: 1;
-}
-
-/* Prevent nested containers from re-shifting */
-#content-main {
-    margin-left: 0 !important;
-    width: auto !important;
-    padding: 0;
-}
-
-body.login #content {
-    margin-left: 0 !important;
-    width: auto !important;
-}
-
 .dashboard-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
@@ -99,28 +48,8 @@ body.login #content {
 }
 
 @media (max-width: 900px) {
-    /* Let content fill the screen when space is tight */
-    #container {
-        padding-left: 16px !important;
-        padding-right: 16px !important;
-    }
-
-    body.grms-has-sidebar:not(.login) #content {
-        margin-left: 0;
-        width: 100%;
-    }
-
-    /* Stack cards vertically and allow the sidebar to flow inline */
+    /* Stack cards vertically when space is tight */
     .dashboard-grid {
         grid-template-columns: 1fr;
-    }
-
-    #grms-sidebar {
-        position: relative;
-        width: 100%;
-        height: auto;
-        top: 0;
-        border-right: none;
-        border-bottom: 1px solid #ddd;
     }
 }
