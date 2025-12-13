@@ -3,28 +3,21 @@
 <aside id="grms-sidebar" class="sidebar grms-sidebar" aria-label="GRMS admin sidebar">
 
   <div class="sidebar-header">
-    <button id="sidebar-toggle" class="sidebar-toggle" type="button" aria-label="Collapse sidebar">▸</button>
     <input id="sidebar-search" class="sidebar-search" type="search" placeholder="Search menu…" aria-label="Search menu"/>
   </div>
 
   <nav class="sidebar-nav" aria-label="GRMS admin navigation">
     {% for group_title, group_items in MENU_GROUPS.items %}
-
-      <details class="sidebar-group" data-group="{{ group_title|slugify }}">
-        <summary class="sg-header">
+      <div class="sidebar-group" data-group="{{ group_title|slugify }}">
+        <div class="sg-header">
           <span class="sg-title">{{ group_title }}</span>
-          <span class="sg-arrow" aria-hidden="true">▸</span>
-        </summary>
+        </div>
 
         <div class="sg-content">
-          {# group_items can be list OR dict-of-subgroups #}
           {% if group_items.items %}
             {% for subgroup_title, subgroup_items in group_items.items %}
-              <details class="sidebar-subgroup">
-                <summary class="ss-header">
-                  <span class="ss-title">{{ subgroup_title }}</span>
-                  <span class="ss-arrow" aria-hidden="true">▸</span>
-                </summary>
+              <div class="sidebar-subgroup">
+                <div class="ss-title">{{ subgroup_title }}</div>
                 <div class="ss-list">
                   {% for model_name, display_name in subgroup_items %}
                     {% resolve_model model_name as model %}
@@ -35,21 +28,22 @@
                     {% endif %}
                   {% endfor %}
                 </div>
-              </details>
+              </div>
             {% endfor %}
           {% else %}
-            {% for model_name, display_name in group_items %}
-              {% resolve_model model_name as model %}
-              {% if model %}
-                <a class="ss-link menu-item" href="{% url model|admin_urlname:'changelist' %}">
-                  {{ display_name }}
-                </a>
-              {% endif %}
-            {% endfor %}
+            <div class="sg-list">
+              {% for model_name, display_name in group_items %}
+                {% resolve_model model_name as model %}
+                {% if model %}
+                  <a class="ss-link menu-item" href="{% url model|admin_urlname:'changelist' %}">
+                    {{ display_name }}
+                  </a>
+                {% endif %}
+              {% endfor %}
+            </div>
           {% endif %}
         </div>
-      </details>
-
+      </div>
     {% endfor %}
   </nav>
 </aside>

@@ -11,13 +11,9 @@
   <link rel="stylesheet" href="{% static "admin/css/dark_mode.css" %}">
   <script src="{% static "admin/js/theme.js" %}"></script>
 {% endblock %}
-{% if not is_popup and is_nav_sidebar_enabled %}
-  <link rel="stylesheet" href="{% static "admin/css/nav_sidebar.css" %}">
-  <script src="{% static 'admin/js/nav_sidebar.js' %}" defer></script>
-{% endif %}
 {% block extrastyle %}
 {{ block.super }}
-<link rel="stylesheet" href="{% static 'grms/css/admin_layout.css' %}">
+<link rel="stylesheet" href="{% static 'grms/admin_layout.css' %}">
 <link rel="stylesheet" href="{% static 'grms/css/sidebar_custom.css' %}">
 <link rel="stylesheet" href="{% static 'grms/global.css' %}">
 {% endblock %}
@@ -28,7 +24,6 @@
         href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
         integrity="sha512-SnH5WK+bZxgPHs44uWIX+LLJAJ9/2PkPKZ5QiAj6Ta86w+fsb2TkcmfRyVX3pBnMFcV7oQPJkl9QevSCWr3W6A=="
         crossorigin="anonymous" referrerpolicy="no-referrer">
-  <script src="{% static 'grms/js/admin_layout.js' %}" defer></script>
 {% endblock %}
 
 {% block responsive %}
@@ -39,19 +34,16 @@
     {% block blockbots %}<meta name="robots" content="NONE,NOARCHIVE">{% endblock %}
 </head>
 
-{# Fix sidebar positioning #}
-<body class="{% if is_popup %}popup {% endif %}{% block bodyclass %}{{ block.super }}{% if not is_popup and is_nav_sidebar_enabled %} grms-has-sidebar{% endif %}{% endblock %}"
+<body class="{% if is_popup %}popup {% endif %}{% block bodyclass %}{{ block.super }}{% if not is_popup %} grms-has-sidebar{% endif %}{% endblock %}"
   data-admin-utc-offset="{% now "Z" %}">
 <a href="#grms-main" class="skip-to-content-link">{% translate 'Skip to main content' %}</a>
-<!-- Container -->
-<div id="container">
 
-    {% if not is_popup %}
-    <!-- Header -->
-    {% block header %}
-      <header id="header">
+{% if not is_popup %}
+  {% block header %}
+    <header id="grms-header">
+      <div class="header-inner">
         <div id="branding">
-        {% block branding %}{% endblock %}
+          {% block branding %}{% endblock %}
         </div>
         {% block usertools %}
         {% if has_permission %}
@@ -87,55 +79,56 @@
         {% endif %}
         {% endblock %}
         {% block nav-global %}{% endblock %}
-      </header>
+      </div>
+    </header>
+  {% endblock %}
+{% endif %}
+
+<div id="grms-layout" class="{% if is_popup %}grms-layout-popup{% endif %}">
+  {% if not is_popup %}
+    {% block nav-sidebar %}
+      {% include "admin/sidebar.html" %}
     {% endblock %}
-    <!-- END Header -->
-    {% block nav-breadcrumbs %}
-      <nav aria-label="{% translate 'Breadcrumbs' %}">
-        {% block breadcrumbs %}
-          <div class="breadcrumbs">
-            <a href="{% url 'admin:index' %}">{% translate 'Home' %}</a>
-            {% if title %} &rsaquo; {{ title }}{% endif %}
-          </div>
-        {% endblock %}
-      </nav>
-    {% endblock %}
+  {% endif %}
+
+  <main id="grms-main" class="content" tabindex="-1">
+    {% if not is_popup %}
+      {% block nav-breadcrumbs %}
+        <nav aria-label="{% translate 'Breadcrumbs' %}">
+          {% block breadcrumbs %}
+            <div class="breadcrumbs">
+              <a href="{% url 'admin:index' %}">{% translate 'Home' %}</a>
+              {% if title %} &rsaquo; {{ title }}{% endif %}
+            </div>
+          {% endblock %}
+        </nav>
+      {% endblock %}
     {% endif %}
 
-    <div class="main" id="main">
-        {% if not is_popup and is_nav_sidebar_enabled %}
-          {% block nav-sidebar %}
-          {% include "admin/sidebar.html" %}
-          {% endblock %}
-        {% endif %}
-      <main id="grms-main" class="content" tabindex="-1">
-        {% block messages %}
-          {% if messages %}
-            <ul class="messagelist">{% for message in messages %}
-              <li{% if message.tags %} class="{{ message.tags }}"{% endif %}>{{ message|capfirst }}</li>
-            {% endfor %}</ul>
-          {% endif %}
-        {% endblock messages %}
-        <!-- Content -->
-        <div id="content" class="{% block coltype %}colM{% endblock %}">
-          {% block pretitle %}{% endblock %}
-          {% block content_title %}{% if title %}<h1>{{ title }}</h1>{% endif %}{% endblock %}
-          {% block content_subtitle %}{% if subtitle %}<h2>{{ subtitle }}</h2>{% endif %}{% endblock %}
-          {% block content %}
-          <div class="grms-content">
-            {% block object-tools %}{% endblock %}
-            {{ content }}
-          </div>
-          {% endblock %}
-          {% block sidebar %}{% endblock %}
-          <br class="clear">
-        </div>
-        <!-- END Content -->
-      </main>
+    {% block messages %}
+      {% if messages %}
+        <ul class="messagelist">{% for message in messages %}
+          <li{% if message.tags %} class="{{ message.tags }}"{% endif %}>{{ message|capfirst }}</li>
+        {% endfor %}</ul>
+      {% endif %}
+    {% endblock messages %}
+
+    <div id="content" class="{% block coltype %}colM{% endblock %}">
+      {% block pretitle %}{% endblock %}
+      {% block content_title %}{% if title %}<h1>{{ title }}</h1>{% endif %}{% endblock %}
+      {% block content_subtitle %}{% if subtitle %}<h2>{{ subtitle }}</h2>{% endif %}{% endblock %}
+      {% block content %}
+      <div class="grms-content">
+        {% block object-tools %}{% endblock %}
+        {{ content }}
+      </div>
+      {% endblock %}
+      {% block sidebar %}{% endblock %}
+      <br class="clear">
     </div>
-    <footer id="footer">{% block footer %}{% endblock %}</footer>
+  </main>
 </div>
-<!-- END Container -->
+{% if not is_popup %}<footer id="footer">{% block footer %}{% endblock %}</footer>{% endif %}
 
 <!-- SVGs -->
 <svg xmlns="http://www.w3.org/2000/svg" class="base-svgs">
@@ -144,12 +137,12 @@
   <symbol viewBox="0 0 24 24" width="1.5rem" height="1.5rem" id="icon-sun"><path d="M0 0h24v24H0z" fill="currentColor"/><path d="M12 18a6 6 0 1 1 0-12 6 6 0 0 1 0 12zm0-2a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM11 1h2v3h-2V1zm0 19h2v3h-2v-3zM3.515 4.929l1.414-1.414L7.05 5.636 5.636 7.05 3.515 4.93zM16.95 18.364l1.414-1.414 2.121 2.121-1.414 1.414-2.121-2.121zm2.121-14.85l1.414 1.415-2.121 2.121-1.414-1.414 2.121-2.121zM5.636 16.95l1.414 1.414-2.121 2.121-1.414-1.414 2.121-2.121zM23 11v2h-3v-2h3zM4 11v2H1v-2h3z"/></symbol>
 </svg>
 <!-- END SVGs -->
-{% block extrabody %}
-{{ block.super }}
-{% if not is_popup and is_nav_sidebar_enabled %}
-<script src="{% static 'grms/js/sidebar.js' %}" defer></script>
-{% endif %}
-{% endblock extrabody %}
+  {% block extrabody %}
+  {{ block.super }}
+  {% if not is_popup %}
+  <script src="{% static 'grms/js/sidebar.js' %}" defer></script>
+  {% endif %}
+  {% endblock extrabody %}
 {# END OF BASE.HTML #}
 </body>
 </html>
