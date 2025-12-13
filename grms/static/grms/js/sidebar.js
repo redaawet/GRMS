@@ -28,7 +28,7 @@
     }
   }
 
-  function markActiveLinks() {
+  function markActiveLinks(nav) {
     const currentPath = window.location.pathname;
     document.querySelectorAll("#grms-sidebar .ss-link").forEach((link) => {
       const href = link.getAttribute("href");
@@ -112,7 +112,7 @@
 
   document.addEventListener("DOMContentLoaded", () => {
     if (document.body.classList.contains("popup")) return;
-    const sidebar = document.getElementById("grms-sidebar");
+    const sidebar = document.querySelector(SELECTORS.sidebar);
     if (!sidebar) return;
 
     markActiveLinks();

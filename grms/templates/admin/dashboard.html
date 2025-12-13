@@ -104,6 +104,112 @@
 {% block extrahead %}
   {{ block.super }}
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="{% static 'grms/dashboard.js' %}"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      if (!window.Chart) return;
+
+      const surfaceCtx = document.getElementById('surfaceChart');
+      if (surfaceCtx) {
+        new Chart(surfaceCtx, {
+          type: 'pie',
+          data: {
+            labels: ['Gravel', 'Paved'],
+            datasets: [{ data: {{ surface_distribution|safe }} }]
+          },
+          options: { plugins: { legend: { position: 'bottom' } } }
+        });
+      }
+
+      const conditionCtx = document.getElementById('conditionChart');
+      if (conditionCtx) {
+        new Chart(conditionCtx, {
+          type: 'pie',
+          data: {
+            labels: ['Good', 'Fair', 'Poor', 'Bad'],
+            datasets: [{ data: {{ condition_distribution|safe }} }]
+          },
+          options: { plugins: { legend: { position: 'bottom' } } }
+        });
+      }
+
+      const trafficCtx = document.getElementById('trafficChart');
+      if (trafficCtx) {
+        new Chart(trafficCtx, {
+          type: 'line',
+          data: {
+            labels: {{ traffic_labels|safe }},
+            datasets: [{
+              label: 'ADT',
+              data: {{ traffic_data|safe }},
+              borderColor: '#2563eb',
+              backgroundColor: 'rgba(37, 99, 235, 0.12)',
+              fill: true,
+              tension: 0.3,
+            }]
+          },
+          options: {
+            plugins: { legend: { display: false } },
+            scales: { y: { beginAtZero: true } }
+          }
+        });
+      }
+
+      const zoneCtx = document.getElementById('zoneLengthChart');
+      if (zoneCtx) {
+        new Chart(zoneCtx, {
+          type: 'bar',
+          data: {
+            labels: {{ zone_labels|safe }},
+            datasets: [{
+              label: 'Total KM',
+              data: {{ zone_lengths|safe }},
+              backgroundColor: '#4e79a7'
+            }]
+          },
+          options: {
+            indexAxis: 'y',
+            plugins: { legend: { display: false } },
+            scales: { x: { beginAtZero: true } }
+          }
+        });
+      }
+
+      const priorityCtx = document.getElementById('priorityChart');
+      if (priorityCtx) {
+        new Chart(priorityCtx, {
+          type: 'bar',
+          data: {
+            labels: ['High', 'Medium', 'Low'],
+            datasets: [{
+              data: {{ priority_counts|safe }},
+              backgroundColor: ['#d62728', '#ffbf00', '#2ca02c']
+            }]
+          },
+          options: {
+            plugins: { legend: { display: false } },
+            scales: { y: { beginAtZero: true } }
+          }
+        });
+      }
+
+      const mciCtx = document.getElementById('mciChart');
+      if (mciCtx) {
+        new Chart(mciCtx, {
+          type: 'bar',
+          data: {
+            labels: {{ mci_bins|safe }},
+            datasets: [{
+              label: 'Road Count',
+              data: {{ mci_counts|safe }},
+              backgroundColor: '#f28e2b'
+            }]
+          },
+          options: {
+            plugins: { legend: { display: false } },
+            scales: { y: { beginAtZero: true } }
+          }
+        });
+      }
+    });
+  </script>
 {% endblock %}

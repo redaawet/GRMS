@@ -1,0 +1,117 @@
+/* Custom sidebar styling */
+#grms-sidebar {
+  gap: 8px;
+  padding: 12px;
+  box-sizing: border-box;
+  background: #f9fafb;
+  border-right: 1px solid #e5e7eb;
+}
+
+#grms-sidebar * {
+  box-sizing: border-box;
+}
+
+#grms-sidebar .sidebar-header {
+  flex: 0 0 auto;
+  padding: 0.5rem 0.25rem 0.75rem;
+}
+
+#grms-sidebar .sidebar-search {
+  width: 100%;
+  padding: 6px 10px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 13px;
+  color: #111827;
+  background: #ffffff;
+}
+
+#grms-sidebar .sidebar-search:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.12);
+}
+
+#grms-sidebar .sidebar-nav {
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 0 0.5rem 1rem;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+#grms-sidebar .sidebar-group {
+  background: #eef3f7;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+#grms-sidebar .sg-header {
+  padding: 10px 12px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #1f2937;
+  letter-spacing: 0.1px;
+  background: #e4ebf2;
+}
+
+#grms-sidebar .sg-content {
+  background: #ffffff;
+  padding: 8px 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+#grms-sidebar .sidebar-subgroup {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+#grms-sidebar .ss-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: #4b5563;
+  padding: 4px 6px;
+  border-radius: 6px;
+  background: #f6f7fb;
+}
+
+#grms-sidebar .sg-list,
+#grms-sidebar .ss-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+}
+
+#grms-sidebar .ss-link {
+  display: block;
+  padding: 7px 10px 7px 14px;
+  margin: 0;
+  color: #1f2937;
+  text-decoration: none;
+  font-size: 13px;
+  border-radius: 6px;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+#grms-sidebar .ss-link:hover {
+  background: #eef2ff;
+  color: #1d4ed8;
+}
+
+#grms-sidebar .ss-link.active {
+  background: #2563eb;
+  color: #ffffff;
+}

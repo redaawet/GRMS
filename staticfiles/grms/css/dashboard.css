@@ -1,0 +1,143 @@
+/* Dashboard Page Styles */
+.grms-dashboard {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+  align-items: start;
+}
+
+.dash-card {
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 1.25rem;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.dash-card h3 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.dash-card .value {
+  font-size: 2rem;
+  font-weight: 700;
+}
+
+.dash-card.small {
+  grid-column: span 1;
+}
+
+.dash-card.big,
+.dash-card.wide {
+  grid-column: span 2;
+}
+
+.dash-card canvas {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  height: auto;
+  max-height: 360px;
+}
+
+@media (max-width: 1100px) {
+  .dashboard-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .dash-card.big,
+  .dash-card.wide {
+    grid-column: span 1;
+  }
+}
+
+.section-browser {
+  margin-top: 2rem;
+}
+
+.section-browser__header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.section-browser__header h2 {
+  margin: 0;
+  font-size: 1.2rem;
+}
+
+.section-browser__hint {
+  margin: 0;
+  color: #586069;
+  font-size: 0.95rem;
+}
+
+.section-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
+}
+
+.section-card {
+  background: #ffffff;
+  border-radius: 10px;
+  padding: 1rem;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.section-card__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+
+.section-card__header h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.section-card__meta {
+  color: #6a737d;
+  font-size: 0.85rem;
+}
+
+.section-card__links {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.section-card__links a {
+  color: #0054a6;
+  text-decoration: none;
+}
+
+.section-card__links a:hover,
+.section-card__links a:focus-visible {
+  text-decoration: underline;
+}

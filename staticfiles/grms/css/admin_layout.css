@@ -1,0 +1,82 @@
+:root {
+  --grms-header-height: 56px;
+  --grms-sidebar-width: 260px;
+  --grms-sidebar-collapsed-width: 72px;
+  --grms-gutter: 24px;
+}
+
+body.grms-has-sidebar {
+  padding-top: var(--grms-header-height);
+}
+
+body.grms-has-sidebar #header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  min-height: var(--grms-header-height);
+  z-index: 1200;
+}
+
+body.grms-has-sidebar #grms-sidebar {
+  position: fixed;
+  top: var(--grms-header-height);
+  left: 0;
+  width: var(--grms-sidebar-width);
+  height: calc(100vh - var(--grms-header-height));
+  z-index: 1100;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+body.sidebar-collapsed #grms-sidebar {
+  width: var(--grms-sidebar-collapsed-width);
+}
+
+body.grms-has-sidebar .breadcrumbs {
+  margin-left: var(--grms-sidebar-width);
+  padding: 12px var(--grms-gutter);
+  box-sizing: border-box;
+}
+
+body.grms-has-sidebar.sidebar-collapsed .breadcrumbs {
+  margin-left: var(--grms-sidebar-collapsed-width);
+}
+
+body.grms-has-sidebar main.content {
+  margin-left: var(--grms-sidebar-width);
+  padding: 16px var(--grms-gutter) var(--grms-gutter);
+  box-sizing: border-box;
+  min-width: 0;
+}
+
+body.grms-has-sidebar.sidebar-collapsed main.content {
+  margin-left: var(--grms-sidebar-collapsed-width);
+}
+
+body.grms-has-sidebar #content {
+  padding: 0;
+  margin: 0;
+  width: auto;
+  max-width: none;
+}
+
+body.grms-has-sidebar #container {
+  width: 100%;
+}
+
+body.grms-has-sidebar .main {
+  display: flex;
+}
+
+#grms-sidebar {
+  display: flex;
+  flex-direction: column;
+}
+
+#grms-sidebar .sidebar-nav {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
