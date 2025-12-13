@@ -1,0 +1,54 @@
+{% extends "admin/base_site.html" %}
+{% load humanize report_tags %}
+
+{% block content %}
+<div class="global-costs-report">
+  <div class="page-header">
+    <h1>Global Cost of Road Works</h1>
+    <a class="button" href="{{ csv_export_url }}">Export CSV</a>
+  </div>
+
+  <div class="module">
+    <table class="admin-table">
+      <thead>
+        <tr>
+          <th>Road</th>
+          <th class="numeric">Road length (km)</th>
+          {% for key, label in bucket_labels %}
+            <th class="numeric">{{ label }}</th>
+          {% endfor %}
+          <th class="numeric">Total cost</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+          <tr>
+            <td>{{ row.road }}</td>
+            <td class="numeric">{{ row.road_length_km|floatformat:2 }}</td>
+            {% for key, label in bucket_labels %}
+              <td class="numeric">{{ row|get_item:key|floatformat:2 }}</td>
+            {% endfor %}
+            <td class="numeric">{{ row.total_cost|floatformat:2 }}</td>
+          </tr>
+        {% empty %}
+          <tr>
+            <td colspan="{{ bucket_labels|length|add:3 }}" class="empty">
+              No cost data available.
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+      <tfoot>
+        <tr>
+          <th>Total</th>
+          <th class="numeric">{{ totals.road_length_km|floatformat:2 }}</th>
+          {% for key, label in bucket_labels %}
+            <th class="numeric">{{ totals|get_item:key|floatformat:2 }}</th>
+          {% endfor %}
+          <th class="numeric">{{ totals.total_cost|floatformat:2 }}</th>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+</div>
+{% endblock %}

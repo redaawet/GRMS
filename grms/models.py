@@ -522,6 +522,13 @@ class Road(models.Model):
         super().save(*args, **kwargs)
 
 
+class RoadGlobalCostReport(Road):
+    class Meta:
+        proxy = True
+        verbose_name = "Global Cost of Road Works"
+        verbose_name_plural = "Global Cost of Road Works"
+
+
 class RoadSection(models.Model):
     SURFACE_TYPES = [
         ("Earth", "Earth"),

@@ -68,6 +68,7 @@ MODEL_GROUP_MAP: Dict[str, str] = {
     "benefitfactor": "Maintenance & Planning",
     "prioritizationresult": "Maintenance & Planning",
     "annualworkplan": "Maintenance & Planning",
+    "roadglobalcostreport": "Maintenance & Planning",
     # Reference & Lookups
     "activitylookup": "Reference & Lookups",
     "interventioncategory": "Reference & Lookups",
@@ -132,6 +133,7 @@ LABEL_OVERRIDES: Dict[str, str] = {
     "benefitfactor": "Benefit factors",
     "prioritizationresult": "Priority results",
     "annualworkplan": "Work plan",
+    "roadglobalcostreport": "Global cost of road works",
     "activitylookup": "Activities",
     "interventioncategory": "Intervention categories",
     "interventionworkitem": "Work items",

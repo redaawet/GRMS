@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from typing import Dict, List, Sequence, Tuple
 
+import csv
 from decimal import Decimal, ROUND_HALF_UP
 
 from django import forms
@@ -10,7 +11,7 @@ from django.contrib import admin, messages
 from django.contrib.admin import AdminSite
 from django.db.models import Min, Sum
 from django.template.response import TemplateResponse
-from django.http import JsonResponse
+from django.http import HttpResponse, JsonResponse
 from django.shortcuts import redirect
 from django.urls import path, reverse
 
@@ -18,7 +19,7 @@ from . import models
 from .menu import build_menu_groups
 from traffic.models import TrafficSurveyOverall, TrafficSurveySummary
 from .gis_fields import LineStringField, PointField
-from .services import map_services, mci_intervention, prioritization
+from .services import map_services, mci_intervention, prioritization, workplan_costs
 from .utils import make_point, point_to_lat_lng, utm_to_wgs84, wgs84_to_utm
 
 try:  # pragma: no cover - depends on spatial libs
@@ -598,6 +599,88 @@ class RoadSectionAdminForm(forms.ModelForm):
 
 
 grms_admin_site.register(models.Road, RoadAdmin)
+
+
+@admin.register(models.RoadGlobalCostReport, site=grms_admin_site)
+class RoadGlobalCostReportAdmin(admin.ModelAdmin):
+    change_list_template = "admin/reports/global_costs.html"
+    ordering = ("road_identifier",)
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+    def get_queryset(self, request):
+        return self.model.objects.none()
+
+    def changelist_view(self, request, extra_context=None):
+        rows, totals = workplan_costs.compute_global_costs_by_road()
+
+        if request.GET.get("format") == "csv":
+            response = HttpResponse(content_type="text/csv")
+            response["Content-Disposition"] = (
+                "attachment; filename=global_costs_by_road.csv"
+            )
+            writer = csv.writer(response)
+            headers = [
+                "Road",
+                "Road length (km)",
+                "RM cost",
+                "PM cost",
+                "Rehab cost",
+                "Road bottleneck cost",
+                "Structure bottleneck cost",
+                "Total cost",
+            ]
+            writer.writerow(headers)
+            for row in rows:
+                writer.writerow(
+                    [
+                        str(row["road"]),
+                        row["road_length_km"],
+                        row["rm_cost"],
+                        row["pm_cost"],
+                        row["rehab_cost"],
+                        row["road_bneck_cost"],
+                        row["structure_bneck_cost"],
+                        row["total_cost"],
+                    ]
+                )
+            writer.writerow(
+                [
+                    "Total",
+                    totals.get("road_length_km", Decimal("0")),
+                    totals.get("rm_cost", Decimal("0")),
+                    totals.get("pm_cost", Decimal("0")),
+                    totals.get("rehab_cost", Decimal("0")),
+                    totals.get("road_bneck_cost", Decimal("0")),
+                    totals.get("structure_bneck_cost", Decimal("0")),
+                    totals.get("total_cost", Decimal("0")),
+                ]
+            )
+            return response
+
+        context = {
+            **self.admin_site.each_context(request),
+            "title": "Global Cost of Road Works",
+            "opts": self.model._meta,
+            "rows": rows,
+            "totals": totals,
+            "bucket_labels": [
+                ("rm_cost", "RM cost"),
+                ("pm_cost", "PM cost"),
+                ("rehab_cost", "Rehab cost"),
+                ("road_bneck_cost", "Road bottleneck cost"),
+                ("structure_bneck_cost", "Structure bottleneck cost"),
+            ],
+            "csv_export_url": f"{request.path}?format=csv",
+        }
+        return TemplateResponse(request, self.change_list_template, context)
 
 
 @admin.register(models.RoadLinkTypeLookup, site=grms_admin_site)
