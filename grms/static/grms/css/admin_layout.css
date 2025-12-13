@@ -1,23 +1,30 @@
 :root {
-  --grms-header-height: 64px;
-  --grms-sidebar-width: 280px;
-  --grms-sidebar-collapsed-width: 64px;
-  --grms-group-max: 240px;
+  --grms-header-height: 56px;
+  --grms-sidebar-width: 260px;
+  --grms-sidebar-collapsed-width: 72px;
+  --grms-gutter: 24px;
 }
 
-#header {
-  position: sticky;
+body.grms-has-sidebar {
+  padding-top: var(--grms-header-height);
+}
+
+body.grms-has-sidebar #header {
+  position: fixed;
   top: 0;
-  z-index: 2000;
+  left: 0;
+  right: 0;
+  min-height: var(--grms-header-height);
+  z-index: 1200;
 }
 
-#grms-sidebar {
+body.grms-has-sidebar #grms-sidebar {
   position: fixed;
   top: var(--grms-header-height);
   left: 0;
   width: var(--grms-sidebar-width);
   height: calc(100vh - var(--grms-header-height));
-  z-index: 1500;
+  z-index: 1100;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -27,23 +34,49 @@ body.sidebar-collapsed #grms-sidebar {
   width: var(--grms-sidebar-collapsed-width);
 }
 
+body.grms-has-sidebar .breadcrumbs {
+  margin-left: var(--grms-sidebar-width);
+  padding: 12px var(--grms-gutter);
+  box-sizing: border-box;
+}
+
+body.grms-has-sidebar.sidebar-collapsed .breadcrumbs {
+  margin-left: var(--grms-sidebar-collapsed-width);
+}
+
+body.grms-has-sidebar main.content {
+  margin-left: var(--grms-sidebar-width);
+  padding: 16px var(--grms-gutter) var(--grms-gutter);
+  box-sizing: border-box;
+  min-width: 0;
+}
+
+body.grms-has-sidebar.sidebar-collapsed main.content {
+  margin-left: var(--grms-sidebar-collapsed-width);
+}
+
 body.grms-has-sidebar #content {
-  margin-left: var(--grms-sidebar-width) !important;
+  padding: 0;
+  margin: 0;
+  width: auto;
+  max-width: none;
 }
 
-body.grms-has-sidebar.sidebar-collapsed #content {
-  margin-left: var(--grms-sidebar-collapsed-width) !important;
+body.grms-has-sidebar #container {
+  width: 100%;
 }
 
-#content {
-  margin-left: 0 !important;
+body.grms-has-sidebar .main {
+  display: flex;
 }
 
-#content-main,
-#container {
-  margin-left: 0 !important;
+#grms-sidebar {
+  display: flex;
+  flex-direction: column;
 }
 
-#container .main {
-  margin-left: 0;
+#grms-sidebar .sidebar-nav {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
 }
