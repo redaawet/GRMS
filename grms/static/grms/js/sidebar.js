@@ -2,15 +2,24 @@
   if (window.GRMS_SIDEBAR_LOADED) return;
   window.GRMS_SIDEBAR_LOADED = true;
 
-  function markActiveLinks() {
+  const SELECTORS = {
+    sidebar: "#grms-sidebar",
+    search: "#sidebar-search",
+    group: ".sidebar-group",
+    header: ".sg-header",
+    content: ".sg-content",
+    link: ".ss-link",
+  };
+
+  function markActiveLinks(nav) {
     const currentPath = window.location.pathname;
-    document.querySelectorAll("#grms-sidebar .ss-link").forEach((link) => {
+    nav.querySelectorAll(SELECTORS.link).forEach((link) => {
       const href = link.getAttribute("href");
       if (!href) return;
       const linkPath = new URL(href, window.location.origin).pathname;
       if (currentPath.startsWith(linkPath)) {
         link.classList.add("active");
-        const group = link.closest(".sidebar-group");
+        const group = link.closest(SELECTORS.group);
         const subgroup = link.closest(".sidebar-subgroup");
         if (group) group.classList.add("has-active");
         if (subgroup) subgroup.classList.add("has-active");
@@ -18,13 +27,13 @@
     });
   }
 
-  function handleSearch() {
-    const searchInput = document.getElementById("sidebar-search");
+  function handleSearch(nav) {
+    const searchInput = document.querySelector(SELECTORS.search);
     if (!searchInput) return;
 
     searchInput.addEventListener("input", (event) => {
       const term = event.target.value.trim().toLowerCase();
-      const groups = document.querySelectorAll("#grms-sidebar .sidebar-group");
+      const groups = nav.querySelectorAll(SELECTORS.group);
 
       groups.forEach((group) => {
         let groupHasMatch = false;
@@ -34,12 +43,11 @@
         if (subgroupBlocks.length) {
           subgroupBlocks.forEach((sub) => {
             let subHasMatch = false;
-            sub.querySelectorAll(".ss-link").forEach((link) => {
+            sub.querySelectorAll(SELECTORS.link).forEach((link) => {
               const match = !term || link.textContent.toLowerCase().includes(term);
               link.style.display = match ? "" : "none";
               if (match) subHasMatch = true;
             });
-
             sub.style.display = subHasMatch || !term ? "" : "none";
             if (subHasMatch) groupHasMatch = true;
           });
@@ -52,7 +60,6 @@
             link.style.display = match ? "" : "none";
             if (match) directMatch = true;
           });
-
           if (directMatch) groupHasMatch = true;
         }
 
@@ -61,12 +68,88 @@
     });
   }
 
+  function collapseGroup(group) {
+    if (!group) return;
+    group.classList.remove("is-open");
+    const header = group.querySelector(SELECTORS.header);
+    const content = group.querySelector(SELECTORS.content);
+    if (header) header.setAttribute("aria-expanded", "false");
+    if (content) {
+      content.style.maxHeight = "0px";
+      content.classList.remove("is-scrollable");
+      content.scrollTop = 0;
+    }
+  }
+
+  function setGroupHeight(group, nav) {
+    const content = group.querySelector(SELECTORS.content);
+    const header = group.querySelector(SELECTORS.header);
+    if (!content || !header || !nav) return;
+
+    const offsetTop = group.offsetTop - nav.scrollTop;
+    const available = Math.max(nav.clientHeight - offsetTop - header.offsetHeight - 8, 120);
+    const scrollHeight = content.scrollHeight;
+
+    if (scrollHeight > available) {
+      content.style.maxHeight = `${available}px`;
+      content.classList.add("is-scrollable");
+    } else {
+      content.style.maxHeight = `${scrollHeight}px`;
+      content.classList.remove("is-scrollable");
+    }
+  }
+
+  function openGroup(group, nav, groups) {
+    if (!group) return;
+    groups.forEach((item) => {
+      if (item !== group) collapseGroup(item);
+    });
+
+    const header = group.querySelector(SELECTORS.header);
+    group.classList.add("is-open");
+    if (header) header.setAttribute("aria-expanded", "true");
+    setGroupHeight(group, nav);
+  }
+
+  function bindAccordion(nav) {
+    const groups = Array.from(nav.querySelectorAll(SELECTORS.group));
+    if (!groups.length) return;
+
+    groups.forEach((group) => {
+      const header = group.querySelector(SELECTORS.header);
+      if (!header) return;
+      header.addEventListener("click", () => {
+        const isOpen = group.classList.contains("is-open");
+        if (isOpen) {
+          collapseGroup(group);
+        } else {
+          openGroup(group, nav, groups);
+        }
+      });
+    });
+
+    const activeGroup = groups.find((group) => group.classList.contains("has-active")) || groups[0];
+    openGroup(activeGroup, nav, groups);
+
+    const updateOpenHeight = () => {
+      const open = nav.querySelector(`${SELECTORS.group}.is-open`);
+      if (open) setGroupHeight(open, nav);
+    };
+
+    nav.addEventListener("scroll", updateOpenHeight, { passive: true });
+    window.addEventListener("resize", updateOpenHeight);
+  }
+
   document.addEventListener("DOMContentLoaded", () => {
     if (document.body.classList.contains("popup")) return;
-    const sidebar = document.getElementById("grms-sidebar");
+    const sidebar = document.querySelector(SELECTORS.sidebar);
     if (!sidebar) return;
 
-    markActiveLinks();
-    handleSearch();
+    const nav = sidebar.querySelector(".sidebar-nav");
+    if (!nav) return;
+
+    markActiveLinks(nav);
+    handleSearch(nav);
+    bindAccordion(nav);
   });
 })();
