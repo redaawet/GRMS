@@ -233,7 +233,8 @@ class GRMSAdminSite(AdminSite):
             or 0
         )
         latest_traffic_year = (
-            TrafficSurveySummary.objects.aggregate(year=Max("year")).get("year")
+            TrafficSurveySummary.objects.aggregate(year=Max("fiscal_year"))
+            .get("year")
         )
 
         surface_distribution = json.dumps(
