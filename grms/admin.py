@@ -76,7 +76,7 @@ class GRMSAdminSite(AdminSite):
     index_template = "admin/index.html"
     site_url = "/"
 
-    EXCLUDED_MODEL_NAMES = {"structureinterventionrecommendation"}
+    EXCLUDED_MODEL_NAMES = {"structureintervention"}
 
     MENU_GROUPS: Dict[str, MenuGroup] = {}
 
