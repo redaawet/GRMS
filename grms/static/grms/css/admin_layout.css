@@ -1,0 +1,70 @@
+:root {
+  --grms-header-height: 64px;
+  --grms-sidebar-width: 280px;
+  --grms-sidebar-collapsed-width: 64px;
+  --grms-group-max: 240px;
+}
+
+#header {
+  position: sticky;
+  top: 0;
+  z-index: 1200;
+}
+
+.breadcrumbs {
+  position: relative;
+  z-index: 1100;
+}
+
+/* Sidebar placement */
+#grms-sidebar {
+  position: fixed;
+  top: var(--grms-header-height);
+  left: 0;
+  width: var(--grms-sidebar-width);
+  height: calc(100vh - var(--grms-header-height));
+  z-index: 1150;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+body.sidebar-collapsed #grms-sidebar {
+  width: var(--grms-sidebar-collapsed-width);
+}
+
+/* Apply offsets exactly once */
+body.grms-has-sidebar #container {
+  padding-top: var(--grms-header-height);
+  margin-left: var(--grms-sidebar-width);
+}
+
+body.grms-has-sidebar.sidebar-collapsed #container {
+  margin-left: var(--grms-sidebar-collapsed-width);
+}
+
+#container {
+  padding-top: 0;
+}
+
+#content,
+.content,
+#content-main,
+#container .content,
+#container .main {
+  margin-top: 0;
+  padding-top: 0;
+  margin-left: 0;
+}
+
+/* Ensure layered order: header above sidebar above content */
+#container .main,
+#content,
+.content {
+  position: relative;
+  z-index: 100;
+}
+
+body.grms-has-sidebar .main {
+  margin-left: 0;
+}
