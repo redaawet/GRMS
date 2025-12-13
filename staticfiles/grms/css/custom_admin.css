@@ -2,13 +2,6 @@
    GRMS Sidebar – Clean Django-like design
 -------------------------------------------- */
 
-/* Wrapper for admin layout */
-#grms-layout {
-    display: flex;
-    min-height: 100vh;
-}
-
-/* Sidebar items */
 #grms-sidebar .menu-group-title {
     font-size: 12px;
     font-weight: bold;
@@ -46,9 +39,4 @@
 /* Optional: tighten sidebar spacing */
 #grms-sidebar .sidebar-item {
     padding: 8px 18px;
-}
-
-body, html {
-    overflow-x: hidden !important;
-    padding-left: 0 !important;
 }
