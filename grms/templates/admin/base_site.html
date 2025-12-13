@@ -3,14 +3,16 @@
 
 {% block title %}{{ site_title }}{% endblock %}
 
-{% block bodyclass %}app-grms {% if not is_popup and cl is None %}dashboard-index {% endif %}{{ block.super }}{% endblock %}
+{% block bodyclass %}
+  {{ block.super }} app-grms{% if request.resolver_match and request.resolver_match.url_name == 'index' or (not request.resolver_match and request.path == '/admin/') %} dashboard-index{% endif %}
+{% endblock %}
 
 {% block extrastyle %}
   {{ block.super }}
-  <link rel="stylesheet" href="{% static 'admin/css/grms_admin.css' %}">
-  <link rel="stylesheet" href="{% static 'grms/css/dashboard.css' %}">
-  <link rel="stylesheet" href="{% static 'grms/css/sidebar_custom.css' %}">
-  <link rel="stylesheet" href="{% static 'grms/css/custom_admin.css' %}">
+  {% if request.resolver_match and request.resolver_match.url_name == 'index' or (not request.resolver_match and request.path == '/admin/') %}
+    <link rel="stylesheet" href="{% static 'admin/css/grms_admin.css' %}">
+    <link rel="stylesheet" href="{% static 'grms/css/dashboard.css' %}">
+  {% endif %}
 {% endblock %}
 
 {% block extrahead %}
@@ -22,7 +24,5 @@
 {% endblock %}
 
 {% block content %}
-  <div class="grms-main-content">
-    {{ block.super }}
-  </div>
+  {{ block.super }}
 {% endblock %}
