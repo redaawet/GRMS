@@ -58,6 +58,8 @@ body.grms-has-sidebar.sidebar-collapsed main.content {
 body.grms-has-sidebar #content {
   padding: 0;
   margin: 0;
+  width: auto;
+  max-width: none;
 }
 
 body.grms-has-sidebar #container {
