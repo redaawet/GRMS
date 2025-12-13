@@ -9,7 +9,7 @@ from decimal import Decimal, ROUND_HALF_UP
 from django import forms
 from django.contrib import admin, messages
 from django.contrib.admin import AdminSite
-from django.db.models import Min, Sum
+from django.db.models import Max, Min, Sum
 from django.template.response import TemplateResponse
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import redirect
@@ -222,9 +222,19 @@ class GRMSAdminSite(AdminSite):
         # Simple KPIs
         # ------------------------------------------------------------------
         total_roads = models.Road.objects.count()
+        total_sections = models.RoadSection.objects.count()
+        total_segments = models.RoadSegment.objects.count()
+        planned_interventions = (
+            models.StructureIntervention.objects.count()
+            + models.RoadSectionIntervention.objects.count()
+        )
         total_road_km = (
             models.Road.objects.aggregate(km=Sum("total_length_km")).get("km")
             or 0
+        )
+        latest_traffic_year = (
+            TrafficSurveySummary.objects.aggregate(year=Max("fiscal_year"))
+            .get("year")
         )
 
         surface_distribution = json.dumps(
@@ -327,7 +337,11 @@ class GRMSAdminSite(AdminSite):
             "app_list": app_list,
             "sections": base_ctx.get("sections", []),
             "total_roads": total_roads,
+            "total_sections": total_sections,
+            "total_segments": total_segments,
+            "planned_interventions": planned_interventions,
             "total_road_km": total_road_km,
+            "latest_traffic_year": latest_traffic_year,
             "surface_distribution": surface_distribution,
             "traffic_labels": traffic_labels,
             "traffic_data": traffic_data,
