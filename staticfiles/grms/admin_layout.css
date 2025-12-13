@@ -44,7 +44,7 @@ body.popup {
 #grms-header {
   position: sticky;
   top: 0;
-  z-index: 1300;
+  z-index: 1400;
   height: var(--grms-header-height);
   background: var(--grms-accent);
   color: #ffffff;
@@ -98,12 +98,14 @@ body.popup {
   height: calc(100vh - var(--grms-header-height));
   padding: 12px;
   box-sizing: border-box;
-  background: #f9fafb;
+  background: #f5f7fa;
   border-right: 1px solid var(--grms-border);
   display: flex;
   flex-direction: column;
   gap: 10px;
-  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-gutter: stable;
 }
 
 #grms-sidebar * {
@@ -139,8 +141,7 @@ body.popup {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  overflow-y: auto;
-  overflow-x: hidden;
+  overflow: visible;
 }
 
 #grms-sidebar .sidebar-group {
@@ -148,6 +149,8 @@ body.popup {
   border: 1px solid var(--grms-border);
   border-radius: 10px;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 #grms-sidebar .sg-header {
@@ -196,6 +199,14 @@ body.popup {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  overflow: hidden;
+}
+
+#grms-sidebar .sg-content.is-scrollable {
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 6px;
+  scrollbar-gutter: stable;
 }
 
 #grms-sidebar .sidebar-group.is-collapsed .sg-content {

@@ -11,7 +11,7 @@
         <p class="dash-subtitle">Quick analytics and shortcuts for the admin team.</p>
     </header>
 
-    <section class="kpi-row" aria-label="Key performance indicators">
+    <section class="dashboard-grid" aria-label="Dashboard overview">
         <article class="kpi-card">
             <p class="kpi-label">Total Roads</p>
             <p class="kpi-value">{{ total_roads }}</p>
@@ -24,18 +24,20 @@
             <p class="kpi-label">Segments</p>
             <p class="kpi-value">{{ total_segments }}</p>
         </article>
-        <article class="kpi-card">
-            <p class="kpi-label">Planned Interventions</p>
-            <p class="kpi-value">{{ planned_interventions }}</p>
-        </article>
-        <article class="kpi-card">
-            <p class="kpi-label">Latest Traffic Year</p>
-            <p class="kpi-value">{{ latest_traffic_year|default:"–" }}</p>
-        </article>
-    </section>
 
-    <section class="panel-row" aria-label="Charts">
-        <article class="panel">
+        <article class="dash-card">
+            <h3>Planned Interventions</h3>
+            <p class="dashboard-card-value">{{ planned_interventions }}</p>
+            <p class="panel-subtitle">Projects in the current pipeline</p>
+        </article>
+
+        <article class="dash-card">
+            <h3>Latest Traffic Year</h3>
+            <p class="dashboard-card-value">{{ latest_traffic_year|default:"–" }}</p>
+            <p class="panel-subtitle">Most recent ADT survey</p>
+        </article>
+
+        <article class="dash-card span-2">
             <div class="panel-heading">
                 <h2>Surface Type Distribution</h2>
                 <p class="panel-subtitle">Share of asphalt, gravel, and dirt surfaces</p>
@@ -43,51 +45,51 @@
             <canvas id="surfaceChart" aria-label="Surface distribution chart"></canvas>
         </article>
 
-        <article class="panel">
+        <article class="dash-card span-2">
             <div class="panel-heading">
                 <h2>Traffic Trend (ADT)</h2>
                 <p class="panel-subtitle">Recent average daily traffic readings</p>
             </div>
             <canvas id="trafficChart" aria-label="Traffic trend chart"></canvas>
         </article>
-    </section>
 
-    <section class="panel">
-        <div class="panel-heading">
-            <h2>Road Network Overview</h2>
-            <p class="panel-subtitle">Mapped road locations from the latest data</p>
-        </div>
-        <div id="roadMap" aria-label="Road map"></div>
-    </section>
+        <article class="dash-card span-3 map-card">
+            <div class="panel-heading">
+                <h2>Road Network Overview</h2>
+                <p class="panel-subtitle">Mapped road locations from the latest data</p>
+            </div>
+            <div id="roadMap" aria-label="Road map"></div>
+        </article>
 
-    {% if sections %}
-    <section class="panel">
-        <div class="panel-heading">
-            <h2>Admin shortcuts</h2>
-            <p class="panel-subtitle">Manage grouped models without leaving the dashboard.</p>
-        </div>
-        <div class="section-grid">
-            {% for section in sections %}
-            <article class="section-card">
-                <div class="section-card__header">
-                    <h3>{{ section.title }}</h3>
-                    <p class="section-card__hint">{{ section.models|length }} models</p>
-                </div>
-                <ul class="section-card__links">
-                    {% for model in section.models %}
-                        <li>
-                            <a href="{{ model.admin_url }}">{{ model.name }}</a>
-                            {% if model.add_url %}
-                            <a class="section-card__add" href="{{ model.add_url }}">Add</a>
-                            {% endif %}
-                        </li>
-                    {% endfor %}
-                </ul>
-            </article>
-            {% endfor %}
-        </div>
+        {% if sections %}
+        <article class="dash-card span-3">
+            <div class="panel-heading">
+                <h2>Admin shortcuts</h2>
+                <p class="panel-subtitle">Manage grouped models without leaving the dashboard.</p>
+            </div>
+            <div class="section-grid">
+                {% for section in sections %}
+                <article class="section-card">
+                    <div class="section-card__header">
+                        <h3>{{ section.title }}</h3>
+                        <p class="section-card__hint">{{ section.models|length }} models</p>
+                    </div>
+                    <ul class="section-card__links">
+                        {% for model in section.models %}
+                            <li>
+                                <a href="{{ model.admin_url }}">{{ model.name }}</a>
+                                {% if model.add_url %}
+                                <a class="section-card__add" href="{{ model.add_url }}">Add</a>
+                                {% endif %}
+                            </li>
+                        {% endfor %}
+                    </ul>
+                </article>
+                {% endfor %}
+            </div>
+        </article>
+        {% endif %}
     </section>
-    {% endif %}
 </div>
 
 {{ grms_data|json_script:"grms-data" }}

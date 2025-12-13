@@ -10,6 +10,24 @@
     if (content) content.hidden = !expanded;
   }
 
+  function setScrollableContent(group, sidebar) {
+    const content = group.querySelector(".sg-content");
+    if (!content || content.hidden) return;
+
+    content.classList.remove("is-scrollable");
+    content.style.maxHeight = "";
+
+    const sidebarRect = sidebar.getBoundingClientRect();
+    const contentRect = content.getBoundingClientRect();
+    const paddingBuffer = 12; // match sidebar padding
+    const available = sidebarRect.bottom - contentRect.top - paddingBuffer;
+
+    if (available > 0 && content.scrollHeight > available) {
+      content.classList.add("is-scrollable");
+      content.style.maxHeight = `${Math.max(120, available)}px`;
+    }
+  }
+
   function markActiveLinks() {
     const currentPath = window.location.pathname;
     document.querySelectorAll("#grms-sidebar .ss-link").forEach((link) => {
@@ -69,6 +87,9 @@
 
         if (hasTerm) {
           setExpanded(group, groupHasMatch);
+          if (groupHasMatch) {
+            requestAnimationFrame(() => setScrollableContent(group, document.getElementById("grms-sidebar")));
+          }
           if (!firstMatch && groupHasMatch) firstMatch = group;
         }
       });
@@ -78,6 +99,9 @@
           group.querySelectorAll(".ss-link").forEach((link) => (link.style.display = ""));
           group.querySelectorAll(".sidebar-subgroup").forEach((sub) => (sub.style.display = ""));
           group.style.display = "";
+          if (!group.classList.contains("is-collapsed")) {
+            requestAnimationFrame(() => setScrollableContent(group, document.getElementById("grms-sidebar")));
+          }
         });
         enforceSingleOpen(groups);
       } else if (!firstMatch) {
@@ -101,11 +125,30 @@
       if (!header) return;
       header.addEventListener("click", () => {
         const isOpen = !group.classList.contains("is-collapsed");
-        groups.forEach((other) => setExpanded(other, other === group ? !isOpen : false));
+        groups.forEach((other) => {
+          const willExpand = other === group ? !isOpen : false;
+          setExpanded(other, willExpand);
+          if (willExpand) {
+            requestAnimationFrame(() => setScrollableContent(other, sidebar));
+          }
+        });
       });
     });
 
     enforceSingleOpen(groups);
+    groups.forEach((group) => {
+      if (!group.classList.contains("is-collapsed")) {
+        setScrollableContent(group, sidebar);
+      }
+    });
     handleSearch(groups);
+
+    window.addEventListener("resize", () => {
+      groups.forEach((group) => {
+        if (!group.classList.contains("is-collapsed")) {
+          setScrollableContent(group, sidebar);
+        }
+      });
+    });
   });
 })();

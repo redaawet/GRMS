@@ -1,16 +1,10 @@
 /* Global dashboard styles for admin index and custom dashboard pages */
 
 .grms-dashboard {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: 1fr;
   gap: 1.5rem;
   padding: 0;
-}
-
-.kpi-row {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 1rem;
 }
 
 .dashboard-grid {
@@ -35,6 +29,23 @@
   min-width: 0;
 }
 
+.dash-card,
+.kpi-card,
+.panel,
+.section-card {
+  grid-column: span 1;
+}
+
+.dash-card.span-2,
+.panel.span-2 {
+  grid-column: span 2;
+}
+
+.dash-card.span-3,
+.panel.span-3 {
+  grid-column: span 3;
+}
+
 .dash-card h3,
 .panel h2,
 .section-card__header h3,
@@ -52,16 +63,6 @@
   margin: 0;
 }
 
-.dash-card.small,
-.dash-card {
-  grid-column: span 1;
-}
-
-.dash-card.big,
-.dash-card.wide {
-  grid-column: span 2;
-}
-
 .dash-card canvas,
 .panel canvas {
   display: block;
@@ -69,6 +70,10 @@
   max-width: 100%;
   height: auto;
   max-height: 420px;
+}
+
+.map-card {
+  min-height: 360px;
 }
 
 .section-browser {
@@ -156,13 +161,12 @@
 }
 
 @media (max-width: 1199px) {
-  .dashboard-grid,
-  .kpi-row {
+  .dashboard-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .dash-card.big,
-  .dash-card.wide {
+  .dash-card.span-3,
+  .panel.span-3 {
     grid-column: span 2;
   }
 
@@ -172,13 +176,14 @@
 }
 
 @media (max-width: 767px) {
-  .dashboard-grid,
-  .kpi-row {
+  .dashboard-grid {
     grid-template-columns: 1fr;
   }
 
-  .dash-card.big,
-  .dash-card.wide {
+  .dash-card.span-2,
+  .dash-card.span-3,
+  .panel.span-2,
+  .panel.span-3 {
     grid-column: span 1;
   }
 
