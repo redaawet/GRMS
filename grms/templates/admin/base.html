@@ -42,7 +42,7 @@
 {# Fix sidebar positioning #}
 <body class="{% if is_popup %}popup {% endif %}{% block bodyclass %}{{ block.super }}{% if not is_popup and is_nav_sidebar_enabled %} dashboard grms-has-sidebar{% endif %}{% endblock %}"
   data-admin-utc-offset="{% now "Z" %}">
-<a href="#content-start" class="skip-to-content-link">{% translate 'Skip to main content' %}</a>
+<a href="#grms-main" class="skip-to-content-link">{% translate 'Skip to main content' %}</a>
 <!-- Container -->
 <div id="container">
 
@@ -108,7 +108,7 @@
           {% include "admin/sidebar.html" %}
           {% endblock %}
         {% endif %}
-      <main id="content-start" class="content" tabindex="-1">
+      <main id="grms-main" class="content" tabindex="-1">
         {% block messages %}
           {% if messages %}
             <ul class="messagelist">{% for message in messages %}
