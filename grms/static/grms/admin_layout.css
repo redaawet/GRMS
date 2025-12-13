@@ -1,13 +1,18 @@
 :root {
   --grms-header-height: 72px;
   --grms-sidebar-width: 280px;
-  --grms-sidebar-collapsed-width: 88px;
   --grms-content-padding: 24px;
 }
 
 body.grms-has-sidebar {
   min-height: 100vh;
   background: #f5f6f7;
+  padding-top: var(--grms-header-height);
+}
+
+body.popup {
+  padding-top: 0;
+  background: #ffffff;
 }
 
 #grms-header {
@@ -56,24 +61,21 @@ body.grms-has-sidebar {
 }
 
 #grms-layout {
-  display: flex;
+  display: block;
   min-height: calc(100vh - var(--grms-header-height));
-  padding-top: var(--grms-header-height);
   background: #f5f6f7;
 }
 
 #grms-layout.grms-layout-popup {
   min-height: 100vh;
-  padding-top: 0;
+  background: #ffffff;
 }
 
 #grms-sidebar {
-  position: sticky;
+  position: fixed;
   top: var(--grms-header-height);
-  align-self: flex-start;
-  flex: 0 0 var(--grms-sidebar-width);
+  left: 0;
   width: var(--grms-sidebar-width);
-  max-width: var(--grms-sidebar-width);
   height: calc(100vh - var(--grms-header-height));
   z-index: 1100;
   display: flex;
@@ -81,23 +83,24 @@ body.grms-has-sidebar {
   overflow: hidden;
 }
 
-body.sidebar-collapsed #grms-sidebar {
-  flex-basis: var(--grms-sidebar-collapsed-width);
-  width: var(--grms-sidebar-collapsed-width);
-  max-width: var(--grms-sidebar-collapsed-width);
-}
-
 #grms-sidebar .sidebar-nav {
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
+  overflow-x: hidden;
 }
 
 #grms-main {
-  flex: 1 1 auto;
-  min-width: 0;
+  margin-left: var(--grms-sidebar-width);
+  min-height: calc(100vh - var(--grms-header-height));
   padding: var(--grms-content-padding);
   box-sizing: border-box;
+}
+
+body.popup #grms-main {
+  margin-left: 0;
+  min-height: 100vh;
+  padding-top: 16px;
 }
 
 #grms-main .breadcrumbs {
@@ -119,12 +122,4 @@ body.sidebar-collapsed #grms-sidebar {
 #footer {
   padding: 12px var(--grms-content-padding);
   background: #f5f6f7;
-}
-
-body.popup #grms-layout {
-  padding-top: 0;
-}
-
-body.popup #grms-main {
-  padding: 16px;
 }
