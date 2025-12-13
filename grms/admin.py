@@ -1839,6 +1839,38 @@ class PrioritizationResultAdmin(admin.ModelAdmin):
         return False if obj else super().has_change_permission(request, obj)
 
 
+@admin.register(models.RoadRankingResult, site=grms_admin_site)
+class RoadRankingResultAdmin(admin.ModelAdmin):
+    list_display = (
+        "rank",
+        "road",
+        "road_class_or_surface_group",
+        "road_index",
+        "population_served",
+        "benefit_factor",
+        "cost_of_improvement",
+    )
+    list_filter = ("fiscal_year", "road_class_or_surface_group")
+    ordering = ("rank",)
+    search_fields = ("road__road_identifier", "road__road_name_from", "road__road_name_to")
+    readonly_fields = (
+        "road",
+        "fiscal_year",
+        "road_class_or_surface_group",
+        "population_served",
+        "benefit_factor",
+        "cost_of_improvement",
+        "road_index",
+        "rank",
+    )
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False if obj else super().has_change_permission(request, obj)
+
+
 @admin.register(models.AnnualWorkPlan, site=grms_admin_site)
 class AnnualWorkPlanAdmin(admin.ModelAdmin):
     list_display = ("road", "fiscal_year", "priority_rank", "status", "total_budget")
