@@ -1,9 +1,4 @@
 #grms-sidebar {
-  position: fixed;
-  top: var(--grms-header-height);
-  left: 0;
-  width: var(--grms-sidebar-width);
-  height: calc(100vh - var(--grms-header-height));
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -11,12 +6,19 @@
   box-sizing: border-box;
   background: #f9fafb;
   border-right: 1px solid #e5e7eb;
-  z-index: 100;
-  overflow-y: auto;
+  overflow: hidden;
 }
 
 #grms-sidebar * {
   box-sizing: border-box;
+}
+
+#grms-sidebar .sidebar-header {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: #f9fafb;
+  padding-bottom: 6px;
 }
 
 #grms-sidebar .sidebar-toggle {
@@ -36,10 +38,6 @@
 
 #grms-sidebar .sidebar-toggle:hover {
   background: #e5e7eb;
-}
-
-#grms-sidebar .sidebar-header {
-  flex: 0 0 auto;
 }
 
 #grms-sidebar .sidebar-search {
@@ -100,8 +98,8 @@
 }
 
 #grms-sidebar .sg-content {
-  background: #ffffff;
   display: block;
+  background: #ffffff;
   overflow: hidden;
 }
 

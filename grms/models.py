@@ -1415,6 +1415,20 @@ class StructureConditionSurvey(models.Model):
         return f"Structure survey {self.id} ({self.structure_id})"
 
 
+class StructureConditionLookup(models.Model):
+    code = models.PositiveSmallIntegerField(unique=True)
+    name = models.CharField(max_length=50)
+    description = models.CharField(max_length=200)
+
+    class Meta:
+        ordering = ["code"]
+        verbose_name = "Structure condition lookup"
+        verbose_name_plural = "Structure condition lookups"
+
+    def __str__(self) -> str:  # pragma: no cover - simple repr
+        return f"{self.code} - {self.name}"
+
+
 class BridgeConditionSurvey(models.Model):
     structure_survey = models.OneToOneField(
         StructureConditionSurvey,
@@ -1867,6 +1881,66 @@ class SegmentInterventionRecommendation(models.Model):
     def __str__(self) -> str:  # pragma: no cover - simple repr
         code = getattr(self.recommended_item, "work_code", self.recommended_item_id)
         return f"{self.segment_id} → {code}"
+
+
+class StructureConditionInterventionRule(models.Model):
+    class StructureType(models.TextChoices):
+        BRIDGE = "bridge", "Bridge"
+        CULVERT = "culvert", "Culvert"
+        DRIFT = "drift", "Drift"
+        VENTED_DRIFT = "vented_drift", "Vented drift"
+        OTHER = "other", "Other"
+
+    structure_type = models.CharField(max_length=20, choices=StructureType.choices)
+    condition = models.ForeignKey(
+        "StructureConditionLookup",
+        on_delete=models.PROTECT,
+        related_name="intervention_rules",
+    )
+    intervention_item = models.ForeignKey(
+        "InterventionWorkItem",
+        to_field="work_code",
+        on_delete=models.PROTECT,
+        related_name="structure_rules",
+    )
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        unique_together = ("structure_type", "condition")
+        verbose_name = "Structure condition intervention rule"
+        verbose_name_plural = "Structure condition intervention rules"
+        ordering = ["structure_type", "condition__code"]
+
+    def __str__(self) -> str:  # pragma: no cover - simple repr
+        cond = getattr(self.condition, "code", "?")
+        return f"{self.structure_type} → {cond}"
+
+
+class StructureInterventionRecommendation(models.Model):
+    structure = models.ForeignKey(
+        StructureInventory,
+        on_delete=models.CASCADE,
+        related_name="structure_recommendations",
+    )
+    structure_type = models.CharField(max_length=20, choices=StructureConditionInterventionRule.StructureType.choices)
+    condition_code = models.PositiveSmallIntegerField()
+    recommended_item = models.ForeignKey(
+        "InterventionWorkItem",
+        to_field="work_code",
+        on_delete=models.PROTECT,
+        related_name="structure_recommendations",
+    )
+    calculated_on = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["structure_type", "recommended_item__work_code"]
+        unique_together = ("structure", "recommended_item")
+        verbose_name = "Structure intervention recommendation"
+        verbose_name_plural = "Structure intervention recommendations"
+
+    def __str__(self) -> str:  # pragma: no cover - simple repr
+        code = getattr(self.recommended_item, "work_code", self.recommended_item_id)
+        return f"{self.structure_id} → {code}"
 
 
 class FurnitureConditionSurvey(models.Model):
