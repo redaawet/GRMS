@@ -2,110 +2,88 @@
   if (window.GRMS_SIDEBAR_LOADED) return;
   window.GRMS_SIDEBAR_LOADED = true;
 
-  const COLLAPSE_KEY = "grmsSidebarCollapsed";
+  function setExpanded(group, expanded) {
+    group.classList.toggle("is-collapsed", !expanded);
+    const header = group.querySelector(".sg-header");
+    const content = group.querySelector(".sg-content");
+    if (header) header.setAttribute("aria-expanded", expanded ? "true" : "false");
+    if (content) content.hidden = !expanded;
+  }
 
   function markActiveLinks() {
     const currentPath = window.location.pathname;
-    let activeGroup = null;
-    let activeSubgroup = null;
-
     document.querySelectorAll("#grms-sidebar .ss-link").forEach((link) => {
       const href = link.getAttribute("href");
       if (!href) return;
       const linkPath = new URL(href, window.location.origin).pathname;
       if (currentPath.startsWith(linkPath)) {
         link.classList.add("active");
-        const group = link.closest("details.sidebar-group");
-        const subgroup = link.closest("details.sidebar-subgroup");
-        if (group) activeGroup = group;
-        if (subgroup) activeSubgroup = subgroup;
+        const group = link.closest(".sidebar-group");
+        const subgroup = link.closest(".sidebar-subgroup");
+        if (group) group.classList.add("has-active");
+        if (subgroup) subgroup.classList.add("has-active");
       }
     });
-
-    if (activeGroup) activeGroup.open = true;
-    if (activeSubgroup) activeSubgroup.open = true;
-
-    return { activeGroup, activeSubgroup };
   }
 
-  function handleSearch() {
+  function enforceSingleOpen(groups) {
+    const activeGroup = groups.find((group) => group.classList.contains("has-active"));
+    const target = activeGroup || groups[0];
+    groups.forEach((group) => setExpanded(group, group === target));
+  }
+
+  function handleSearch(groups) {
     const searchInput = document.getElementById("sidebar-search");
     if (!searchInput) return;
 
     searchInput.addEventListener("input", (event) => {
       const term = event.target.value.trim().toLowerCase();
-      const groups = document.querySelectorAll("#grms-sidebar details.sidebar-group");
+      const hasTerm = term.length > 0;
+      let firstMatch = null;
 
       groups.forEach((group) => {
+        const subgroupBlocks = group.querySelectorAll(".sidebar-subgroup");
+        const directLinks = group.querySelectorAll(":scope > .sg-content > .sg-list > .ss-link");
         let groupHasMatch = false;
-        const subgroups = group.querySelectorAll("details.sidebar-subgroup");
-        const directLinks = group.querySelectorAll(":scope > .sg-content > .ss-link");
 
-        if (subgroups.length) {
-          subgroups.forEach((sub) => {
-            let subHasMatch = false;
-            sub.querySelectorAll(".ss-link").forEach((link) => {
-              const match = !term || link.textContent.toLowerCase().includes(term);
-              link.style.display = match ? "" : "none";
-              if (match) subHasMatch = true;
-            });
+        const evaluateLink = (link) => {
+          const match = !hasTerm || link.textContent.toLowerCase().includes(term);
+          link.style.display = match ? "" : "none";
+          if (match) groupHasMatch = true;
+        };
 
-            sub.style.display = subHasMatch || !term ? "" : "none";
-            if (term) sub.open = subHasMatch;
-            if (subHasMatch) groupHasMatch = true;
-          });
-        }
-
-        if (directLinks.length) {
-          let directMatch = false;
-          directLinks.forEach((link) => {
-            const match = !term || link.textContent.toLowerCase().includes(term);
+        subgroupBlocks.forEach((sub) => {
+          let subHasMatch = false;
+          sub.querySelectorAll(".ss-link").forEach((link) => {
+            const match = !hasTerm || link.textContent.toLowerCase().includes(term);
             link.style.display = match ? "" : "none";
-            if (match) directMatch = true;
+            if (match) subHasMatch = true;
           });
-
-          if (directMatch) groupHasMatch = true;
-        }
-
-        group.style.display = groupHasMatch || !term ? "" : "none";
-        if (term) group.open = groupHasMatch;
-      });
-    });
-  }
-
-  function handleCollapseToggle() {
-    const toggle = document.getElementById("sidebar-toggle");
-    if (!toggle) return;
-
-    const applyCollapsed = (collapsed) => {
-      document.body.classList.toggle("sidebar-collapsed", collapsed);
-      toggle.textContent = collapsed ? "▸" : "▾";
-    };
-
-    applyCollapsed(localStorage.getItem(COLLAPSE_KEY) === "true");
-
-    toggle.addEventListener("click", () => {
-      const collapsed = !document.body.classList.contains("sidebar-collapsed");
-      applyCollapsed(collapsed);
-      localStorage.setItem(COLLAPSE_KEY, String(collapsed));
-    });
-  }
-
-  function enforceSingleOpenGroup() {
-    document.addEventListener(
-      "toggle",
-      (event) => {
-        const details = event.target;
-        if (!(details instanceof HTMLDetailsElement)) return;
-        if (!details.classList.contains("sidebar-group")) return;
-        if (!details.open) return;
-
-        document.querySelectorAll("#grms-sidebar details.sidebar-group[open]").forEach((group) => {
-          if (group !== details) group.open = false;
+          sub.style.display = subHasMatch || !hasTerm ? "" : "none";
+          if (subHasMatch) groupHasMatch = true;
         });
-      },
-      true,
-    );
+
+        directLinks.forEach(evaluateLink);
+
+        group.style.display = !hasTerm || groupHasMatch ? "" : "none";
+
+        if (hasTerm) {
+          setExpanded(group, groupHasMatch);
+          if (!firstMatch && groupHasMatch) firstMatch = group;
+        }
+      });
+
+      if (!hasTerm) {
+        groups.forEach((group) => {
+          group.querySelectorAll(".ss-link").forEach((link) => (link.style.display = ""));
+          group.querySelectorAll(".sidebar-subgroup").forEach((sub) => (sub.style.display = ""));
+          group.style.display = "";
+        });
+        enforceSingleOpen(groups);
+      } else if (!firstMatch) {
+        groups.forEach((group) => setExpanded(group, false));
+      }
+    });
   }
 
   document.addEventListener("DOMContentLoaded", () => {
@@ -114,8 +92,20 @@
     if (!sidebar) return;
 
     markActiveLinks();
-    handleSearch();
-    handleCollapseToggle();
-    enforceSingleOpenGroup();
+
+    const groups = Array.from(sidebar.querySelectorAll(".sidebar-group"));
+    if (!groups.length) return;
+
+    groups.forEach((group, index) => {
+      const header = group.querySelector(".sg-header");
+      if (!header) return;
+      header.addEventListener("click", () => {
+        const isOpen = !group.classList.contains("is-collapsed");
+        groups.forEach((other) => setExpanded(other, other === group ? !isOpen : false));
+      });
+    });
+
+    enforceSingleOpen(groups);
+    handleSearch(groups);
   });
 })();

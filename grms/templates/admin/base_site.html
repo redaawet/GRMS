@@ -4,7 +4,7 @@
 {% block title %}{{ site_title }}{% endblock %}
 
 {% block bodyclass %}
-  {{ block.super }} app-grms{% if request.resolver_match and request.resolver_match.url_name == 'index' %} dashboard-index{% elif not request.resolver_match and request.path == '/admin/' %} dashboard-index{% endif %}
+  {{ block.super }} app-grms
 {% endblock %}
 
 {% block extrastyle %}
