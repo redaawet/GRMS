@@ -10,6 +10,7 @@ from .mci_intervention import (
     recompute_all_segment_interventions,
     recompute_interventions_for_segments,
 )
+from .planning import compute_road_ranking
 
 __all__ = [
     "map_services",
@@ -21,4 +22,5 @@ __all__ = [
     "recommend_intervention_for_segment",
     "recompute_interventions_for_segments",
     "recompute_all_segment_interventions",
+    "compute_road_ranking",
 ]

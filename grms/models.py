@@ -2533,6 +2533,26 @@ class BenefitFactor(models.Model):
         return f"Benefit factors for road {self.road_id} ({self.fiscal_year})"
 
 
+class RoadRankingResult(models.Model):
+    road = models.ForeignKey(Road, on_delete=models.CASCADE, related_name="ranking_results")
+    fiscal_year = models.PositiveIntegerField()
+    road_class_or_surface_group = models.CharField(max_length=20)
+    population_served = models.DecimalField(max_digits=15, decimal_places=2)
+    benefit_factor = models.DecimalField(max_digits=12, decimal_places=4)
+    cost_of_improvement = models.DecimalField(max_digits=15, decimal_places=2)
+    road_index = models.DecimalField(max_digits=20, decimal_places=8)
+    rank = models.PositiveIntegerField(help_text="Rank order (1 = highest priority)")
+
+    class Meta:
+        verbose_name = "Road ranking result"
+        verbose_name_plural = "Road ranking results"
+        unique_together = ("road", "fiscal_year", "road_class_or_surface_group")
+        ordering = ["road_class_or_surface_group", "rank"]
+
+    def __str__(self) -> str:  # pragma: no cover
+        return f"{self.road} - FY {self.fiscal_year} ({self.road_class_or_surface_group})"
+
+
 class PrioritizationResult(models.Model):
     road = models.ForeignKey(Road, on_delete=models.CASCADE)
     section = models.ForeignKey(RoadSection, on_delete=models.CASCADE, null=True, blank=True)
