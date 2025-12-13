@@ -18,7 +18,7 @@
 {% block extrastyle %}
 {{ block.super }}
 <link rel="stylesheet" href="{% static 'grms/css/admin_layout.css' %}">
-<link rel="stylesheet" href="{% static 'grms/css/sidebar.css' %}">
+<link rel="stylesheet" href="{% static 'grms/css/sidebar_custom.css' %}">
 <link rel="stylesheet" href="{% static 'grms/global.css' %}">
 {% endblock %}
 {% if LANGUAGE_BIDI %}<link rel="stylesheet" href="{% block stylesheet_rtl %}{% static "admin/css/rtl.css" %}{% endblock %}">{% endif %}
@@ -40,7 +40,7 @@
 </head>
 
 {# Fix sidebar positioning #}
-<body class="{% if is_popup %}popup {% endif %}{% block bodyclass %}{{ block.super }}{% if not is_popup and is_nav_sidebar_enabled %} dashboard grms-has-sidebar{% endif %}{% endblock %}"
+<body class="{% if is_popup %}popup {% endif %}{% block bodyclass %}{{ block.super }}{% if not is_popup and is_nav_sidebar_enabled %} grms-has-sidebar{% endif %}{% endblock %}"
   data-admin-utc-offset="{% now "Z" %}">
 <a href="#grms-main" class="skip-to-content-link">{% translate 'Skip to main content' %}</a>
 <!-- Container -->
