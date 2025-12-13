@@ -14,7 +14,7 @@ body.grms-has-sidebar #header {
   top: 0;
   left: 0;
   right: 0;
-  height: var(--grms-header-height);
+  min-height: var(--grms-header-height);
   z-index: 1200;
 }
 
