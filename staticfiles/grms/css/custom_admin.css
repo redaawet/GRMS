@@ -43,66 +43,12 @@
     color: #1e3a8a;
 }
 
-body.login #container,
-body.login #content {
-    margin-left: 0 !important;
-    padding-top: 0 !important;
-    width: auto !important;
-}
-
 /* Optional: tighten sidebar spacing */
 #grms-sidebar .sidebar-item {
     padding: 8px 18px;
 }
 
-/* Responsive Behavior */
-@media (max-width: 900px) {
-    #grms-layout {
-        display: block;
-    }
-
-    #grms-sidebar {
-        position: relative;
-        width: 100%;
-        min-width: 0;
-        height: auto;
-        border-right: none;
-        border-bottom: 1px solid #d6dce5;
-        top: 0;
-    }
-
-    #header {
-        height: auto;
-        position: fixed;
-        padding-left: 15px !important;
-    }
-}
-
 body, html {
     overflow-x: hidden !important;
     padding-left: 0 !important;
-}
-
-/* Responsive adjustments */
-@media (max-width: 768px) {
-    #grms-layout {
-        display: block;
-    }
-
-    #grms-sidebar {
-        position: relative;
-        top: 0;
-        height: auto;
-        width: 100%;
-        min-width: 0;
-        border-right: none;
-        border-bottom: 1px solid #ddd;
-    }
-
-    #container {
-        margin-left: 0 !important;
-        width: 100% !important;
-        margin-top: var(--admin-header-height, 64px) !important;
-        padding-top: 0 !important;
-    }
 }
