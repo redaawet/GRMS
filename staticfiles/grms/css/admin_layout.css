@@ -14,7 +14,7 @@ body.grms-has-sidebar #header {
   top: 0;
   left: 0;
   right: 0;
-  height: var(--grms-header-height);
+  min-height: var(--grms-header-height);
   z-index: 1200;
 }
 
@@ -58,6 +58,8 @@ body.grms-has-sidebar.sidebar-collapsed main.content {
 body.grms-has-sidebar #content {
   padding: 0;
   margin: 0;
+  width: auto;
+  max-width: none;
 }
 
 body.grms-has-sidebar #container {

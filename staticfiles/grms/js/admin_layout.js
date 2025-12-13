@@ -3,6 +3,12 @@
     const header = document.getElementById("header");
     if (!header) return;
     const height = Math.ceil(header.getBoundingClientRect().height);
+
+    if (!height || Number.isNaN(height)) {
+      document.documentElement.style.removeProperty("--grms-header-height");
+      return;
+    }
+
     document.documentElement.style.setProperty("--grms-header-height", `${height}px`);
   }
 
