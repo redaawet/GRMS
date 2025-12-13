@@ -1,0 +1,130 @@
+:root {
+  --grms-header-height: 72px;
+  --grms-sidebar-width: 280px;
+  --grms-sidebar-collapsed-width: 88px;
+  --grms-content-padding: 24px;
+}
+
+body.grms-has-sidebar {
+  min-height: 100vh;
+  background: #f5f6f7;
+}
+
+#grms-header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: var(--grms-header-height);
+  z-index: 1200;
+  background: #417690;
+  color: #ffffff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+}
+
+#grms-header .header-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  height: 100%;
+  padding: 0 var(--grms-content-padding);
+  box-sizing: border-box;
+}
+
+#grms-header #branding {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+#grms-header #user-tools {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0;
+  flex-wrap: wrap;
+}
+
+#grms-header #user-tools form {
+  margin: 0;
+}
+
+#grms-header a,
+#grms-header button {
+  color: #ffffff;
+}
+
+#grms-layout {
+  display: flex;
+  min-height: calc(100vh - var(--grms-header-height));
+  padding-top: var(--grms-header-height);
+  background: #f5f6f7;
+}
+
+#grms-layout.grms-layout-popup {
+  min-height: 100vh;
+  padding-top: 0;
+}
+
+#grms-sidebar {
+  position: sticky;
+  top: var(--grms-header-height);
+  align-self: flex-start;
+  flex: 0 0 var(--grms-sidebar-width);
+  width: var(--grms-sidebar-width);
+  max-width: var(--grms-sidebar-width);
+  height: calc(100vh - var(--grms-header-height));
+  z-index: 1100;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+body.sidebar-collapsed #grms-sidebar {
+  flex-basis: var(--grms-sidebar-collapsed-width);
+  width: var(--grms-sidebar-collapsed-width);
+  max-width: var(--grms-sidebar-collapsed-width);
+}
+
+#grms-sidebar .sidebar-nav {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+#grms-main {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: var(--grms-content-padding);
+  box-sizing: border-box;
+}
+
+#grms-main .breadcrumbs {
+  margin: 0 0 16px 0;
+  padding: 0;
+}
+
+#content {
+  width: 100%;
+  max-width: 100%;
+  padding: 0;
+  margin: 0;
+}
+
+#grms-main .messagelist {
+  margin-top: 0;
+}
+
+#footer {
+  padding: 12px var(--grms-content-padding);
+  background: #f5f6f7;
+}
+
+body.popup #grms-layout {
+  padding-top: 0;
+}
+
+body.popup #grms-main {
+  padding: 16px;
+}
