@@ -4,13 +4,15 @@
 {% block title %}{{ site_title }}{% endblock %}
 
 {% block bodyclass %}
-  {{ block.super }} app-grms{% if request.resolver_match and request.resolver_match.url_name == 'index' or request.path == '/admin/' %} dashboard-index{% endif %}
+  {{ block.super }} app-grms{% if request.resolver_match and request.resolver_match.url_name == 'index' or (not request.resolver_match and request.path == '/admin/') %} dashboard-index{% endif %}
 {% endblock %}
 
 {% block extrastyle %}
   {{ block.super }}
-  <link rel="stylesheet" href="{% static 'admin/css/grms_admin.css' %}">
-  <link rel="stylesheet" href="{% static 'grms/css/dashboard.css' %}">
+  {% if request.resolver_match and request.resolver_match.url_name == 'index' or (not request.resolver_match and request.path == '/admin/') %}
+    <link rel="stylesheet" href="{% static 'admin/css/grms_admin.css' %}">
+    <link rel="stylesheet" href="{% static 'grms/css/dashboard.css' %}">
+  {% endif %}
 {% endblock %}
 
 {% block extrahead %}
