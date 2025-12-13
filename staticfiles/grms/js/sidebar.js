@@ -92,21 +92,19 @@
   }
 
   function enforceSingleOpenGroup() {
-    document.addEventListener("click", (event) => {
-      const summary = event.target.closest("#grms-sidebar details.sidebar-group > summary");
-      if (!summary) return;
+    const groups = Array.from(
+      document.querySelectorAll("#grms-sidebar details.sidebar-group")
+    );
 
-      const currentGroup = summary.parentElement;
-
-      // Allow the native toggle to happen before closing others
-      setTimeout(() => {
-        if (!currentGroup?.open) return;
-        document
-          .querySelectorAll("#grms-sidebar details.sidebar-group[open]")
-          .forEach((group) => {
-            if (group !== currentGroup) group.removeAttribute("open");
-          });
-      }, 0);
+    groups.forEach((group) => {
+      group.addEventListener("toggle", () => {
+        if (!group.open) return;
+        groups.forEach((other) => {
+          if (other !== group) {
+            other.open = false;
+          }
+        });
+      });
     });
   }
 
