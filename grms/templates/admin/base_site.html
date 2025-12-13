@@ -9,11 +9,6 @@
 
 {% block extrastyle %}
   {{ block.super }}
-  {% if request.resolver_match and request.resolver_match.url_name == 'index' %}
-    <link rel="stylesheet" href="{% static 'grms/css/dashboard.css' %}">
-  {% elif not request.resolver_match and request.path == '/admin/' %}
-    <link rel="stylesheet" href="{% static 'grms/css/dashboard.css' %}">
-  {% endif %}
 {% endblock %}
 
 {% block extrahead %}
