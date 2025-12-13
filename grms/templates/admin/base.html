@@ -87,15 +87,17 @@
       </div>
     </header>
   {% endblock %}
+{% endif %}
 
-  <div id="grms-layout">
-    {% if is_nav_sidebar_enabled %}
-      {% block nav-sidebar %}
-        {% include "admin/sidebar.html" %}
-      {% endblock %}
-    {% endif %}
+<div id="grms-layout" class="{% if is_popup %}grms-layout-popup{% endif %}">
+  {% if not is_popup and is_nav_sidebar_enabled %}
+    {% block nav-sidebar %}
+      {% include "admin/sidebar.html" %}
+    {% endblock %}
+  {% endif %}
 
-    <main id="grms-main" class="content" tabindex="-1">
+  <main id="grms-main" class="content" tabindex="-1">
+    {% if not is_popup %}
       {% block nav-breadcrumbs %}
         <nav aria-label="{% translate 'Breadcrumbs' %}">
           {% block breadcrumbs %}
@@ -106,33 +108,8 @@
           {% endblock %}
         </nav>
       {% endblock %}
+    {% endif %}
 
-      {% block messages %}
-        {% if messages %}
-          <ul class="messagelist">{% for message in messages %}
-            <li{% if message.tags %} class="{{ message.tags }}"{% endif %}>{{ message|capfirst }}</li>
-          {% endfor %}</ul>
-        {% endif %}
-      {% endblock messages %}
-
-      <div id="content" class="{% block coltype %}colM{% endblock %}">
-        {% block pretitle %}{% endblock %}
-        {% block content_title %}{% if title %}<h1>{{ title }}</h1>{% endif %}{% endblock %}
-        {% block content_subtitle %}{% if subtitle %}<h2>{{ subtitle }}</h2>{% endif %}{% endblock %}
-        {% block content %}
-        <div class="grms-content">
-          {% block object-tools %}{% endblock %}
-          {{ content }}
-        </div>
-        {% endblock %}
-        {% block sidebar %}{% endblock %}
-        <br class="clear">
-      </div>
-    </main>
-  </div>
-  <footer id="footer">{% block footer %}{% endblock %}</footer>
-{% else %}
-  <main id="grms-main" class="content" tabindex="-1">
     {% block messages %}
       {% if messages %}
         <ul class="messagelist">{% for message in messages %}
@@ -140,6 +117,7 @@
         {% endfor %}</ul>
       {% endif %}
     {% endblock messages %}
+
     <div id="content" class="{% block coltype %}colM{% endblock %}">
       {% block pretitle %}{% endblock %}
       {% block content_title %}{% if title %}<h1>{{ title }}</h1>{% endif %}{% endblock %}
@@ -154,7 +132,8 @@
       <br class="clear">
     </div>
   </main>
-{% endif %}
+</div>
+{% if not is_popup %}<footer id="footer">{% block footer %}{% endblock %}</footer>{% endif %}
 
 <!-- SVGs -->
 <svg xmlns="http://www.w3.org/2000/svg" class="base-svgs">
