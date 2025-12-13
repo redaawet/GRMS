@@ -76,7 +76,7 @@ class GRMSAdminSite(AdminSite):
     index_template = "admin/index.html"
     site_url = "/"
 
-    EXCLUDED_MODEL_NAMES = set()
+    EXCLUDED_MODEL_NAMES = {"structureintervention"}
 
     MENU_GROUPS: Dict[str, MenuGroup] = {}
 
@@ -1300,6 +1300,19 @@ class StructureConditionSurveyAdmin(admin.ModelAdmin):
     )
 
 
+@admin.register(models.StructureConditionLookup, site=grms_admin_site)
+class StructureConditionLookupAdmin(admin.ModelAdmin):
+    list_display = ("code", "name", "description")
+    ordering = ("code",)
+
+
+@admin.register(models.StructureConditionInterventionRule, site=grms_admin_site)
+class StructureConditionInterventionRuleAdmin(admin.ModelAdmin):
+    list_display = ("structure_type", "condition", "intervention_item", "is_active")
+    list_filter = ("structure_type", "is_active")
+    ordering = ("structure_type", "condition__code")
+
+
 @admin.register(models.BridgeConditionSurvey, site=grms_admin_site)
 class BridgeConditionSurveyAdmin(admin.ModelAdmin):
     fieldsets = (
@@ -1748,6 +1761,53 @@ class AnnualWorkPlanAdmin(admin.ModelAdmin):
     list_display = ("road", "fiscal_year", "priority_rank", "status", "total_budget")
     list_filter = ("fiscal_year", "road__admin_zone")
     search_fields = ("road__road_identifier", "road__road_name_from", "road__road_name_to")
+
+
+@admin.register(models.StructureInterventionRecommendation, site=grms_admin_site)
+class StructureInterventionRecommendationAdmin(admin.ModelAdmin):
+    list_display = (
+        "road_name",
+        "section_number",
+        "structure_label",
+        "structure_type",
+        "condition_code",
+        "recommended_item_display",
+    )
+    list_filter = ("structure_type",)
+    search_fields = (
+        "structure__road__road_identifier",
+        "structure__road__road_name_from",
+        "structure__road__road_name_to",
+        "structure__structure_name",
+    )
+    readonly_fields = ("calculated_on",)
+
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        return qs.select_related("structure", "structure__road", "structure__section", "recommended_item")
+
+    @admin.display(description="Road")
+    def road_name(self, obj):
+        return getattr(obj.structure.road, "road_identifier", None) if obj.structure_id else None
+
+    @admin.display(description="Section")
+    def section_number(self, obj):
+        if obj.structure and obj.structure.section:
+            return obj.structure.section.section_number
+        return None
+
+    @admin.display(description="Structure")
+    def structure_label(self, obj):
+        if not obj.structure:
+            return None
+        return obj.structure.structure_name or f"Structure {obj.structure_id}"
+
+    @admin.display(description="Recommended item")
+    def recommended_item_display(self, obj):
+        item = obj.recommended_item
+        if not item:
+            return None
+        return f"{item.work_code} - {item.description}"
 
 
 @admin.register(models.StructureIntervention, site=grms_admin_site)

@@ -21,6 +21,7 @@ os.environ["PROJ_LIB"] = r"C:\OSGeo4W\share\proj"
 
 
 INSTALLED_APPS = [
+    'django.contrib.humanize',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
