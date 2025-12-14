@@ -113,11 +113,22 @@ def geometry_length_km(geometry) -> float:
 def geos_length_km(geometry: GEOSGeometry | None) -> float:
     """Return metric length for a GEOS geometry by transforming to EPSG:3857."""
 
-    if geometry is None or geometry.empty:
+    if geometry is None:
         return 0.0
 
-    geom_3857 = geometry.transform(3857, clone=True)
-    return float(geom_3857.length) / 1000
+    if isinstance(geometry, (list, tuple, dict)):
+        return geometry_length_km(geometry)
+
+    empty_flag = getattr(geometry, "empty", None)
+    if empty_flag is True:
+        return 0.0
+
+    try:
+        geom_3857 = geometry.transform(3857, clone=True)
+        return float(geom_3857.length) / 1000
+    except Exception:
+        # When a fallback JSON geometry or stub is provided, fail gracefully
+        return 0.0
 
 
 def _interpolate_coordinate(start: Tuple[float, float], end: Tuple[float, float], fraction: float) -> Tuple[float, float]:

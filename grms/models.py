@@ -529,6 +529,20 @@ class RoadGlobalCostReport(Road):
         verbose_name_plural = "Global Cost of Road Works"
 
 
+class SectionWorkplanReport(Road):
+    class Meta:
+        proxy = True
+        verbose_name = "Section Annual Workplan (Table 25)"
+        verbose_name_plural = "Section Annual Workplan (Table 25)"
+
+
+class AnnualWorkplanReport(Road):
+    class Meta:
+        proxy = True
+        verbose_name = "Annual Workplan (Table 26)"
+        verbose_name_plural = "Annual Workplan (Table 26)"
+
+
 class RoadSection(models.Model):
     SURFACE_TYPES = [
         ("Earth", "Earth"),
@@ -1948,6 +1962,74 @@ class StructureInterventionRecommendation(models.Model):
     def __str__(self) -> str:  # pragma: no cover - simple repr
         code = getattr(self.recommended_item, "work_code", self.recommended_item_id)
         return f"{self.structure_id} → {code}"
+
+
+class SegmentInterventionNeed(models.Model):
+    segment = models.ForeignKey(RoadSegment, on_delete=models.CASCADE, related_name="intervention_needs")
+    fiscal_year = models.PositiveIntegerField(help_text="Fiscal year for which the need is recorded")
+    notes = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Segment intervention need"
+        verbose_name_plural = "Segment intervention needs"
+        unique_together = ("segment", "fiscal_year")
+
+    def __str__(self) -> str:  # pragma: no cover
+        return f"Need for segment {self.segment_id} ({self.fiscal_year})"
+
+
+class SegmentInterventionNeedItem(models.Model):
+    need = models.ForeignKey(
+        SegmentInterventionNeed, on_delete=models.CASCADE, related_name="items"
+    )
+    intervention_item = models.ForeignKey(
+        InterventionWorkItem, on_delete=models.PROTECT, related_name="segment_need_items"
+    )
+    notes = models.TextField(blank=True)
+
+    class Meta:
+        verbose_name = "Segment intervention need item"
+        verbose_name_plural = "Segment intervention need items"
+
+    def __str__(self) -> str:  # pragma: no cover
+        return f"Segment need item {self.intervention_item_id}"
+
+
+class StructureInterventionNeed(models.Model):
+    structure = models.ForeignKey(
+        StructureInventory, on_delete=models.CASCADE, related_name="intervention_needs"
+    )
+    fiscal_year = models.PositiveIntegerField(help_text="Fiscal year for which the need is recorded")
+    notes = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Structure intervention need"
+        verbose_name_plural = "Structure intervention needs"
+        unique_together = ("structure", "fiscal_year")
+
+    def __str__(self) -> str:  # pragma: no cover
+        return f"Need for structure {self.structure_id} ({self.fiscal_year})"
+
+
+class StructureInterventionNeedItem(models.Model):
+    need = models.ForeignKey(
+        StructureInterventionNeed, on_delete=models.CASCADE, related_name="items"
+    )
+    intervention_item = models.ForeignKey(
+        InterventionWorkItem, on_delete=models.PROTECT, related_name="structure_need_items"
+    )
+    notes = models.TextField(blank=True)
+
+    class Meta:
+        verbose_name = "Structure intervention need item"
+        verbose_name_plural = "Structure intervention need items"
+
+    def __str__(self) -> str:  # pragma: no cover
+        return f"Structure need item {self.intervention_item_id}"
 
 
 class FurnitureConditionSurvey(models.Model):
