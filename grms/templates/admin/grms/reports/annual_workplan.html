@@ -1,0 +1,81 @@
+{% extends "admin/base_site.html" %}
+{% load humanize report_tags %}
+
+{% block content %}
+<div class="annual-workplan-report">
+  <div class="page-header">
+    <h1>Annual Workplan (Table 26)</h1>
+    <form method="get" class="report-filter-form">
+      <label for="fiscal_year">Fiscal year</label>
+      <input type="number" name="fiscal_year" id="fiscal_year" value="{{ fiscal_year }}" required />
+      <label for="group">Group</label>
+      <select name="group" id="group">
+        <option value="">-- All groups --</option>
+        <option value="paved" {% if selected_group == "paved" %}selected{% endif %}>Paved</option>
+        <option value="unpaved" {% if selected_group == "unpaved" %}selected{% endif %}>Unpaved</option>
+      </select>
+      <button type="submit" class="button">Generate</button>
+      {% if rows %}
+        <a class="button" href="{{ csv_export_url }}">Export CSV</a>
+      {% endif %}
+    </form>
+  </div>
+
+  {% if rows %}
+    <div class="report-header">
+      <p><strong>FY:</strong> {{ header_context.annual_work_plan_FY }}</p>
+      <p><strong>Region:</strong> {{ header_context.region_name }}</p>
+      <p><strong>Woreda:</strong> {{ header_context.woreda_name }}</p>
+    </div>
+    <div class="module">
+      <table class="admin-table">
+        <thead>
+          <tr>
+            <th>Road no</th>
+            <th>Road class</th>
+            <th class="numeric">Length (km)</th>
+            <th class="numeric">Rank</th>
+            <th class="numeric">RM</th>
+            <th class="numeric">PM</th>
+            <th class="numeric">Rehab</th>
+            <th class="numeric">Road B-neck</th>
+            <th class="numeric">Struct B-neck</th>
+            <th class="numeric">Year cost</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in rows %}
+            <tr>
+              <td>{{ row.road_no }}</td>
+              <td>{{ row.road_class }}</td>
+              <td class="numeric">{{ row.road_length_km|floatformat:3 }}</td>
+              <td class="numeric">{{ row.rank }}</td>
+              <td class="numeric">{{ row.rm_cost|floatformat:2 }}</td>
+              <td class="numeric">{{ row.pm_cost|floatformat:2 }}</td>
+              <td class="numeric">{{ row.rehab_cost|floatformat:2 }}</td>
+              <td class="numeric">{{ row.road_bneck_cost|floatformat:2 }}</td>
+              <td class="numeric">{{ row.structure_bneck_cost|floatformat:2 }}</td>
+              <td class="numeric">{{ row.year_cost|floatformat:2 }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+        <tfoot>
+          <tr>
+            <th colspan="2">Totals</th>
+            <th class="numeric">{{ totals.road_length_km|floatformat:3 }}</th>
+            <th></th>
+            <th class="numeric">{{ totals.rm_cost|floatformat:2 }}</th>
+            <th class="numeric">{{ totals.pm_cost|floatformat:2 }}</th>
+            <th class="numeric">{{ totals.rehab_cost|floatformat:2 }}</th>
+            <th class="numeric">{{ totals.road_bneck_cost|floatformat:2 }}</th>
+            <th class="numeric">{{ totals.structure_bneck_cost|floatformat:2 }}</th>
+            <th class="numeric">{{ totals.year_cost|floatformat:2 }}</th>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  {% else %}
+    <p>No rows to display. Please pick a fiscal year.</p>
+  {% endif %}
+</div>
+{% endblock %}

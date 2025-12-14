@@ -20,6 +20,7 @@ from .menu import build_menu_groups
 from traffic.models import TrafficSurveyOverall, TrafficSurveySummary
 from .gis_fields import LineStringField, PointField
 from .services import map_services, mci_intervention, prioritization, workplan_costs
+from .services.planning import road_ranking, workplans
 from .utils import make_point, point_to_lat_lng, utm_to_wgs84, wgs84_to_utm
 
 try:  # pragma: no cover - depends on spatial libs
@@ -697,6 +698,206 @@ class RoadGlobalCostReportAdmin(admin.ModelAdmin):
         return TemplateResponse(request, self.change_list_template, context)
 
 
+@admin.register(models.SectionWorkplanReport, site=grms_admin_site)
+class SectionWorkplanReportAdmin(admin.ModelAdmin):
+    change_list_template = "admin/grms/reports/section_workplan.html"
+
+    def has_add_permission(self, request):  # pragma: no cover - report only
+        return False
+
+    def has_change_permission(self, request, obj=None):  # pragma: no cover - report only
+        return False
+
+    def has_delete_permission(self, request, obj=None):  # pragma: no cover - report only
+        return False
+
+    def get_queryset(self, request):
+        return self.model.objects.none()
+
+    def changelist_view(self, request, extra_context=None):
+        fiscal_year = request.GET.get("fiscal_year")
+        road_id = request.GET.get("road")
+        rows = []
+        totals = {}
+        header_context = {}
+
+        selected_road = None
+        if fiscal_year and road_id:
+            try:
+                selected_road = models.Road.objects.get(pk=road_id)
+                rows, totals, header_context = workplans.compute_section_workplan_rows(
+                    selected_road, int(fiscal_year)
+                )
+            except models.Road.DoesNotExist:
+                selected_road = None
+
+        if request.GET.get("format") == "csv" and rows:
+            response = HttpResponse(content_type="text/csv")
+            response["Content-Disposition"] = "attachment; filename=section_workplan.csv"
+            writer = csv.writer(response)
+            writer.writerow(
+                [
+                    "Rd sec no",
+                    "Start km",
+                    "End km",
+                    "Length km",
+                    "Surface type",
+                    "Surface cond",
+                    "RM",
+                    "PM",
+                    "Rehab",
+                    "Road B-neck",
+                    "Struct B-neck",
+                    "Year cost",
+                ]
+            )
+            for row in rows:
+                writer.writerow(
+                    [
+                        row.rd_sec_no,
+                        row.start_km,
+                        row.end_km,
+                        row.length_km,
+                        row.surface_type,
+                        row.surface_cond,
+                        row.rm_cost,
+                        row.pm_cost,
+                        row.rehab_cost,
+                        row.road_bneck_cost,
+                        row.structure_bneck_cost,
+                        row.year_cost,
+                    ]
+                )
+            writer.writerow(
+                [
+                    "Totals",
+                    "",
+                    "",
+                    totals.get("length_km", Decimal("0")),
+                    "",
+                    "",
+                    totals.get("rm_cost", Decimal("0")),
+                    totals.get("pm_cost", Decimal("0")),
+                    totals.get("rehab_cost", Decimal("0")),
+                    totals.get("road_bneck_cost", Decimal("0")),
+                    totals.get("structure_bneck_cost", Decimal("0")),
+                    totals.get("year_cost", Decimal("0")),
+                ]
+            )
+            return response
+
+        ranked_roads = (
+            models.Road.objects.filter(ranking_results__fiscal_year=fiscal_year).distinct()
+            if fiscal_year
+            else models.Road.objects.none()
+        )
+
+        context = {
+            **self.admin_site.each_context(request),
+            "title": "Section Annual Workplan (Table 25)",
+            "opts": self.model._meta,
+            "rows": rows,
+            "totals": totals,
+            "header_context": header_context,
+            "fiscal_year": fiscal_year,
+            "road_choices": ranked_roads,
+            "selected_road_id": road_id or "",
+            "csv_export_url": f"{request.path}?fiscal_year={fiscal_year}&road={road_id}&format=csv" if rows else None,
+        }
+        return TemplateResponse(request, self.change_list_template, context)
+
+
+@admin.register(models.AnnualWorkplanReport, site=grms_admin_site)
+class AnnualWorkplanReportAdmin(admin.ModelAdmin):
+    change_list_template = "admin/grms/reports/annual_workplan.html"
+
+    def has_add_permission(self, request):  # pragma: no cover - report only
+        return False
+
+    def has_change_permission(self, request, obj=None):  # pragma: no cover - report only
+        return False
+
+    def has_delete_permission(self, request, obj=None):  # pragma: no cover - report only
+        return False
+
+    def get_queryset(self, request):
+        return self.model.objects.none()
+
+    def changelist_view(self, request, extra_context=None):
+        fiscal_year = request.GET.get("fiscal_year")
+        group = request.GET.get("group") or None
+        rows = []
+        totals = {}
+        header_context = {}
+
+        if fiscal_year:
+            rows, totals, header_context = workplans.compute_annual_workplan_rows(
+                int(fiscal_year), group=group
+            )
+
+        if request.GET.get("format") == "csv" and rows:
+            response = HttpResponse(content_type="text/csv")
+            response["Content-Disposition"] = "attachment; filename=annual_workplan.csv"
+            writer = csv.writer(response)
+            writer.writerow(
+                [
+                    "Road no",
+                    "Road class",
+                    "Length km",
+                    "Rank",
+                    "RM",
+                    "PM",
+                    "Rehab",
+                    "Road B-neck",
+                    "Struct B-neck",
+                    "Year cost",
+                ]
+            )
+            for row in rows:
+                writer.writerow(
+                    [
+                        row["road_no"],
+                        row["road_class"],
+                        row["road_length_km"],
+                        row["rank"],
+                        row["rm_cost"],
+                        row["pm_cost"],
+                        row["rehab_cost"],
+                        row["road_bneck_cost"],
+                        row["structure_bneck_cost"],
+                        row["year_cost"],
+                    ]
+                )
+            writer.writerow(
+                [
+                    "Totals",
+                    "",
+                    totals.get("road_length_km", Decimal("0")),
+                    "",
+                    totals.get("rm_cost", Decimal("0")),
+                    totals.get("pm_cost", Decimal("0")),
+                    totals.get("rehab_cost", Decimal("0")),
+                    totals.get("road_bneck_cost", Decimal("0")),
+                    totals.get("structure_bneck_cost", Decimal("0")),
+                    totals.get("year_cost", Decimal("0")),
+                ]
+            )
+            return response
+
+        context = {
+            **self.admin_site.each_context(request),
+            "title": "Annual Workplan (Table 26)",
+            "opts": self.model._meta,
+            "rows": rows,
+            "totals": totals,
+            "header_context": header_context,
+            "fiscal_year": fiscal_year,
+            "selected_group": group or "",
+            "csv_export_url": f"{request.path}?fiscal_year={fiscal_year}&group={group}&format=csv" if rows else None,
+        }
+        return TemplateResponse(request, self.change_list_template, context)
+
+
 @admin.register(models.RoadLinkTypeLookup, site=grms_admin_site)
 class RoadLinkTypeLookupAdmin(admin.ModelAdmin):
     list_display = ("name", "code", "score")
@@ -837,61 +1038,19 @@ class SegmentInterventionRecommendationAdmin(admin.ModelAdmin):
             return name
         return f"{road.road_name_from} – {road.road_name_to}"
 
-    def section_number(self, obj):
-        return obj.segment.section.section_number if obj.segment_id else ""
 
-    def segment_display(self, obj):
-        if not obj.segment_id:
-            return ""
-        seg = obj.segment
-        if seg.station_from_km is not None and seg.station_to_km is not None:
-            return f"{seg.station_from_km}-{seg.station_to_km} km"
-        return f"Segment {seg.id}" if seg.id else ""
+@admin.register(models.SegmentInterventionNeed, site=grms_admin_site)
+class SegmentInterventionNeedAdmin(admin.ModelAdmin):
+    list_display = ("segment", "fiscal_year")
+    list_filter = ("fiscal_year",)
+    search_fields = ("segment__section__road__road_identifier", "segment__id")
 
-    def combined_recommendations(self, obj):
-        if not obj.segment_id:
-            return ""
-        recommendations = (
-            obj.segment.intervention_recommendations.all()
-            .select_related("recommended_item")
-            .order_by("recommended_item__work_code")
-        )
-        parts = []
-        for rec in recommendations:
-            item = rec.recommended_item
-            if item:
-                parts.append(f"{item.work_code} - {item.description}")
-        return ", ".join(parts)
 
-    road_name.short_description = "Road name"
-    section_number.short_description = "Section no."
-    segment_display.short_description = "Segment"
-    combined_recommendations.short_description = "Recommendations"
-
-    def recompute_intervention(self, request, queryset):
-        segment_ids = queryset.values_list("segment_id", flat=True).distinct()
-        segments = models.RoadSegment.objects.filter(id__in=segment_ids)
-        processed_segments, created = mci_intervention.recompute_interventions_for_segments(segments)
-        self.message_user(
-            request,
-            f"Recomputed interventions for {processed_segments} selected segment(s); "
-            f"created {created} recommendation(s).",
-            level=messages.SUCCESS,
-        )
-
-    recompute_intervention.short_description = "Recompute Intervention"
-
-    def response_action(self, request, queryset):
-        if request.POST.get("action") == "recompute_intervention" and not queryset.exists():
-            processed_segments, created = mci_intervention.recompute_all_segment_interventions()
-            self.message_user(
-                request,
-                f"Recomputed interventions for {processed_segments} segment(s); "
-                f"created {created} recommendation(s).",
-                level=messages.SUCCESS,
-            )
-            return None
-        return super().response_action(request, queryset)
+@admin.register(models.SegmentInterventionNeedItem, site=grms_admin_site)
+class SegmentInterventionNeedItemAdmin(admin.ModelAdmin):
+    list_display = ("need", "intervention_item")
+    list_filter = ("intervention_item__work_code",)
+    search_fields = ("need__segment__section__road__road_identifier", "intervention_item__work_code")
 
 
 @admin.register(models.RoadSection, site=grms_admin_site)
@@ -1930,6 +2089,20 @@ class StructureInterventionRecommendationAdmin(admin.ModelAdmin):
         if not obj.structure:
             return None
         return obj.structure.structure_name or f"Structure {obj.structure_id}"
+
+
+@admin.register(models.StructureInterventionNeed, site=grms_admin_site)
+class StructureInterventionNeedAdmin(admin.ModelAdmin):
+    list_display = ("structure", "fiscal_year")
+    list_filter = ("fiscal_year",)
+    search_fields = ("structure__road__road_identifier", "structure__structure_name")
+
+
+@admin.register(models.StructureInterventionNeedItem, site=grms_admin_site)
+class StructureInterventionNeedItemAdmin(admin.ModelAdmin):
+    list_display = ("need", "intervention_item")
+    list_filter = ("intervention_item__work_code",)
+    search_fields = ("need__structure__road__road_identifier", "intervention_item__work_code")
 
     @admin.display(description="Recommended item")
     def recommended_item_display(self, obj):
