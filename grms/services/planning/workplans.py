@@ -9,6 +9,7 @@ from typing import Dict, Iterable, List, Tuple
 from django.db.models import Prefetch
 
 from grms import models
+from grms.services import workplan_costs
 from grms.utils import geometry_length_km, geos_length_km
 
 BUCKET_FIELDS = (
@@ -212,7 +213,9 @@ def compute_section_workplan_rows(road: models.Road, fiscal_year: int) -> Tuple[
     return rows, totals, header_context
 
 
-def compute_annual_workplan_rows(fiscal_year: int, group: str | None = None) -> Tuple[List[Dict[str, object]], Dict[str, Decimal], Dict[str, object]]:
+def compute_annual_workplan_rows(
+    fiscal_year: int, group: str | None = None
+) -> Tuple[List[Dict[str, object]], Dict[str, Decimal], Dict[str, object]]:
     ranking_qs = models.RoadRankingResult.objects.filter(fiscal_year=fiscal_year)
     if group:
         ranking_qs = ranking_qs.filter(road_class_or_surface_group=group)
@@ -221,25 +224,33 @@ def compute_annual_workplan_rows(fiscal_year: int, group: str | None = None) -> 
     rows: List[Dict[str, object]] = []
     totals = defaultdict(Decimal)
 
+    cost_rows, _cost_totals, debug_counts = workplan_costs.compute_global_costs_by_road(
+        include_debug=True
+    )
+    cost_map = {row["road"].id: row for row in cost_rows}
+    debug_counts["cost_map_roads"] = len(cost_map)
+
     for ranking in rankings:
         road = ranking.road
-        section_rows, section_totals, _ = compute_section_workplan_rows(road, fiscal_year)
-        if not section_rows:
+        cost_row = cost_map.get(road.id)
+        if not cost_row:
             continue
 
         row_total = {
             "road": road,
             "road_no": road.road_identifier,
             "road_class": getattr(road, "link_type", None) or getattr(road, "surface_type", ""),
-            "road_length_km": section_totals.get("length_km", Decimal("0")),
+            "road_length_km": cost_row.get("road_length_km", Decimal("0")),
             "rank": ranking.rank,
-            "rm_cost": section_totals.get("rm_cost", Decimal("0")),
-            "pm_cost": section_totals.get("pm_cost", Decimal("0")),
-            "rehab_cost": section_totals.get("rehab_cost", Decimal("0")),
-            "road_bneck_cost": section_totals.get("road_bneck_cost", Decimal("0")),
-            "structure_bneck_cost": section_totals.get("structure_bneck_cost", Decimal("0")),
+            "rm_cost": cost_row.get("rm_cost", Decimal("0")),
+            "pm_cost": cost_row.get("pm_cost", Decimal("0")),
+            "rehab_cost": cost_row.get("rehab_cost", Decimal("0")),
+            "road_bneck_cost": cost_row.get("road_bneck_cost", Decimal("0")),
+            "structure_bneck_cost": cost_row.get("structure_bneck_cost", Decimal("0")),
         }
-        row_total["year_cost"] = sum(row_total[key] for key in BUCKET_FIELDS)
+        row_total["year_cost"] = cost_row.get(
+            "total_cost", sum(row_total[key] for key in BUCKET_FIELDS)
+        )
 
         rows.append(row_total)
         for field in ("road_length_km", *BUCKET_FIELDS, "year_cost"):
@@ -250,8 +261,13 @@ def compute_annual_workplan_rows(fiscal_year: int, group: str | None = None) -> 
     first_ranking = rankings[0] if rankings else None
     header_context = {
         "annual_work_plan_FY": fiscal_year,
-        "region_name": getattr(getattr(getattr(first_ranking, "road", None), "admin_zone", None), "name", ""),
-        "woreda_name": getattr(getattr(getattr(first_ranking, "road", None), "admin_woreda", None), "name", ""),
+        "region_name": getattr(
+            getattr(getattr(first_ranking, "road", None), "admin_zone", None), "name", ""
+        ),
+        "woreda_name": getattr(
+            getattr(getattr(first_ranking, "road", None), "admin_woreda", None), "name", ""
+        ),
+        "debug_counts": debug_counts,
     }
 
     return rows, totals, header_context

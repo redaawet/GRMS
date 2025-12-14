@@ -22,6 +22,9 @@
   </div>
 
   {% if rows %}
+    {% if header_context.debug_counts %}
+      <!-- segment_recommendations={{ header_context.debug_counts.segment_recommendations }} structure_recommendations={{ header_context.debug_counts.structure_recommendations }} cost_map_roads={{ header_context.debug_counts.cost_map_roads }} -->
+    {% endif %}
     <div class="report-header">
       <p><strong>FY:</strong> {{ header_context.annual_work_plan_FY }}</p>
       <p><strong>Region:</strong> {{ header_context.region_name }}</p>

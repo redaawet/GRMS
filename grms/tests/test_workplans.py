@@ -8,6 +8,7 @@ from grms.services.planning.workplans import (
     compute_annual_workplan_rows,
     compute_section_workplan_rows,
 )
+from grms.services.workplan_costs import compute_global_costs_by_road
 
 
 @pytest.mark.django_db
@@ -85,6 +86,18 @@ def test_segment_and_structure_needs_bucketed_correctly():
     models.SegmentInterventionNeedItem.objects.create(need=need, intervention_item=pm_item)
     models.SegmentInterventionNeedItem.objects.create(need=need, intervention_item=rehab_item)
     models.SegmentInterventionNeedItem.objects.create(need=need, intervention_item=road_bneck_item)
+    models.SegmentInterventionRecommendation.objects.create(
+        segment=segment, mci_value=Decimal("0"), recommended_item=rm_item
+    )
+    models.SegmentInterventionRecommendation.objects.create(
+        segment=segment, mci_value=Decimal("0"), recommended_item=pm_item
+    )
+    models.SegmentInterventionRecommendation.objects.create(
+        segment=segment, mci_value=Decimal("0"), recommended_item=rehab_item
+    )
+    models.SegmentInterventionRecommendation.objects.create(
+        segment=segment, mci_value=Decimal("0"), recommended_item=road_bneck_item
+    )
 
     models.StructureInventory.full_clean = lambda self, *args, **kwargs: None  # type: ignore
     structure = models.StructureInventory.objects.create(
@@ -96,6 +109,12 @@ def test_segment_and_structure_needs_bucketed_correctly():
     )
     sneed = models.StructureInterventionNeed.objects.create(structure=structure, fiscal_year=2025)
     models.StructureInterventionNeedItem.objects.create(need=sneed, intervention_item=struct_item)
+    models.StructureInterventionRecommendation.objects.create(
+        structure=structure,
+        structure_type=models.StructureConditionInterventionRule.StructureType.BRIDGE,
+        condition_code=1,
+        recommended_item=struct_item,
+    )
 
     models.RoadRankingResult.objects.create(
         road=road,
@@ -132,3 +151,12 @@ def test_segment_and_structure_needs_bucketed_correctly():
     assert annual_row["year_cost"] == totals["year_cost"]
     assert annual_totals["year_cost"] == annual_row["year_cost"]
     assert annual_row["rank"] == 1
+
+    global_rows, _, = compute_global_costs_by_road()
+    cost_row = next(entry for entry in global_rows if entry["road"] == road)
+    assert annual_row["rm_cost"] == cost_row["rm_cost"]
+    assert annual_row["pm_cost"] == cost_row["pm_cost"]
+    assert annual_row["rehab_cost"] == cost_row["rehab_cost"]
+    assert annual_row["road_bneck_cost"] == cost_row["road_bneck_cost"]
+    assert annual_row["structure_bneck_cost"] == cost_row["structure_bneck_cost"]
+    assert annual_row["year_cost"] == cost_row["total_cost"]

@@ -97,11 +97,10 @@ def _ensure_row(road: models.Road, rows: Dict[int, Dict[str, Decimal]]):
     return rows[road.id]
 
 
-def _apply_segment_recommendations(rows: Dict[int, Dict[str, Decimal]]):
-    recs = models.SegmentInterventionRecommendation.objects.select_related(
-        "segment__section__road", "recommended_item"
-    )
-
+def _apply_segment_recommendations(
+    rows: Dict[int, Dict[str, Decimal]],
+    recs: Iterable[models.SegmentInterventionRecommendation],
+):
     for rec in recs:
         segment = rec.segment
         road = segment.section.road
@@ -125,17 +124,10 @@ def _apply_segment_recommendations(rows: Dict[int, Dict[str, Decimal]]):
             row[bucket] += unit_cost * length_km
 
 
-def _apply_structure_recommendations(rows: Dict[int, Dict[str, Decimal]]):
-    recs = models.StructureInterventionRecommendation.objects.select_related(
-        "structure__road",
-        "structure__section",
-        "structure__bridgedetail",
-        "structure__culvertdetail",
-        "structure__retainingwalldetail",
-        "structure__gabionwalldetail",
-        "recommended_item",
-    )
-
+def _apply_structure_recommendations(
+    rows: Dict[int, Dict[str, Decimal]],
+    recs: Iterable[models.StructureInterventionRecommendation],
+):
     for rec in recs:
         structure = rec.structure
         road = structure.road
@@ -163,13 +155,40 @@ def _finalise_rows(rows: Dict[int, Dict[str, Decimal]]):
     return result, totals
 
 
-def compute_global_costs_by_road(fy=None) -> Tuple[Iterable[Dict[str, object]], Dict[str, Decimal]]:
+def compute_global_costs_by_road(
+    fy=None, *, include_debug: bool = False
+) -> Tuple[Iterable[Dict[str, object]], Dict[str, Decimal]]:
     rows: Dict[int, Dict[str, Decimal]] = {}
 
     for road in models.Road.objects.prefetch_related("sections"):
         _ensure_row(road, rows)
 
-    _apply_segment_recommendations(rows)
-    _apply_structure_recommendations(rows)
+    segment_recs = list(
+        models.SegmentInterventionRecommendation.objects.select_related(
+            "segment__section__road", "recommended_item"
+        )
+    )
+    structure_recs = list(
+        models.StructureInterventionRecommendation.objects.select_related(
+            "structure__road",
+            "structure__section",
+            "structure__bridgedetail",
+            "structure__culvertdetail",
+            "structure__retainingwalldetail",
+            "structure__gabionwalldetail",
+            "recommended_item",
+        )
+    )
 
-    return _finalise_rows(rows)
+    _apply_segment_recommendations(rows, segment_recs)
+    _apply_structure_recommendations(rows, structure_recs)
+
+    result_rows, totals = _finalise_rows(rows)
+    if include_debug:
+        debug_counts = {
+            "segment_recommendations": len(segment_recs),
+            "structure_recommendations": len(structure_recs),
+        }
+        return result_rows, totals, debug_counts
+
+    return result_rows, totals
