@@ -28,6 +28,7 @@ from .utils import (
     slice_linestring_by_chainage,
     utm_to_wgs84,
 )
+from .utils_labels import section_id, segment_label, structure_label
 
 # ---------------------------------------------------------------------------
 # Lookup tables
@@ -655,11 +656,11 @@ class RoadSection(models.Model):
         unique_together = (("road", "section_number"), ("road", "sequence_on_road"))
 
     def __str__(self) -> str:  # pragma: no cover
-        return self.section_label
+        return section_id(self)
 
     @property
     def section_label(self) -> str:
-        return f"{self.road.road_identifier}-S{self.sequence_on_road}"
+        return section_id(self)
 
     def clean(self):  # pragma: no cover - simple validation
         errors = {}
@@ -839,6 +840,9 @@ class RoadSegment(models.Model):
         verbose_name = "Road segment"
         verbose_name_plural = "Road segments"
         unique_together = (("section", "sequence_on_section"),)
+
+    def __str__(self) -> str:  # pragma: no cover
+        return segment_label(self)
 
     def clean(self):
         errors = {}
@@ -1174,9 +1178,7 @@ class StructureInventory(models.Model):
         super().save(*args, **kwargs)
 
     def __str__(self) -> str:  # pragma: no cover
-        if self.geometry_type == self.LINE:
-            return f"{self.structure_category} from {self.start_chainage_km} to {self.end_chainage_km} km on road {self.road_id}"
-        return f"{self.structure_category} at {self.station_km} km on road {self.road_id}"
+        return structure_label(self)
 
 
 class BridgeDetail(models.Model):

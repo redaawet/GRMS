@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import math
+from decimal import Decimal
 from math import sqrt
 from typing import Dict, Iterable, Optional, Sequence, Tuple
 from urllib.error import HTTPError, URLError
@@ -215,60 +216,47 @@ def line_distance(p1, p2):
     )
 
 
-def slice_linestring_by_chainage(polyline, start_chainage_km, end_chainage_km):
-    """Slice a LineString using chainages measured along the polyline itself."""
+def slice_linestring_by_chainage(geom, start_km: float, end_km: float):
+    """
+    Slice a LineString geometry using normalized fractions (SRAD-safe).
 
-    if not polyline:
+    This avoids projection / geodesic mismatch by mapping chainage to
+    [0,1] fractions along the parent geometry.
+    """
+    if geom is None:
         return None
 
-    try:
-        geos_line = polyline if hasattr(polyline, "interpolate") else GEOSGeometry(polyline)
-    except Exception:
+    # Total length must be consistent with how you compute Road.total_length_km upstream.
+    total_km = float(getattr(geom, "length", 0) or 0)
+    if total_km <= 0:
         return None
 
-    if geos_line.empty:
+    start_frac = float(Decimal(str(start_km)) / Decimal(str(total_km)))
+    end_frac = float(Decimal(str(end_km)) / Decimal(str(total_km)))
+
+    # Clamp defensively
+    start_frac = max(0.0, min(1.0, start_frac))
+    end_frac = max(0.0, min(1.0, end_frac))
+
+    if end_frac <= start_frac:
         return None
 
-    line_4326 = geos_line if getattr(geos_line, "srid", 4326) == 4326 else geos_line.transform(4326, clone=True)
-    metric_line = line_4326.transform(3857, clone=True)
-    coords = list(metric_line.coords)
+    # Snap final section cleanly to road end
+    if end_frac >= 0.999999:
+        end_frac = 1.0
 
-    if len(coords) < 2:
-        return None
+    # Sub-geometry by normalized fractions
+    sub_geom = geom.line_substring(start_frac, end_frac)
 
-    cumulative = [0.0]
-    for start, end in zip(coords[:-1], coords[1:]):
-        cumulative.append(cumulative[-1] + line_distance(start, end))
-
-    total_m = cumulative[-1]
-    if total_m == 0:
-        return None
-
-    start_m = max(0.0, min(total_m, float(start_chainage_km) * 1000))
-    end_m = max(start_m, min(total_m, float(end_chainage_km) * 1000))
-
-    start_point_metric = metric_line.interpolate(start_m)
-    end_point_metric = metric_line.interpolate(end_m)
-
-    sliced_coords = [
-        (float(start_point_metric.x), float(start_point_metric.y)),
-    ]
-    for idx in range(1, len(coords) - 1):
-        if cumulative[idx] > start_m and cumulative[idx] < end_m:
-            sliced_coords.append(coords[idx])
-    sliced_coords.append((float(end_point_metric.x), float(end_point_metric.y)))
-
-    sliced_metric = LineString(sliced_coords, srid=3857)
-    sliced_4326 = sliced_metric.transform(4326, clone=True)
-
-    start_point_wgs = start_point_metric.transform(4326, clone=True)
-    end_point_wgs = end_point_metric.transform(4326, clone=True)
+    # Start/end points (normalized interpolation)
+    sp = geom.interpolate(start_frac, normalized=True)
+    ep = geom.interpolate(end_frac, normalized=True)
 
     return {
-        "geometry": sliced_4326,
-        "start_point": (float(start_point_wgs.y), float(start_point_wgs.x)),
-        "end_point": (float(end_point_wgs.y), float(end_point_wgs.x)),
-        "length_km": float(sliced_metric.length) / 1000,
+        "geometry": sub_geom,
+        "start_point": (sp.y, sp.x),   # (lat, lon)
+        "end_point": (ep.y, ep.x),     # (lat, lon)
+        "length_km": float(end_km - start_km),
     }
 
 
