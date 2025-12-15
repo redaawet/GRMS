@@ -837,13 +837,19 @@ class AnnualWorkplanReportAdmin(admin.ModelAdmin):
     def changelist_view(self, request, extra_context=None):
         fiscal_year = request.GET.get("fiscal_year")
         group = request.GET.get("group") or None
+        budget_cap = request.GET.get("budget_cap") or None
+        include_partial_last_road = request.GET.get("include_partial_last_road", "true")
+        include_partial_last_road = include_partial_last_road.lower() != "false"
         rows = []
         totals = {}
         header_context = {}
 
         if fiscal_year:
             rows, totals, header_context = workplans.compute_annual_workplan_rows(
-                int(fiscal_year), group=group
+                int(fiscal_year),
+                group=group,
+                budget_cap_birr=Decimal(budget_cap) if budget_cap else None,
+                include_partial_last_road=include_partial_last_road,
             )
 
         if request.GET.get("format") == "csv" and rows:
@@ -856,6 +862,9 @@ class AnnualWorkplanReportAdmin(admin.ModelAdmin):
                     "Road class",
                     "Length km",
                     "Rank",
+                    "Funding Status",
+                    "Funded %",
+                    "Funded Amount",
                     "RM",
                     "PM",
                     "Rehab",
@@ -871,12 +880,15 @@ class AnnualWorkplanReportAdmin(admin.ModelAdmin):
                         row["road_class"],
                         row["road_length_km"],
                         row["rank"],
-                        row["rm_cost"],
-                        row["pm_cost"],
-                        row["rehab_cost"],
-                        row["road_bneck_cost"],
-                        row["structure_bneck_cost"],
-                        row["year_cost"],
+                        row.get("funding_status", "FULL"),
+                        row.get("funded_percent", Decimal("100")),
+                        row.get("funded_amount", row.get("year_cost")),
+                        row.get("funded_rm_cost", row["rm_cost"]),
+                        row.get("funded_pm_cost", row["pm_cost"]),
+                        row.get("funded_rehab_cost", row["rehab_cost"]),
+                        row.get("funded_road_bneck_cost", row["road_bneck_cost"]),
+                        row.get("funded_structure_bneck_cost", row["structure_bneck_cost"]),
+                        row.get("year_cost"),
                     ]
                 )
             writer.writerow(
@@ -885,6 +897,8 @@ class AnnualWorkplanReportAdmin(admin.ModelAdmin):
                     "",
                     totals.get("road_length_km", Decimal("0")),
                     "",
+                    "",
+                    totals.get("year_cost", Decimal("0")),
                     totals.get("rm_cost", Decimal("0")),
                     totals.get("pm_cost", Decimal("0")),
                     totals.get("rehab_cost", Decimal("0")),
@@ -904,7 +918,9 @@ class AnnualWorkplanReportAdmin(admin.ModelAdmin):
             "header_context": header_context,
             "fiscal_year": fiscal_year,
             "selected_group": group or "",
-            "csv_export_url": f"{request.path}?fiscal_year={fiscal_year}&group={group}&format=csv" if rows else None,
+            "budget_cap": budget_cap or "",
+            "include_partial_last_road": include_partial_last_road,
+            "csv_export_url": f"{request.path}?fiscal_year={fiscal_year}&group={group}&budget_cap={budget_cap}&include_partial_last_road={str(include_partial_last_road).lower()}&format=csv" if rows else None,
         }
         return TemplateResponse(request, self.change_list_template, context)
 
