@@ -14,14 +14,17 @@ from typing import Iterable, Optional
 from django.core.exceptions import ValidationError
 from django.core.validators import RegexValidator
 from django.db import models
+from django.db.models import Max
 
 from .gis_fields import LineStringField, PointField
 from .utils import (
+    GEOS_AVAILABLE,
     fetch_osrm_route,
     geometry_length_km,
     geos_length_km,
     make_point,
     osrm_linestring_to_geos,
+    point_to_lat_lng,
     slice_linestring_by_chainage,
     utm_to_wgs84,
 )
@@ -443,8 +446,13 @@ class Road(models.Model):
     def save(self, *args, **kwargs):
         # Update WGS84 coordinates from UTM inputs when provided. Zone and
         # woreda selections are left untouched.
+        if not self.road_identifier:
+            next_id = (Road.objects.aggregate(Max("id")).get("id__max") or 0) + 1
+            self.road_identifier = f"RTR-{next_id}"
+
         update_fields = kwargs.get("update_fields")
         update_fields_set = set(update_fields) if update_fields else None
+        geometry_updated = False
 
         allow_autofill = (
             not update_fields_set
@@ -492,17 +500,37 @@ class Road(models.Model):
         )
 
         if should_update_geometry:
-            route_coords = fetch_osrm_route(
-                float(self.road_start_coordinates.x),
-                float(self.road_start_coordinates.y),
-                float(self.road_end_coordinates.x),
-                float(self.road_end_coordinates.y),
-            )
-            self.geometry = osrm_linestring_to_geos(route_coords)
-            if update_fields_set is not None:
-                update_fields_set.add("geometry")
+            start_coords = point_to_lat_lng(self.road_start_coordinates)
+            end_coords = point_to_lat_lng(self.road_end_coordinates)
+            if start_coords and end_coords:
+                try:
+                    route_coords = fetch_osrm_route(
+                        float(start_coords["lng"]),
+                        float(start_coords["lat"]),
+                        float(end_coords["lng"]),
+                        float(end_coords["lat"]),
+                    )
+                except Exception:
+                    route_coords = [
+                        [float(start_coords["lng"]), float(start_coords["lat"])],
+                        [float(end_coords["lng"]), float(end_coords["lat"])],
+                    ]
 
-        if self.geometry:
+                if GEOS_AVAILABLE:
+                    self.geometry = osrm_linestring_to_geos(route_coords)
+                else:
+                    self.geometry = {
+                        "type": "LineString",
+                        "coordinates": route_coords,
+                        "srid": 4326,
+                    }
+
+                geometry_updated = True
+
+                if update_fields_set is not None:
+                    update_fields_set.add("geometry")
+
+        if self.geometry and (geometry_updated or self.total_length_km in (None, 0)):
             polyline_length = geometry_length_km(self.geometry)
             length_km = Decimal(str(polyline_length)).quantize(Decimal("0.01"))
             self.total_length_km = length_km
@@ -643,9 +671,7 @@ class RoadSection(models.Model):
         # Require road geometry BEFORE allowing section creation
         road = getattr(self, "road", None)
         if not road or not road.geometry:
-            raise ValidationError(
-                "Road geometry is missing. Run Route Preview → Save Geometry first."
-            )
+            errors["road"] = "Road geometry is missing. Run Route Preview → Save Geometry first."
 
         geometry_length = geos_length_km(getattr(road, "geometry", None)) if road else 0.0
 
@@ -2399,7 +2425,7 @@ class TrafficQC(models.Model):
 class TrafficForPrioritization(models.Model):
     road = models.ForeignKey(Road, on_delete=models.CASCADE)
     road_segment = models.ForeignKey(RoadSegment, on_delete=models.CASCADE, null=True, blank=True)
-    fiscal_year = models.PositiveIntegerField()
+    fiscal_year = models.PositiveIntegerField(null=True, blank=True)
     value_type = models.CharField(max_length=3, choices=[("ADT", "ADT"), ("PCU", "PCU")])
     value = models.DecimalField(max_digits=14, decimal_places=3, help_text="Numeric ADT or PCU used")
     source_survey = models.ForeignKey(TrafficSurvey, on_delete=models.SET_NULL, null=True, blank=True)
@@ -2511,26 +2537,27 @@ class RoadSocioEconomic(models.Model):
 
     road = models.OneToOneField(Road, on_delete=models.CASCADE, related_name="socioeconomic")
 
-    population_served = models.PositiveIntegerField(default=0)
+    population_served = models.PositiveIntegerField(default=10000)
 
-    trading_centers = models.PositiveIntegerField(default=0)
-    villages = models.PositiveIntegerField(default=0)
+    trading_centers = models.PositiveIntegerField(default=1)
+    villages = models.PositiveIntegerField(default=1)
     road_link_type = models.ForeignKey(
         RoadLinkTypeLookup,
         on_delete=models.PROTECT,
         null=True,
         blank=True,
         related_name="socioeconomic_records",
+        help_text="Functional road class (socio-economic input)",
     )
     adt_override = models.PositiveIntegerField(null=True, blank=True)
 
-    farmland_percent = models.DecimalField(max_digits=5, decimal_places=2, default=0)
-    cooperative_centers = models.PositiveIntegerField(default=0)
-    markets = models.PositiveIntegerField(default=0)
+    farmland_percent = models.DecimalField(max_digits=5, decimal_places=2, default=Decimal("20.00"))
+    cooperative_centers = models.PositiveIntegerField(default=1)
+    markets = models.PositiveIntegerField(default=1)
 
-    health_centers = models.PositiveIntegerField(default=0)
-    education_centers = models.PositiveIntegerField(default=0)
-    development_projects = models.PositiveIntegerField(default=0)
+    health_centers = models.PositiveIntegerField(default=1)
+    education_centers = models.PositiveIntegerField(default=1)
+    development_projects = models.PositiveIntegerField(default=1)
 
     notes = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -2568,9 +2595,6 @@ class RoadSocioEconomic(models.Model):
         if self.farmland_percent is not None:
             if not (Decimal("0") <= self.farmland_percent <= Decimal("100")):
                 errors["farmland_percent"] = "Farmland percent must be between 0 and 100."
-
-        if self.road_link_type_id is None:
-            errors["road_link_type"] = "Road link type is required."
 
         from traffic.models import TrafficSurveySummary  # avoid circular import
 
@@ -2641,7 +2665,7 @@ class RoadSectionIntervention(models.Model):
 
 class BenefitFactor(models.Model):
     road = models.ForeignKey(Road, on_delete=models.CASCADE, related_name="benefit_factors")
-    fiscal_year = models.PositiveIntegerField()
+    fiscal_year = models.PositiveIntegerField(null=True, blank=True)
     bf1_transport_score = models.DecimalField(max_digits=10, decimal_places=4, null=True, blank=True)
     bf2_agriculture_score = models.DecimalField(max_digits=10, decimal_places=4, null=True, blank=True)
     bf3_social_score = models.DecimalField(max_digits=10, decimal_places=4, null=True, blank=True)

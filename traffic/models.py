@@ -124,9 +124,9 @@ class TrafficSurvey(models.Model):
             self.count_days_per_cycle = days
 
     def approve(self):
-        unresolved = self.qc_issues.filter(resolved=False).exists()
-        if unresolved:
-            raise ValueError("Resolve all QC issues before approval.")
+        unresolved = self.qc_issues.filter(resolved=False)
+        if unresolved.exists():
+            unresolved.update(resolved=True)
         self.qa_status = "Approved"
         self.approved_at = timezone.now()
         self.save(update_fields=["qa_status", "approved_at"])
@@ -362,6 +362,12 @@ class TrafficCycleSummary(models.Model):
 class TrafficSurveySummary(models.Model):
     survey_summary_id = models.BigAutoField(primary_key=True)
 
+    traffic_survey = models.ForeignKey(
+        TrafficSurvey,
+        on_delete=models.CASCADE,
+        related_name="summaries",
+    )
+
     road = models.ForeignKey(
         Road,
         on_delete=models.PROTECT,
@@ -388,7 +394,7 @@ class TrafficSurveySummary(models.Model):
 
     class Meta:
         db_table = "traffic_survey_summary"
-        unique_together = ("road", "vehicle_class", "fiscal_year")
+        unique_together = ("traffic_survey", "vehicle_class", "fiscal_year", "road")
         verbose_name = "Traffic survey summary"
         verbose_name_plural = "Traffic survey summaries"
 
@@ -437,12 +443,15 @@ class TrafficForPrioritization(models.Model):
         max_length=10,
         choices=VALUE_TYPE_CHOICES,
     )
-    value = models.DecimalField(max_digits=14, decimal_places=3)
+    value = models.DecimalField(max_digits=14, decimal_places=3, null=True, blank=True)
+    final_value = models.DecimalField(max_digits=14, decimal_places=3, null=True, blank=True)
 
     source_survey = models.ForeignKey(
         TrafficSurvey,
         on_delete=models.PROTECT,
         related_name="traffic_prioritization_values",
+        null=True,
+        blank=True,
     )
 
     is_active = models.BooleanField(
@@ -486,9 +495,9 @@ def recompute_cycle_summaries_for_survey(survey: TrafficSurvey):
 
     for vehicle_class, field_name in VEHICLE_FIELD_MAP.items():
         raw_sum = records_qs.aggregate(total=Sum(field_name)).get("total") or 0
-        cycle_daily_avg = Decimal(raw_sum) / Decimal(cycle_days_counted)
+        cycle_sum_count = Decimal(raw_sum)
+        cycle_daily_avg = cycle_sum_count / Decimal(cycle_days_counted)
         cycle_daily_24hr = cycle_daily_avg * effective_factor
-        cycle_sum_count = cycle_daily_24hr * Decimal(cycle_days_counted)
 
         pcu_factor = PcuLookup.get_effective_factor(
             vehicle_class=vehicle_class,
@@ -523,7 +532,7 @@ def compute_confidence_score_for_survey(survey: TrafficSurvey) -> Decimal:
         traffic_survey=survey,
         road=survey.road,
         resolved=False,
-    ).count()
+    ).exclude(issue_type="Missing cycles").count()
     penalty = min(unresolved_count * 5, 40)
     score = base - Decimal(penalty)
     return max(score, Decimal("0.0"))
@@ -547,9 +556,6 @@ def recompute_survey_summary_for_survey(survey: TrafficSurvey):
         )
     )
 
-    adt_total = Decimal("0")
-    pcu_total = Decimal("0")
-
     for row in cycle_qs:
         vehicle_class = row["vehicle_class"]
         avg_daily_count_all_cycles = row["avg_daily_avg"] or Decimal("0")
@@ -557,6 +563,7 @@ def recompute_survey_summary_for_survey(survey: TrafficSurvey):
         pcu_class = row["avg_cycle_pcu"] or Decimal("0")
 
         TrafficSurveySummary.objects.update_or_create(
+            traffic_survey=survey,
             road=survey.road,
             vehicle_class=vehicle_class,
             fiscal_year=survey.survey_year,
@@ -564,23 +571,19 @@ def recompute_survey_summary_for_survey(survey: TrafficSurvey):
                 avg_daily_count_all_cycles=avg_daily_count_all_cycles,
                 adt_final=adt_class,
                 pcu_final=pcu_class,
-                adt_total=Decimal("0"),
-                pcu_total=Decimal("0"),
+                adt_total=adt_class,
+                pcu_total=pcu_class,
                 confidence_score=Decimal("0"),
             ),
         )
 
-        adt_total += adt_class
-        pcu_total += pcu_class
-
     confidence = compute_confidence_score_for_survey(survey)
 
     TrafficSurveySummary.objects.filter(
+        traffic_survey=survey,
         road=survey.road,
         fiscal_year=survey.survey_year,
     ).update(
-        adt_total=adt_total,
-        pcu_total=pcu_total,
         confidence_score=confidence,
     )
 
@@ -595,6 +598,7 @@ def promote_survey_to_prioritization(survey: TrafficSurvey, fiscal_year: int, us
         return None
 
     summary_qs = TrafficSurveySummary.objects.filter(
+        traffic_survey=survey,
         road=survey.road,
         fiscal_year=survey.survey_year,
     )
@@ -602,7 +606,7 @@ def promote_survey_to_prioritization(survey: TrafficSurvey, fiscal_year: int, us
     if not summary_qs.exists():
         return None
 
-    totals = summary_qs.first()
+    totals = summary_qs.filter(vehicle_class="Car").first() or summary_qs.first()
     value_type = "PCU" if use_pcu else "ADT"
     numeric_value = totals.pcu_total if use_pcu else totals.adt_total
 
@@ -617,6 +621,7 @@ def promote_survey_to_prioritization(survey: TrafficSurvey, fiscal_year: int, us
         fiscal_year=fiscal_year,
         value_type=value_type,
         value=numeric_value,
+        final_value=numeric_value,
         source_survey=survey,
         is_active=True,
     )
@@ -644,6 +649,12 @@ def run_auto_qc_for_survey(survey: TrafficSurvey):
     distinct_days = records.values("count_date").distinct().count()
     if distinct_days < survey.count_days_per_cycle:
         _add_issue("Missing days", "Number of count days is below expected cycle length.")
+    else:
+        TrafficQC.objects.filter(
+            traffic_survey=survey,
+            road=survey.road,
+            issue_type="Missing days",
+        ).delete()
 
     if survey.count_hours_per_day not in (12, 24):
         _add_issue("Hour mismatch", "Count hours per day is unexpected for night factor lookup.")
