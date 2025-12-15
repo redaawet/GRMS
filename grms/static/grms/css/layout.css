@@ -42,7 +42,7 @@ body.grms-has-sidebar #container .main {
 
 #content,
 #content-main,
-#content-start.content,
+#grms-main.content,
 #container .content {
   padding-top: 0 !important;
   margin-top: 0 !important;
