@@ -203,9 +203,10 @@ def compute_section_workplan_rows(road: models.Road, fiscal_year: int) -> Tuple[
         .first()
     )
 
+    road_link_type = getattr(getattr(road, "socioeconomic", None), "road_link_type", None)
     header_context = {
         "woreda_name": getattr(getattr(road, "admin_woreda", None), "name", ""),
-        "road_class": getattr(road, "link_type", None) or getattr(road, "surface_type", ""),
+        "road_class": road_link_type or getattr(road, "surface_type", ""),
         "road_name": getattr(road, "road_name_from", ""),
         "rank_no": ranking.rank if ranking else None,
     }
@@ -236,10 +237,11 @@ def compute_annual_workplan_rows(
         if not cost_row:
             continue
 
+        road_link_type = getattr(getattr(road, "socioeconomic", None), "road_link_type", None)
         row_total = {
             "road": road,
             "road_no": road.road_identifier,
-            "road_class": getattr(road, "link_type", None) or getattr(road, "surface_type", ""),
+            "road_class": road_link_type or getattr(road, "surface_type", ""),
             "road_length_km": cost_row.get("road_length_km", Decimal("0")),
             "rank": ranking.rank,
             "rm_cost": cost_row.get("rm_cost", Decimal("0")),

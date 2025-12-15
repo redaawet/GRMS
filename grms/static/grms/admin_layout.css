@@ -82,33 +82,15 @@ body.popup {
   color: #ffffff;
 }
 
-#grms-layout {
-  display: grid;
-  grid-template-columns: var(--grms-sidebar-width) 1fr;
-  align-items: start;
-  min-height: calc(100vh - var(--grms-header-height));
-}
-
-#grms-layout.grms-layout-popup {
-  min-height: 100vh;
-  background: #ffffff;
-  display: block;
-}
-
 #grms-sidebar {
-  position: sticky;
+  position: fixed;
   top: var(--grms-header-h);
-  height: calc(100vh - var(--grms-header-h));
+  left: 0;
+  bottom: 0;
   width: var(--grms-sidebar-w);
-  align-self: start;
   background: #f9fafb;
   border-right: 1px solid var(--grms-border);
   z-index: 1100;
-  overflow: hidden;
-}
-
-#grms-sidebar .grms-sidebar-scroll {
-  height: 100%;
   overflow-y: auto;
   overflow-x: hidden;
   padding: 10px;
@@ -116,7 +98,6 @@ body.popup {
 }
 
 #grms-sidebar .sidebar-inner {
-  height: 100%;
   display: flex;
   flex-direction: column;
   padding: 0;
@@ -188,10 +169,7 @@ body.popup {
 }
 
 #grms-sidebar .sg-content {
-  max-height: 0;
-  overflow: hidden;
   padding: 0 14px;
-  transition: max-height 0.25s ease;
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -249,7 +227,7 @@ body.popup {
 }
 
 #grms-main {
-  margin-left: 0;
+  margin-left: var(--grms-sidebar-w);
   width: calc(100vw - var(--grms-sidebar-width));
   min-height: calc(100vh - var(--grms-header-height));
   padding: var(--grms-content-padding);
@@ -268,6 +246,12 @@ body.popup #grms-main {
 #grms-main .breadcrumbs {
   margin: 0 0 16px 0;
   padding: 0;
+}
+
+#content,
+.main,
+#content-main {
+  margin-left: var(--grms-sidebar-w);
 }
 
 #content {

@@ -350,7 +350,8 @@ class Road(models.Model):
         on_delete=models.PROTECT,
         related_name="roads",
         null=True,
-        help_text="Administrative Woreda",
+        blank=True,
+        help_text="Administrative Woreda (optional)",
     )
     total_length_km = models.DecimalField(max_digits=6, decimal_places=2)
     start_easting = models.DecimalField(
@@ -390,14 +391,6 @@ class Road(models.Model):
         max_length=10,
         choices=[("Earth", "Earth"), ("Gravel", "Gravel"), ("Paved", "Paved")],
         help_text="Primary surface type",
-    )
-    link_type = models.ForeignKey(
-        RoadLinkTypeLookup,
-        on_delete=models.PROTECT,
-        related_name="roads",
-        blank=True,
-        null=True,
-        help_text="Functional road class used for connectivity/prioritization (Trunk, Link, Main access, Collector, Feeder).",
     )
     managing_authority = models.CharField(
         max_length=20,
@@ -553,9 +546,13 @@ class RoadSection(models.Model):
     ]
 
     road = models.ForeignKey(Road, on_delete=models.CASCADE, related_name="sections")
-    section_number = models.PositiveIntegerField(help_text="Section identifier within the road")
+    section_number = models.PositiveIntegerField(
+        help_text="Section identifier within the road", editable=False
+    )
     sequence_on_road = models.PositiveIntegerField(
-        default=1, help_text="Ordered position of this section along the parent road"
+        default=0,
+        help_text="Ordered position of this section along the parent road",
+        editable=False,
     )
     name = models.CharField(max_length=150, blank=True, help_text="Optional section name or landmark")
     start_chainage_km = models.DecimalField(max_digits=8, decimal_places=3, help_text="Section start chainage (km)")
@@ -630,7 +627,11 @@ class RoadSection(models.Model):
         unique_together = (("road", "section_number"), ("road", "sequence_on_road"))
 
     def __str__(self) -> str:  # pragma: no cover
-        return f"Section {self.section_number} of Road {self.road_id}"
+        return self.section_label
+
+    @property
+    def section_label(self) -> str:
+        return f"{self.road.road_identifier}-S{self.sequence_on_road}"
 
     def clean(self):  # pragma: no cover - simple validation
         errors = {}
@@ -714,6 +715,18 @@ class RoadSection(models.Model):
             raise ValidationError(errors)
 
     def save(self, *args, **kwargs):
+        if self.road_id:
+            if not self.sequence_on_road:
+                max_sequence = (
+                    RoadSection.objects.filter(road_id=self.road_id)
+                    .exclude(pk=self.pk)
+                    .aggregate(models.Max("sequence_on_road"))
+                    .get("sequence_on_road__max")
+                    or 0
+                )
+                self.sequence_on_road = max_sequence + 1
+            if not self.section_number:
+                self.section_number = self.sequence_on_road
         sliced = None
         if self.road and self.road.geometry and self.start_chainage_km is not None and self.end_chainage_km is not None:
             sliced = slice_linestring_by_chainage(
@@ -739,6 +752,17 @@ class RoadSection(models.Model):
 
 class RoadSegment(models.Model):
     section = models.ForeignKey(RoadSection, on_delete=models.CASCADE, related_name="segments")
+    sequence_on_section = models.PositiveIntegerField(
+        default=0,
+        editable=False,
+        help_text="Ordered position of this segment within the parent section",
+    )
+    segment_identifier = models.CharField(
+        max_length=100,
+        blank=True,
+        editable=False,
+        help_text="Stable SRAD-compliant segment identifier",
+    )
     station_from_km = models.DecimalField(max_digits=8, decimal_places=3, help_text="Segment start chainage (km)")
     station_to_km = models.DecimalField(max_digits=8, decimal_places=3, help_text="Segment end chainage (km)")
     cross_section = models.CharField(
@@ -788,6 +812,7 @@ class RoadSegment(models.Model):
     class Meta:
         verbose_name = "Road segment"
         verbose_name_plural = "Road segments"
+        unique_together = (("section", "sequence_on_section"),)
 
     def clean(self):
         errors = {}
@@ -819,12 +844,31 @@ class RoadSegment(models.Model):
         return end - start
 
     def __str__(self) -> str:  # pragma: no cover
-        road_name = self.section.road if self.section_id else "Road"
-        section_part = self.section.section_number if self.section_id else "Section"
+        return self.segment_identifier or f"Segment {self.pk or '?'}"
+
+    @property
+    def segment_label(self) -> str:
+        if not self.section_id:
+            return ""
         return (
-            f"{road_name} – Section {section_part} – Segment {self.id} "
-            f"({self.station_from_km}-{self.station_to_km} km)"
+            f"{self.section.road.road_identifier}-S{self.section.sequence_on_road}-"
+            f"Sg{self.sequence_on_section}"
         )
+
+    def save(self, *args, **kwargs):
+        if self.section_id and not self.sequence_on_section:
+            max_sequence = (
+                RoadSegment.objects.filter(section_id=self.section_id)
+                .exclude(pk=self.pk)
+                .aggregate(models.Max("sequence_on_section"))
+                .get("sequence_on_section__max")
+                or 0
+            )
+            self.sequence_on_section = max_sequence + 1
+        if self.section_id:
+            self.segment_identifier = self.segment_label
+        self.full_clean()
+        super().save(*args, **kwargs)
 
     def has_road_bottleneck(self) -> bool:
         """Return True when the latest survey reports a bottleneck."""

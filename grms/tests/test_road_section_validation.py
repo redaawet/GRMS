@@ -32,8 +32,6 @@ class RoadSectionValidationTests(TestCase):
 
         section = models.RoadSection(
             road=self.road,
-            section_number=1,
-            sequence_on_road=1,
             name="Section 1",
             start_chainage_km=Decimal("0"),
             end_chainage_km=Decimal("5"),
@@ -47,8 +45,6 @@ class RoadSectionValidationTests(TestCase):
     def test_negative_start_chainage_is_rejected(self):
         section = models.RoadSection(
             road=self.road,
-            section_number=1,
-            sequence_on_road=1,
             start_chainage_km=Decimal("-1"),
             end_chainage_km=Decimal("2"),
             surface_type="Earth",
@@ -61,8 +57,6 @@ class RoadSectionValidationTests(TestCase):
     def test_end_chainage_must_exceed_start(self):
         section = models.RoadSection(
             road=self.road,
-            section_number=1,
-            sequence_on_road=1,
             start_chainage_km=Decimal("5"),
             end_chainage_km=Decimal("5"),
             surface_type="Earth",
@@ -75,8 +69,6 @@ class RoadSectionValidationTests(TestCase):
     def test_end_chainage_cannot_exceed_road(self):
         section = models.RoadSection(
             road=self.road,
-            section_number=1,
-            sequence_on_road=1,
             start_chainage_km=Decimal("0"),
             end_chainage_km=Decimal("12"),
             surface_type="Earth",
@@ -89,8 +81,6 @@ class RoadSectionValidationTests(TestCase):
     def test_gap_between_sections_is_reported(self):
         models.RoadSection.objects.create(
             road=self.road,
-            section_number=1,
-            sequence_on_road=1,
             start_chainage_km=Decimal("0"),
             end_chainage_km=Decimal("5"),
             surface_type="Earth",
@@ -98,8 +88,6 @@ class RoadSectionValidationTests(TestCase):
 
         gap_section = models.RoadSection(
             road=self.road,
-            section_number=2,
-            sequence_on_road=2,
             start_chainage_km=Decimal("7"),
             end_chainage_km=Decimal("10"),
             surface_type="Earth",
