@@ -14,6 +14,8 @@ from grms.services import costing
 
 logger = logging.getLogger(__name__)
 
+logger = logging.getLogger(__name__)
+
 BUCKET_FIELDS = (
     "rm_cost",
     "pm_cost",
