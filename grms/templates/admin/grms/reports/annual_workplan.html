@@ -14,6 +14,12 @@
         <option value="paved" {% if selected_group == "paved" %}selected{% endif %}>Paved</option>
         <option value="unpaved" {% if selected_group == "unpaved" %}selected{% endif %}>Unpaved</option>
       </select>
+      <label for="budget_cap">Budget cap (Birr)</label>
+      <input type="number" step="0.01" name="budget_cap" id="budget_cap" value="{{ budget_cap }}" />
+      <label for="include_partial_last_road">
+        <input type="checkbox" name="include_partial_last_road" id="include_partial_last_road" value="true" {% if include_partial_last_road %}checked{% endif %} />
+        Allow partial funding of last road
+      </label>
       <button type="submit" class="button">Generate</button>
       {% if rows %}
         <a class="button" href="{{ csv_export_url }}">Export CSV</a>
@@ -28,7 +34,9 @@
     <div class="report-header">
       <p><strong>FY:</strong> {{ header_context.annual_work_plan_FY }}</p>
       <p><strong>Region:</strong> {{ header_context.region_name }}</p>
-      <p><strong>Woreda:</strong> {{ header_context.woreda_name }}</p>
+      {% if header_context.remaining_budget %}
+        <p><strong>Remaining budget:</strong> {{ header_context.remaining_budget|floatformat:2 }}</p>
+      {% endif %}
     </div>
     <div class="module">
       <table class="admin-table">
@@ -38,6 +46,9 @@
             <th>Road class</th>
             <th class="numeric">Length (km)</th>
             <th class="numeric">Rank</th>
+            <th>Funding Status</th>
+            <th class="numeric">Funded %</th>
+            <th class="numeric">Funded Amount</th>
             <th class="numeric">RM</th>
             <th class="numeric">PM</th>
             <th class="numeric">Rehab</th>
@@ -49,31 +60,43 @@
         <tbody>
           {% for row in rows %}
             <tr>
-              <td>{{ row.road_no }}</td>
-              <td>{{ row.road_class }}</td>
-              <td class="numeric">{{ row.road_length_km|floatformat:3 }}</td>
-              <td class="numeric">{{ row.rank }}</td>
-              <td class="numeric">{{ row.rm_cost|floatformat:2 }}</td>
-              <td class="numeric">{{ row.pm_cost|floatformat:2 }}</td>
-              <td class="numeric">{{ row.rehab_cost|floatformat:2 }}</td>
-              <td class="numeric">{{ row.road_bneck_cost|floatformat:2 }}</td>
-              <td class="numeric">{{ row.structure_bneck_cost|floatformat:2 }}</td>
-              <td class="numeric">{{ row.year_cost|floatformat:2 }}</td>
-            </tr>
-          {% endfor %}
+            <td>{{ row.road_no }}</td>
+            <td>{{ row.road_class }}</td>
+            <td class="numeric">{{ row.road_length_km|floatformat:3 }}</td>
+            <td class="numeric">{{ row.rank }}</td>
+            <td>{{ row.funding_status|default:"FULL" }}</td>
+            <td class="numeric">{{ row.funded_percent|default_if_none:100|floatformat:2 }}</td>
+            <td class="numeric">{{ row.funded_amount|default:row.year_cost|floatformat:2 }}</td>
+            <td class="numeric">{{ row.funded_rm_cost|default:row.rm_cost|floatformat:2 }}</td>
+            <td class="numeric">{{ row.funded_pm_cost|default:row.pm_cost|floatformat:2 }}</td>
+            <td class="numeric">{{ row.funded_rehab_cost|default:row.rehab_cost|floatformat:2 }}</td>
+            <td class="numeric">{{ row.funded_road_bneck_cost|default:row.road_bneck_cost|floatformat:2 }}</td>
+            <td class="numeric">{{ row.funded_structure_bneck_cost|default:row.structure_bneck_cost|floatformat:2 }}</td>
+            <td class="numeric">{{ row.year_cost|floatformat:2 }}</td>
+          </tr>
+        {% endfor %}
         </tbody>
         <tfoot>
           <tr>
             <th colspan="2">Totals</th>
             <th class="numeric">{{ totals.road_length_km|floatformat:3 }}</th>
             <th></th>
+            <th></th>
+            <th></th>
+            <th class="numeric">{{ totals.year_cost|floatformat:2 }}</th>
             <th class="numeric">{{ totals.rm_cost|floatformat:2 }}</th>
             <th class="numeric">{{ totals.pm_cost|floatformat:2 }}</th>
             <th class="numeric">{{ totals.rehab_cost|floatformat:2 }}</th>
             <th class="numeric">{{ totals.road_bneck_cost|floatformat:2 }}</th>
             <th class="numeric">{{ totals.structure_bneck_cost|floatformat:2 }}</th>
-            <th class="numeric">{{ totals.year_cost|floatformat:2 }}</th>
+            <th class="numeric">{{ totals.planned_year_cost|floatformat:2 }}</th>
           </tr>
+          {% if budget_cap %}
+            <tr>
+              <th colspan="7">Remaining budget</th>
+              <th class="numeric" colspan="6">{{ header_context.remaining_budget|default:"0"|floatformat:2 }}</th>
+            </tr>
+          {% endif %}
         </tfoot>
       </table>
     </div>
