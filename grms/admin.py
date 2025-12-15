@@ -898,13 +898,14 @@ class AnnualWorkplanReportAdmin(admin.ModelAdmin):
                     totals.get("road_length_km", Decimal("0")),
                     "",
                     "",
+                    "",
                     totals.get("year_cost", Decimal("0")),
                     totals.get("rm_cost", Decimal("0")),
                     totals.get("pm_cost", Decimal("0")),
                     totals.get("rehab_cost", Decimal("0")),
                     totals.get("road_bneck_cost", Decimal("0")),
                     totals.get("structure_bneck_cost", Decimal("0")),
-                    totals.get("year_cost", Decimal("0")),
+                    totals.get("planned_year_cost", Decimal("0")),
                 ]
             )
             return response

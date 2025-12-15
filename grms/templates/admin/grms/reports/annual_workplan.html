@@ -82,17 +82,18 @@
             <th class="numeric">{{ totals.road_length_km|floatformat:3 }}</th>
             <th></th>
             <th></th>
+            <th></th>
             <th class="numeric">{{ totals.year_cost|floatformat:2 }}</th>
             <th class="numeric">{{ totals.rm_cost|floatformat:2 }}</th>
             <th class="numeric">{{ totals.pm_cost|floatformat:2 }}</th>
             <th class="numeric">{{ totals.rehab_cost|floatformat:2 }}</th>
             <th class="numeric">{{ totals.road_bneck_cost|floatformat:2 }}</th>
             <th class="numeric">{{ totals.structure_bneck_cost|floatformat:2 }}</th>
-            <th class="numeric">{{ totals.year_cost|floatformat:2 }}</th>
+            <th class="numeric">{{ totals.planned_year_cost|floatformat:2 }}</th>
           </tr>
           {% if budget_cap %}
             <tr>
-              <th colspan="4">Remaining budget</th>
+              <th colspan="7">Remaining budget</th>
               <th class="numeric" colspan="6">{{ header_context.remaining_budget|default:"0"|floatformat:2 }}</th>
             </tr>
           {% endif %}
