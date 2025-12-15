@@ -6,6 +6,8 @@ from decimal import Decimal
 import pytest
 from django.utils import timezone
 
+pytestmark = pytest.mark.django_db
+
 from traffic.models import (
     NightAdjustmentLookup,
     PcuLookup,

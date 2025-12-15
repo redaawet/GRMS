@@ -3,7 +3,11 @@ from __future__ import annotations
 import datetime
 from decimal import Decimal
 
+import pytest
+
 from traffic.models import TrafficCountRecord, TrafficCycleSummary, TrafficSurvey, TrafficSurveySummary
+
+pytestmark = pytest.mark.django_db
 
 
 def test_cycle_summary_created_on_count_save(traffic_survey, pcu_defaults):

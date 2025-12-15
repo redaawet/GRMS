@@ -91,8 +91,10 @@ def _extract_coordinates(geometry) -> list[Tuple[float, float]]:
 
     if isinstance(geometry, dict):
         coords = geometry.get("coordinates") or []
-        if coords and isinstance(coords[0][0], (list, tuple)):
-            # GeoJSON LineString structure
+        if coords and isinstance(coords[0], (list, tuple)):
+            # GeoJSON LineString structure (may be nested one level deep)
+            if isinstance(coords[0][0], (list, tuple)):
+                coords = coords[0]
             return [(float(x), float(y)) for x, y in coords]
     return []
 

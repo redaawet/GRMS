@@ -30,7 +30,7 @@ from traffic import models as traffic_models
 from . import models, serializers
 from .forms import RoadAlignmentForm, RoadBasicForm, RoadSectionBasicForm
 from .services import map_services
-from .utils import make_point, point_to_lat_lng, utm_to_wgs84
+from .utils import GEOS_AVAILABLE, geometry_length_km, make_point, point_to_lat_lng, utm_to_wgs84
 
 
 @staff_member_required
@@ -579,13 +579,20 @@ def update_road_geometry(request: Request, pk: int) -> Response:
     serializer.is_valid(raise_exception=True)
 
     coords = serializer.validated_data["coordinates"]
-    line = LineString(coords, srid=4326)
-    road.geometry = line
+    if GEOS_AVAILABLE:
+        line = LineString(coords, srid=4326)
+        road.geometry = line
+    else:
+        road.geometry = {
+            "type": "LineString",
+            "coordinates": [[float(lon), float(lat)] for lon, lat in coords],
+            "srid": 4326,
+        }
     road.save(update_fields=["geometry"])
 
     if not road.total_length_km or float(road.total_length_km) == 0.0:
-        length_m = road.geometry.length
-        road.total_length_km = Decimal(str(round(length_m / 1000.0, 3)))
+        length_km = geometry_length_km(road.geometry)
+        road.total_length_km = Decimal(str(round(length_km, 3)))
         road.save(update_fields=["total_length_km"])
 
     return Response({"status": "ok"}, status=status.HTTP_200_OK)
@@ -782,7 +789,7 @@ def run_prioritization(request: Request) -> Response:
                     result = getattr(latest_survey, "mci_result", None) or models.SegmentMCIResult.create_from_survey(
                         latest_survey
                     )
-                    cs_norm = float(result.mci_value) * 20.0 if result else 0.0
+                    cs_norm = float(result.mci_value) if result else 0.0
                 except ValueError:
                     cs_norm = 0.0
 
