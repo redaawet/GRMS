@@ -36,7 +36,7 @@
 
 {% if not is_popup %}
   {% block header %}
-    <header id="grms-header" role="banner">
+    <header id="grms-header" class="grms-header" role="banner">
       <div class="header-inner">
         <div id="branding">
           {% block branding %}{% endblock %}
@@ -136,6 +136,19 @@
   {% block extrabody %}
   {{ block.super }}
   {% if not is_popup %}
+  <script>
+  (function () {
+    const root = document.documentElement;
+    const header = document.getElementById("grms-header");
+    function syncHeaderHeight() {
+      const h = header ? Math.ceil(header.getBoundingClientRect().height) : 0;
+      root.style.setProperty("--grms-header-h", h + "px");
+    }
+    window.addEventListener("load", syncHeaderHeight);
+    window.addEventListener("resize", syncHeaderHeight);
+    syncHeaderHeight();
+  })();
+  </script>
   <script src="{% static 'grms/js/sidebar.js' %}" defer></script>
   {% endif %}
   {% endblock extrabody %}
