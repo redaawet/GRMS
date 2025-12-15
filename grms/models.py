@@ -20,7 +20,6 @@ from .gis_fields import LineStringField, PointField
 from .utils import (
     GEOS_AVAILABLE,
     fetch_osrm_route,
-    geometry_length_km,
     geos_length_km,
     make_point,
     osrm_linestring_to_geos,
@@ -444,6 +443,10 @@ class Road(models.Model):
         lat, lon = utm_to_wgs84(float(easting), float(northing), zone=37)
         return make_point(lat, lon)
 
+    def compute_length_km_from_geom(self) -> Decimal:
+        length_km = geos_length_km(self.geometry) if self.geometry else 0.0
+        return Decimal(str(length_km)).quantize(Decimal("0.001"))
+
     def save(self, *args, **kwargs):
         # Update WGS84 coordinates from UTM inputs when provided. Zone and
         # woreda selections are left untouched.
@@ -530,13 +533,12 @@ class Road(models.Model):
 
                 if update_fields_set is not None:
                     update_fields_set.add("geometry")
-
-        if self.geometry and (geometry_updated or self.total_length_km in (None, 0)):
-            polyline_length = geometry_length_km(self.geometry)
-            length_km = Decimal(str(polyline_length)).quantize(Decimal("0.01"))
-            self.total_length_km = length_km
-            if update_fields_set is not None:
-                update_fields_set.add("total_length_km")
+        if self.geometry:
+            computed_length = self.compute_length_km_from_geom()
+            if geometry_updated or self.total_length_km != computed_length:
+                self.total_length_km = computed_length
+                if update_fields_set is not None:
+                    update_fields_set.add("total_length_km")
 
         if update_fields_set is not None:
             kwargs["update_fields"] = list(update_fields_set)
@@ -673,66 +675,59 @@ class RoadSection(models.Model):
         road = getattr(self, "road", None)
         if not road or not road.geometry:
             errors["road"] = "Road geometry is missing. Run Route Preview → Save Geometry first."
+        tolerance = Decimal("0.02")
+        road_length = Decimal("0")
 
-        geometry_length = geos_length_km(getattr(road, "geometry", None)) if road else 0.0
+        if road and road.geometry:
+            road_length = road.compute_length_km_from_geom()
+        elif road and road.total_length_km is not None:
+            road_length = Decimal(str(road.total_length_km))
 
-        if self.start_chainage_km is not None:
-            if self.start_chainage_km < 0:
-                errors["start_chainage_km"] = "Start chainage cannot be negative."
+        if self.start_chainage_km is not None and self.start_chainage_km < 0:
+            errors["start_chainage_km"] = "Start chainage cannot be negative."
 
         if self.start_chainage_km is not None and self.end_chainage_km is not None:
             if self.end_chainage_km <= self.start_chainage_km:
                 errors["end_chainage_km"] = "End chainage must be greater than start chainage."
 
             if self.road_id:
-                road_length = Decimal(self.road.total_length_km)
-                tolerance = Decimal("0.001")
-                effective_length = Decimal(str(geometry_length or float(road_length)))
-                if self.end_chainage_km > effective_length + tolerance:
+                if road_length and self.end_chainage_km > road_length + tolerance:
                     errors["end_chainage_km"] = "Section end exceeds the parent road length."
-                if self.start_chainage_km > effective_length + tolerance:
+                if road_length and self.start_chainage_km > road_length + tolerance:
                     errors["start_chainage_km"] = "Section start exceeds the parent road length."
-                if (self.end_chainage_km - self.start_chainage_km) > (road_length + tolerance):
-                    errors["end_chainage_km"] = "Section length cannot be greater than the parent road length."
 
-                overlaps = (
+                siblings = list(
                     RoadSection.objects.filter(road_id=self.road_id)
                     .exclude(pk=self.pk)
-                    .filter(
-                        start_chainage_km__lt=self.end_chainage_km,
-                        end_chainage_km__gt=self.start_chainage_km,
-                    )
+                    .order_by("start_chainage_km", "end_chainage_km")
                 )
-                if overlaps.exists():
-                    overlap_list = ", ".join(
-                        f"section {section.section_number} ({section.start_chainage_km}–{section.end_chainage_km} km)"
-                        for section in overlaps
-                    )
-                    errors["start_chainage_km"] = (
-                        "Section overlaps with existing sections on this road: " + overlap_list
-                    )
+                sections = siblings + [self]
+                sections.sort(key=lambda s: (s.start_chainage_km or Decimal("0"), s.end_chainage_km or Decimal("0")))
 
-                siblings = RoadSection.objects.filter(road_id=self.road_id).exclude(pk=self.pk)
-                previous = siblings.filter(end_chainage_km__lte=self.start_chainage_km).order_by("-end_chainage_km").first()
-                next_section = siblings.filter(start_chainage_km__gte=self.end_chainage_km).order_by("start_chainage_km").first()
+                previous_end = None
+                for idx, section in enumerate(sections):
+                    start = section.start_chainage_km or Decimal("0")
+                    end = section.end_chainage_km or Decimal("0")
 
-                if previous and (self.start_chainage_km - previous.end_chainage_km).copy_abs() > tolerance:
-                    errors["start_chainage_km"] = (
-                        f"Gap detected before this section; previous section {previous.section_number} ends at {previous.end_chainage_km} km."
-                    )
-                if next_section and (next_section.start_chainage_km - self.end_chainage_km).copy_abs() > tolerance:
-                    errors["end_chainage_km"] = (
-                        f"Gap detected after this section; next section {next_section.section_number} starts at {next_section.start_chainage_km} km."
-                    )
+                    if idx == 0 and start.copy_abs() > tolerance:
+                        if section is self:
+                            errors["start_chainage_km"] = "First section must start at 0 km (±20 m)."
+                    if previous_end is not None:
+                        gap = start - previous_end
+                        if gap > tolerance and section is self:
+                            errors["start_chainage_km"] = (
+                                f"Gap detected before this section; expected start at {previous_end} km."
+                            )
+                        if gap < -tolerance and section is self:
+                            errors["start_chainage_km"] = (
+                                f"Overlap detected with previous section ending at {previous_end} km."
+                            )
+                    previous_end = end
 
-                if previous and previous.sequence_on_road >= self.sequence_on_road:
-                    errors["sequence_on_road"] = (
-                        f"Sequence order must follow chainage; section {previous.section_number} comes before this one."
-                    )
-                if next_section and next_section.sequence_on_road <= self.sequence_on_road:
-                    errors["sequence_on_road"] = (
-                        f"Sequence order must follow chainage; section {next_section.section_number} should come after this one."
-                    )
+                last_section = sections[-1] if sections else None
+                if road_length and last_section and last_section is self:
+                    if (road_length - self.end_chainage_km).copy_abs() > tolerance:
+                        errors["end_chainage_km"] = "Last section must end at the road length (±20 m)."
 
         if self.surface_type in {"Gravel", "DBST", "Asphalt", "Sealed"}:
             if self.surface_thickness_cm is None:
@@ -741,7 +736,47 @@ class RoadSection(models.Model):
         if errors:
             raise ValidationError(errors)
 
+    def _tolerance_km(self) -> Decimal:
+        return Decimal("0.02")
+
+    def _is_last_section_for_road(self, candidate_end: Optional[Decimal] = None) -> bool:
+        if not self.road_id:
+            return False
+        candidate_end = candidate_end if candidate_end is not None else self.end_chainage_km
+        if candidate_end is None:
+            return False
+        max_end = (
+            RoadSection.objects.filter(road_id=self.road_id)
+            .exclude(pk=self.pk)
+            .aggregate(models.Max("end_chainage_km"))
+            .get("end_chainage_km__max")
+        )
+        return max_end is None or candidate_end >= max_end
+
+    def _snap_chainages(self, road_length: Decimal):
+        tolerance = self._tolerance_km()
+        if self.start_chainage_km is not None and self.start_chainage_km.copy_abs() <= tolerance:
+            self.start_chainage_km = Decimal("0")
+
+        if self.start_chainage_km is None or self.end_chainage_km is None:
+            return
+
+        if (road_length - self.end_chainage_km).copy_abs() <= tolerance and self._is_last_section_for_road(
+            candidate_end=self.end_chainage_km
+        ):
+            self.end_chainage_km = road_length
+
     def save(self, *args, **kwargs):
+        road_length = Decimal("0")
+        if self.road:
+            if self.road.geometry:
+                road_length = self.road.compute_length_km_from_geom()
+                if self.road.total_length_km != road_length:
+                    self.road.total_length_km = road_length
+                    self.road.save(update_fields=["total_length_km"])
+            elif self.road.total_length_km is not None:
+                road_length = Decimal(str(self.road.total_length_km))
+
         if self.road_id:
             if not self.sequence_on_road:
                 max_sequence = (
@@ -754,6 +789,10 @@ class RoadSection(models.Model):
                 self.sequence_on_road = max_sequence + 1
             if not self.section_number:
                 self.section_number = self.sequence_on_road
+
+        if road_length:
+            self._snap_chainages(road_length)
+
         sliced = None
         if self.road and self.road.geometry and self.start_chainage_km is not None and self.end_chainage_km is not None:
             sliced = slice_linestring_by_chainage(
@@ -762,16 +801,15 @@ class RoadSection(models.Model):
                 float(self.end_chainage_km),
             )
 
+        if self.start_chainage_km is not None and self.end_chainage_km is not None:
+            self.length_km = (self.end_chainage_km - self.start_chainage_km).quantize(Decimal("0.001"))
+
         if sliced:
-            self.geometry = sliced["geometry"]
+            self.geometry = sliced.get("geometry")
             if sliced.get("start_point"):
                 self.section_start_coordinates = make_point(*sliced["start_point"])
             if sliced.get("end_point"):
                 self.section_end_coordinates = make_point(*sliced["end_point"])
-            if sliced.get("length_km") is not None:
-                self.length_km = Decimal(str(sliced["length_km"])).quantize(Decimal("0.001"))
-        elif self.start_chainage_km is not None and self.end_chainage_km is not None:
-            self.length_km = (self.end_chainage_km - self.start_chainage_km).quantize(Decimal("0.001"))
 
         self.full_clean()
         super().save(*args, **kwargs)

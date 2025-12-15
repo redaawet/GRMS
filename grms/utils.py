@@ -10,6 +10,8 @@ from typing import Dict, Iterable, Optional, Sequence, Tuple
 from urllib.error import HTTPError, URLError
 from urllib.request import urlopen
 
+from django.db import connection
+
 try:  # pragma: no cover - optional dependency for conversion
     from pyproj import Transformer
 except ImportError:  # pragma: no cover - handled at runtime for clarity
@@ -46,7 +48,7 @@ def wgs84_to_utm(lat: float, lon: float, zone: int = 37) -> tuple[float, float]:
 from django.conf import settings
 
 try:
-    from django.contrib.gis.geos import GEOSGeometry, LineString
+    from django.contrib.gis.geos import GEOSGeometry, LineString, Point
 
     GEOS_AVAILABLE = True
 except Exception:  # pragma: no cover - runtime fallback when GIS libs are missing
@@ -216,47 +218,134 @@ def line_distance(p1, p2):
     )
 
 
-def slice_linestring_by_chainage(geom, start_km: float, end_km: float):
-    """
-    Slice a LineString geometry using normalized fractions (SRAD-safe).
+def _postgis_line_substring(geom, start_frac: float, end_frac: float):
+    if not GEOS_AVAILABLE:
+        return None
 
-    This avoids projection / geodesic mismatch by mapping chainage to
-    [0,1] fractions along the parent geometry.
+    if start_frac >= end_frac:
+        return None
+
+    ewkb = geom.ewkb
+    sql = """
+        SELECT
+            ST_AsBinary(ST_LineSubstring(g.geom, %s, %s)),
+            ST_AsBinary(ST_LineInterpolatePoint(g.geom, %s)),
+            ST_AsBinary(ST_LineInterpolatePoint(g.geom, %s)),
+            ST_Length(g.geom::geography) / 1000.0
+        FROM (SELECT ST_GeomFromEWKB(%s) AS geom) AS g
     """
+
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute(sql, [start_frac, end_frac, start_frac, end_frac, ewkb])
+            row = cursor.fetchone()
+            if not row or not row[0]:
+                return None
+    except Exception:
+        return None
+
+    geometry_wkb, start_wkb, end_wkb, length_km = row
+    return {
+        "geometry": GEOSGeometry(memoryview(geometry_wkb)),
+        "start_point": GEOSGeometry(memoryview(start_wkb)) if start_wkb else None,
+        "end_point": GEOSGeometry(memoryview(end_wkb)) if end_wkb else None,
+        "length_km": float(length_km) if length_km is not None else None,
+    }
+
+
+def _slice_linestring_vertices(geom, start_km: float, end_km: float, *, total_km: float):
+    if not GEOS_AVAILABLE:
+        return None
+
+    geom_metric = geom.transform(3857, clone=True)
+    coords = list(geom_metric.coords)
+    if len(coords) < 2:
+        return None
+
+    start_m = max(0.0, float(start_km) * 1000.0)
+    end_m = max(start_m, float(end_km) * 1000.0)
+    total_m = float(total_km) * 1000.0
+    start_m = min(start_m, total_m)
+    end_m = min(end_m, total_m)
+
+    sliced_coords: list[tuple[float, float]] = []
+    cumulative = 0.0
+
+    for start, end in zip(coords[:-1], coords[1:]):
+        segment_length = line_distance(start, end)
+        next_cumulative = cumulative + segment_length
+
+        if start_m >= cumulative and start_m <= next_cumulative:
+            fraction = (start_m - cumulative) / segment_length if segment_length else 0.0
+            sliced_coords.append(_interpolate_coordinate(start, end, fraction))
+
+        if end_m >= cumulative and end_m <= next_cumulative:
+            fraction = (end_m - cumulative) / segment_length if segment_length else 0.0
+            if not sliced_coords:
+                sliced_coords.append(start)
+            sliced_coords.append(_interpolate_coordinate(start, end, fraction))
+            break
+
+        if sliced_coords and end_m > next_cumulative:
+            sliced_coords.append(end)
+
+        cumulative = next_cumulative
+
+    if len(sliced_coords) < 2:
+        return None
+
+    line_3857 = _build_linestring(sliced_coords, srid=3857, as_geos=True)
+    line_4326 = line_3857.transform(geom.srid or 4326, clone=True)
+    start_point = Point(*line_4326.coords[0])
+    end_point = Point(*line_4326.coords[-1])
+    start_point.srid = line_4326.srid
+    end_point.srid = line_4326.srid
+
+    return {
+        "geometry": line_4326,
+        "start_point": start_point,
+        "end_point": end_point,
+        "length_km": float(end_km - start_km),
+    }
+
+
+def slice_linestring_by_chainage(geom, start_km: float, end_km: float):
+    """Slice a LineString between chainages using PostGIS with Python fallback."""
+
     if geom is None:
         return None
 
-    # Total length must be consistent with how you compute Road.total_length_km upstream.
-    total_km = float(getattr(geom, "length", 0) or 0)
+    total_km = geos_length_km(geom)
     if total_km <= 0:
         return None
 
     start_frac = float(Decimal(str(start_km)) / Decimal(str(total_km)))
     end_frac = float(Decimal(str(end_km)) / Decimal(str(total_km)))
 
-    # Clamp defensively
     start_frac = max(0.0, min(1.0, start_frac))
     end_frac = max(0.0, min(1.0, end_frac))
 
     if end_frac <= start_frac:
         return None
 
-    # Snap final section cleanly to road end
     if end_frac >= 0.999999:
         end_frac = 1.0
 
-    # Sub-geometry by normalized fractions
-    sub_geom = geom.line_substring(start_frac, end_frac)
+    result = _postgis_line_substring(geom, start_frac, end_frac)
+    if not result:
+        result = _slice_linestring_vertices(geom, start_km, end_km, total_km=total_km)
 
-    # Start/end points (normalized interpolation)
-    sp = geom.interpolate(start_frac, normalized=True)
-    ep = geom.interpolate(end_frac, normalized=True)
+    if not result:
+        return None
+
+    start_point_geom = result.get("start_point") or geom.interpolate(start_frac, normalized=True)
+    end_point_geom = result.get("end_point") or geom.interpolate(end_frac, normalized=True)
 
     return {
-        "geometry": sub_geom,
-        "start_point": (sp.y, sp.x),   # (lat, lon)
-        "end_point": (ep.y, ep.x),     # (lat, lon)
-        "length_km": float(end_km - start_km),
+        "geometry": result.get("geometry"),
+        "start_point": (start_point_geom.y, start_point_geom.x) if start_point_geom else None,
+        "end_point": (end_point_geom.y, end_point_geom.x) if end_point_geom else None,
+        "length_km": result.get("length_km", float(end_km - start_km)),
     }
 
 
