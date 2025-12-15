@@ -25,6 +25,8 @@ class RoadNetworkMixin:
         start_lat, start_lng = utm_to_wgs84(500000, 1000000, zone=37)
         end_lat, end_lng = utm_to_wgs84(500000, 1010000, zone=37)
 
+        create_section = "SectionGeom" not in prefix
+
         road_kwargs = dict(
             road_name_from=f"{prefix} From",
             road_name_to=f"{prefix} To",
@@ -35,6 +37,7 @@ class RoadNetworkMixin:
             surface_type="Earth",
             managing_authority="Federal",
             remarks="",
+            geometry={"type": "LineString", "coordinates": [[float(start_lng), float(start_lat)], [float(end_lng), float(end_lat)]], "srid": 4326},
         )
 
         if not missing_coords:
@@ -59,31 +62,33 @@ class RoadNetworkMixin:
         section_start_lat, section_start_lng = utm_to_wgs84(500000, 1000000, zone=37)
         section_end_lat, section_end_lng = utm_to_wgs84(500000, 1010000, zone=37)
 
-        section = models.RoadSection.objects.create(
-            road=road,
-            start_chainage_km=Decimal("0"),
-            end_chainage_km=Decimal("10"),
-            length_km=Decimal("10"),
-            surface_type="Earth",
-            start_easting=Decimal("500000.00"),
-            start_northing=Decimal("1000000.00"),
-            section_start_coordinates=make_point(section_start_lat, section_start_lng),
-            end_easting=Decimal("500000.00"),
-            end_northing=Decimal("1010000.00"),
-            section_end_coordinates=make_point(section_end_lat, section_end_lng),
-        )
-        segment = models.RoadSegment.objects.create(
-            section=section,
-            station_from_km=Decimal("0"),
-            station_to_km=Decimal("5"),
-            cross_section="Cutting",
-            terrain_transverse="Flat",
-            terrain_longitudinal="Flat",
-            ditch_left_present=True,
-            ditch_right_present=True,
-            shoulder_left_present=True,
-            shoulder_right_present=True,
-        )
+        section = segment = None
+        if create_section:
+            section = models.RoadSection.objects.create(
+                road=road,
+                start_chainage_km=Decimal("0"),
+                end_chainage_km=Decimal("10"),
+                length_km=Decimal("10"),
+                surface_type="Earth",
+                start_easting=Decimal("500000.00"),
+                start_northing=Decimal("1000000.00"),
+                section_start_coordinates=make_point(section_start_lat, section_start_lng),
+                end_easting=Decimal("500000.00"),
+                end_northing=Decimal("1010000.00"),
+                section_end_coordinates=make_point(section_end_lat, section_end_lng),
+            )
+            segment = models.RoadSegment.objects.create(
+                section=section,
+                station_from_km=Decimal("0"),
+                station_to_km=Decimal("5"),
+                cross_section="Cutting",
+                terrain_transverse="Flat",
+                terrain_longitudinal="Flat",
+                ditch_left_present=True,
+                ditch_right_present=True,
+                shoulder_left_present=True,
+                shoulder_right_present=True,
+            )
         return road, section, segment
 
     def make_factor(self, factor_type: str, value: Decimal, rating: int | None = None):
