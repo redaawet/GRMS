@@ -58,8 +58,6 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
-  overflow-y: auto;
-  overflow-x: hidden;
 }
 
 #grms-sidebar details.sidebar-group {
@@ -101,14 +99,7 @@
 #grms-sidebar .sg-content {
   background: #ffffff;
   display: block;
-  overflow: hidden;
   padding: 0.25rem 0 0.75rem;
-}
-
-#grms-sidebar details.sidebar-group[open] > .sg-content {
-  max-height: var(--grms-group-max);
-  overflow-y: auto;
-  overflow-x: hidden;
 }
 
 #grms-sidebar .sidebar-subgroup {

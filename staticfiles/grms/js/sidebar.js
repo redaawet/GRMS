@@ -81,25 +81,15 @@
     }
   }
 
-  function setGroupHeight(group, nav) {
+  function setGroupHeight(group) {
     const content = group.querySelector(SELECTORS.content);
-    const header = group.querySelector(SELECTORS.header);
-    if (!content || !header || !nav) return;
+    if (!content) return;
 
-    const offsetTop = group.offsetTop - nav.scrollTop;
-    const available = Math.max(nav.clientHeight - offsetTop - header.offsetHeight - 8, 120);
-    const scrollHeight = content.scrollHeight;
-
-    if (scrollHeight > available) {
-      content.style.maxHeight = `${available}px`;
-      content.classList.add("is-scrollable");
-    } else {
-      content.style.maxHeight = `${scrollHeight}px`;
-      content.classList.remove("is-scrollable");
-    }
+    content.style.maxHeight = `${content.scrollHeight}px`;
+    content.classList.remove("is-scrollable");
   }
 
-  function openGroup(group, nav, groups) {
+  function openGroup(group, groups) {
     if (!group) return;
     groups.forEach((item) => {
       if (item !== group) collapseGroup(item);
@@ -108,10 +98,10 @@
     const header = group.querySelector(SELECTORS.header);
     group.classList.add("is-open");
     if (header) header.setAttribute("aria-expanded", "true");
-    setGroupHeight(group, nav);
+    setGroupHeight(group);
   }
 
-  function bindAccordion(nav) {
+  function bindAccordion(nav, scrollArea) {
     const groups = Array.from(nav.querySelectorAll(SELECTORS.group));
     if (!groups.length) return;
 
@@ -123,20 +113,22 @@
         if (isOpen) {
           collapseGroup(group);
         } else {
-          openGroup(group, nav, groups);
+          openGroup(group, groups);
         }
       });
     });
 
     const activeGroup = groups.find((group) => group.classList.contains("has-active")) || groups[0];
-    openGroup(activeGroup, nav, groups);
+    openGroup(activeGroup, groups);
 
     const updateOpenHeight = () => {
       const open = nav.querySelector(`${SELECTORS.group}.is-open`);
-      if (open) setGroupHeight(open, nav);
+      if (open) setGroupHeight(open);
     };
 
-    nav.addEventListener("scroll", updateOpenHeight, { passive: true });
+    if (scrollArea) {
+      scrollArea.addEventListener("scroll", updateOpenHeight, { passive: true });
+    }
     window.addEventListener("resize", updateOpenHeight);
   }
 
@@ -147,9 +139,10 @@
 
     const nav = sidebar.querySelector(".sidebar-nav");
     if (!nav) return;
+    const scrollArea = sidebar.querySelector(".grms-sidebar-scroll") || nav;
 
     markActiveLinks(nav);
     handleSearch(nav);
-    bindAccordion(nav);
+    bindAccordion(nav, scrollArea);
   });
 })();
