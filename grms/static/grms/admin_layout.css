@@ -1,6 +1,7 @@
 :root {
   --grms-header-h: 56px;
   --grms-sidebar-w: 300px;
+  --grms-sidebar-gap: 16px;
   --grms-header-height: var(--grms-header-h);
   --grms-sidebar-width: var(--grms-sidebar-w);
   --grms-content-padding: 24px;
@@ -21,8 +22,13 @@ body {
 
 body.grms-has-sidebar {
   margin: 0;
-  padding: 0;
   overflow-x: hidden;
+}
+
+/* We use #grms-sidebar instead of Django's #nav-sidebar */
+#nav-sidebar,
+.toggle-nav-sidebar {
+  display: none !important;
 }
 
 body.popup {
@@ -227,8 +233,7 @@ body.popup {
 }
 
 #grms-main {
-  margin-left: var(--grms-sidebar-w);
-  width: calc(100vw - var(--grms-sidebar-width));
+  width: 100%;
   min-height: calc(100vh - var(--grms-header-height));
   padding: var(--grms-content-padding);
   background: var(--grms-surface-bg);
@@ -237,7 +242,6 @@ body.popup {
 }
 
 body.popup #grms-main {
-  margin-left: 0;
   width: 100%;
   min-height: 100vh;
   padding-top: 16px;
@@ -248,10 +252,15 @@ body.popup #grms-main {
   padding: 0;
 }
 
+body:not(.login) {
+  padding-left: calc(var(--grms-sidebar-w) + var(--grms-sidebar-gap));
+}
+
+#container,
 #content,
-.main,
-#content-main {
-  margin-left: var(--grms-sidebar-w);
+#content-main,
+.main {
+  margin-left: 0 !important;
 }
 
 #content {
@@ -279,37 +288,28 @@ body.popup #grms-main {
 #footer {
   padding: 14px var(--grms-content-padding);
   background: var(--grms-surface-bg);
-  margin-left: var(--grms-sidebar-width);
 }
 
-body.popup #footer {
-  margin-left: 0;
-}
-
-  @media (max-width: 960px) {
-    #grms-header .header-inner {
-      padding: 0 16px;
-    }
-
-    #grms-main {
-    margin-left: 0;
-    width: calc(100vw - var(--grms-sidebar-width));
-      padding: 16px;
-    }
+@media (max-width: 960px) {
+  #grms-header .header-inner {
+    padding: 0 16px;
   }
 
-  @media (max-width: 720px) {
-    #grms-sidebar {
-      width: 220px;
-    }
+  #grms-main {
+    padding: 16px;
+  }
+}
 
-    #grms-main {
-    margin-left: 0;
-      width: calc(100vw - 220px);
-      padding: 14px;
-    }
+@media (max-width: 720px) {
+  #grms-sidebar {
+    width: 220px;
+  }
 
-  #footer {
-    margin-left: 220px;
+  body:not(.login) {
+    padding-left: calc(220px + var(--grms-sidebar-gap));
+  }
+
+  #grms-main {
+    padding: 14px;
   }
 }
