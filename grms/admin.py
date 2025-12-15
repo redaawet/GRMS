@@ -22,6 +22,7 @@ from .gis_fields import LineStringField, PointField
 from .services import map_services, mci_intervention, prioritization, workplan_costs
 from .services.planning import road_ranking, workplans
 from .utils import make_point, point_to_lat_lng, utm_to_wgs84, wgs84_to_utm
+from .utils_labels import fmt_km, road_id, section_id, segment_label, structure_label
 
 try:  # pragma: no cover - depends on spatial libs
     from django.contrib.gis.forms import OSMWidget
@@ -512,7 +513,7 @@ class SectionScopedAdmin(admin.ModelAdmin):
             road_id = request.GET.get("road")
             if road_id:
                 kwargs["queryset"] = models.RoadSection.objects.filter(road_id=road_id)
-        if db_field.name == "road_segment":
+        if db_field.name in {"road_segment", "segment"}:
             section_id = request.GET.get("section")
             if section_id:
                 kwargs["queryset"] = models.RoadSegment.objects.filter(section_id=section_id)
@@ -1010,90 +1011,35 @@ from grms.models import (
     StructureInterventionRecommendation,
 )
 @admin.register(SegmentInterventionRecommendation, site=grms_admin_site)
-class SegmentInterventionRecommendationAdmin(admin.ModelAdmin):
-    # One row per segment WILL still be multiple DB rows if you store multiple items.
-    # This list_display fixes the crash and combines items into one string.
-    list_display = (
-        "road_name",
-        "section_number",
-        "segment_display",
-        "mci_value",
-        "combined_recommendations",
-    )
-    list_select_related = (
-        "segment",
-        "segment__section",
-        "segment__section__road",
-        "recommended_item",
-    )
+class SegmentInterventionRecommendationAdmin(SectionScopedAdmin):
+    list_display = ("road", "section", "segment", "mci_value", "recommended_item")
     search_fields = (
-        "segment__section__road__name",
-        "segment__section__road__identifier",
-    )
-    list_filter = (
-        "recommended_item__category",
+        "segment__section__road__road_identifier",
         "recommended_item__work_code",
     )
+    list_select_related = ("segment", "segment__section", "segment__section__road", "recommended_item")
+    list_filter = ("recommended_item__category", "recommended_item__work_code")
 
-    @admin.display(description="Road name", ordering="segment__section__road__name")
-    def road_name(self, obj: SegmentInterventionRecommendation) -> str:
-        road = getattr(getattr(getattr(obj.segment, "section", None), "road", None), "name", None)
-        return road or "-"
+    def road(self, obj):
+        return road_id(obj.segment.section.road)
 
-    @admin.display(description="Section no.", ordering="segment__section__section_number")
-    def section_number(self, obj: SegmentInterventionRecommendation):
-        section = getattr(obj.segment, "section", None)
-        return getattr(section, "section_number", None) or "-"
+    def section(self, obj):
+        return section_id(obj.segment.section)
 
-    @admin.display(description="Segment", ordering="segment__station_from_km")
-    def segment_display(self, obj: SegmentInterventionRecommendation) -> str:
-        seg = obj.segment
-        frm = getattr(seg, "station_from_km", None)
-        to = getattr(seg, "station_to_km", None)
-        if frm is not None and to is not None:
-            return f"{frm:.3f}-{to:.3f} km"
-        return str(seg)
-
-    @admin.display(description="Recommendations")
-    def combined_recommendations(self, obj: SegmentInterventionRecommendation) -> str:
-        """
-        Combine ALL recommended items for this segment into one string.
-        Uses the segment.related_name = intervention_recommendations.
-        """
-        qs = obj.segment.intervention_recommendations.select_related("recommended_item").order_by(
-            "recommended_item__work_code"
-        )
-        parts = []
-        for rec in qs:
-            wi = rec.recommended_item
-            parts.append(f"{wi.work_code} - {wi.description}")
-        return ", ".join(parts) if parts else "-"
+    def segment(self, obj):
+        return segment_label(obj.segment)
 
 
 @admin.register(StructureInterventionRecommendation, site=grms_admin_site)
 class StructureInterventionRecommendationAdmin(admin.ModelAdmin):
-    list_display = (
-        "road_name",
-        "section_number",
-        "structure_display",
-        "condition_code",
-        "recommended_item_display",
-    )
+    list_display = ("structure_desc", "condition_code", "recommended_item_display")
+    search_fields = ("structure__road__road_identifier", "structure__structure_category")
     list_select_related = ("structure", "structure__road", "structure__section", "recommended_item")
 
-    @admin.display(description="Road name", ordering="structure__road__name")
-    def road_name(self, obj):
-        road = getattr(getattr(obj.structure, "road", None), "name", None)
-        return road or "-"
+    def structure_desc(self, obj):
+        return structure_label(obj.structure)
 
-    @admin.display(description="Section no.", ordering="structure__section__section_number")
-    def section_number(self, obj):
-        section = getattr(obj.structure, "section", None)
-        return getattr(section, "section_number", None) or "-"
-
-    @admin.display(description="Structure", ordering="structure__id")
-    def structure_display(self, obj):
-        return str(obj.structure)
+    structure_desc.short_description = "Structure"
 
     @admin.display(description="Recommended item", ordering="recommended_item__work_code")
     def recommended_item_display(self, obj):
@@ -1102,17 +1048,41 @@ class StructureInterventionRecommendationAdmin(admin.ModelAdmin):
 
 
 @admin.register(models.SegmentInterventionNeed, site=grms_admin_site)
-class SegmentInterventionNeedAdmin(admin.ModelAdmin):
-    list_display = ("segment", "fiscal_year")
+class SegmentInterventionNeedAdmin(SectionScopedAdmin):
+    list_display = ("road", "section", "segment", "fiscal_year")
     list_filter = ("fiscal_year",)
     search_fields = ("segment__section__road__road_identifier", "segment__id")
+    list_select_related = ("segment", "segment__section", "segment__section__road")
+
+    def road(self, obj):
+        return road_id(obj.segment.section.road)
+
+    def section(self, obj):
+        return section_id(obj.segment.section)
+
+    def segment(self, obj):
+        return segment_label(obj.segment)
 
 
 @admin.register(models.SegmentInterventionNeedItem, site=grms_admin_site)
-class SegmentInterventionNeedItemAdmin(admin.ModelAdmin):
-    list_display = ("need", "intervention_item")
+class SegmentInterventionNeedItemAdmin(SectionScopedAdmin):
+    list_display = ("need_display", "intervention_code")
     list_filter = ("intervention_item__work_code",)
     search_fields = ("need__segment__section__road__road_identifier", "intervention_item__work_code")
+    list_select_related = ("need", "need__segment", "need__segment__section", "need__segment__section__road")
+
+    def need_display(self, obj):
+        return segment_label(obj.need.segment)
+
+    need_display.short_description = "Segment need"
+
+    def intervention_code(self, obj):
+        item = obj.intervention_item
+        if not item:
+            return None
+        return f"{item.work_code} - {item.description}"
+
+    intervention_code.short_description = "Intervention"
 
 
 @admin.register(models.RoadSection, site=grms_admin_site)
@@ -1435,16 +1405,10 @@ class StructureInventoryAdmin(SectionScopedAdmin):
         else forms.Textarea(attrs={"rows": 3})
     )
 
-    list_display = (
-        "road",
-        "structure_category",
-        "geometry_type",
-        "station_km",
-        "start_chainage_km",
-        "end_chainage_km",
-    )
+    list_display = ("label", "structure_category", "road", "section")
     list_filter = ("structure_category", "geometry_type")
-    search_fields = ("road__road_name_from", "road__road_name_to")
+    search_fields = ("road__road_identifier", "structure_category")
+    list_select_related = ("road", "section")
     readonly_fields = ("created_date", "modified_date")
     formfield_overrides = {
         PointField: {"widget": geometry_widget},
@@ -1490,6 +1454,11 @@ class StructureInventoryAdmin(SectionScopedAdmin):
 
     class Media:
         js = ("grms/js/structure-inventory-admin.js",)
+
+    def label(self, obj):
+        return structure_label(obj)
+
+    label.short_description = "Structure"
 
 
 @admin.register(models.BridgeDetail, site=grms_admin_site)
@@ -1610,8 +1579,10 @@ class FurnitureInventoryAdmin(SectionScopedAdmin):
 
 @admin.register(models.StructureConditionSurvey, site=grms_admin_site)
 class StructureConditionSurveyAdmin(admin.ModelAdmin):
-    list_display = ("structure", "survey_year", "condition_code", "condition_rating", "qa_status")
+    list_display = ("structure_desc", "survey_year", "condition_code", "condition_rating", "qa_status")
     list_filter = ("survey_year", "condition_rating")
+    search_fields = ("structure__road__road_identifier", "structure__structure_category")
+    list_select_related = ("structure", "structure__road")
     readonly_fields = ("created_at", "modified_at")
     fieldsets = (
         ("Structure", {"fields": ("structure",)}),
@@ -1631,6 +1602,11 @@ class StructureConditionSurveyAdmin(admin.ModelAdmin):
         ("Comments & attachments", {"fields": ("comments", "attachments")}),
         ("Audit", {"fields": ("created_at", "modified_at")}),
     )
+
+    def structure_desc(self, obj):
+        return structure_label(obj.structure)
+
+    structure_desc.short_description = "Structure"
 
 
 @admin.register(models.StructureConditionLookup, site=grms_admin_site)
@@ -2131,35 +2107,54 @@ class RoadRankingResultAdmin(admin.ModelAdmin):
 
 @admin.register(models.AnnualWorkPlan, site=grms_admin_site)
 class AnnualWorkPlanAdmin(admin.ModelAdmin):
-    list_display = ("road", "fiscal_year", "priority_rank", "status", "total_budget")
+    list_display = ("road_label", "fiscal_year", "priority_rank", "status", "total_budget")
     list_filter = ("fiscal_year", "road__admin_zone")
     search_fields = ("road__road_identifier", "road__road_name_from", "road__road_name_to")
+    list_select_related = ("road",)
+
+    def road_label(self, obj):
+        return road_id(obj.road)
+
+    road_label.short_description = "Road"
 
 @admin.register(models.StructureInterventionNeed, site=grms_admin_site)
 class StructureInterventionNeedAdmin(admin.ModelAdmin):
-    list_display = ("structure", "fiscal_year")
+    list_display = ("structure_desc", "fiscal_year")
     list_filter = ("fiscal_year",)
     search_fields = ("structure__road__road_identifier", "structure__structure_name")
+    list_select_related = ("structure", "structure__road")
+
+    def structure_desc(self, obj):
+        return structure_label(obj.structure)
+
+    structure_desc.short_description = "Structure"
 
 
 @admin.register(models.StructureInterventionNeedItem, site=grms_admin_site)
 class StructureInterventionNeedItemAdmin(admin.ModelAdmin):
-    list_display = ("need", "intervention_item")
+    list_display = ("need_display", "intervention_code")
     list_filter = ("intervention_item__work_code",)
     search_fields = ("need__structure__road__road_identifier", "intervention_item__work_code")
+    list_select_related = ("need", "need__structure", "need__structure__road")
 
-    @admin.display(description="Recommended item")
-    def recommended_item_display(self, obj):
-        item = obj.recommended_item
+    def need_display(self, obj):
+        return structure_label(obj.need.structure)
+
+    need_display.short_description = "Structure need"
+
+    def intervention_code(self, obj):
+        item = obj.intervention_item
         if not item:
             return None
         return f"{item.work_code} - {item.description}"
+
+    intervention_code.short_description = "Intervention"
 
 
 @admin.register(models.StructureIntervention, site=grms_admin_site)
 class StructureInterventionAdmin(admin.ModelAdmin):
     list_display = (
-        "structure",
+        "structure_desc",
         "intervention",
         "intervention_year",
         "status",
@@ -2171,13 +2166,20 @@ class StructureInterventionAdmin(admin.ModelAdmin):
         "structure__road__road_name_from",
         "structure__road__road_name_to",
     )
+    list_select_related = ("structure", "structure__road")
+
+    def structure_desc(self, obj):
+        return structure_label(obj.structure)
+
+    structure_desc.short_description = "Structure"
 
 
 @admin.register(models.RoadSectionIntervention, site=grms_admin_site)
 class RoadSectionInterventionAdmin(SectionScopedAdmin):
     list_display = (
+        "road",
         "section",
-        "intervention",
+        "chainage",
         "intervention_year",
         "status",
         "estimated_cost",
@@ -2188,6 +2190,24 @@ class RoadSectionInterventionAdmin(SectionScopedAdmin):
         "section__road__road_name_from",
         "section__road__road_name_to",
     )
+    list_select_related = ("section", "section__road", "intervention")
+
+    def road(self, obj):
+        return road_id(obj.section.road)
+
+    def section(self, obj):
+        return section_id(obj.section)
+
+    def chainage(self, obj):
+        start = fmt_km(getattr(obj, "start_chainage_km", None))
+        end = fmt_km(getattr(obj, "end_chainage_km", None))
+        if start == "?" and end == "?":
+            return "—"
+        if start != "?" and end != "?":
+            return f"{start}–{end} km"
+        return f"{start} km" if end == "?" else f"{end} km"
+
+    chainage.short_description = "Chainage"
 
 
 # Register supporting models without custom admins
