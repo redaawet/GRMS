@@ -2537,26 +2537,27 @@ class RoadSocioEconomic(models.Model):
 
     road = models.OneToOneField(Road, on_delete=models.CASCADE, related_name="socioeconomic")
 
-    population_served = models.PositiveIntegerField(default=0)
+    population_served = models.PositiveIntegerField(default=10000)
 
-    trading_centers = models.PositiveIntegerField(default=0)
-    villages = models.PositiveIntegerField(default=0)
+    trading_centers = models.PositiveIntegerField(default=1)
+    villages = models.PositiveIntegerField(default=1)
     road_link_type = models.ForeignKey(
         RoadLinkTypeLookup,
         on_delete=models.PROTECT,
         null=True,
         blank=True,
         related_name="socioeconomic_records",
+        help_text="Functional road class (socio-economic input)",
     )
     adt_override = models.PositiveIntegerField(null=True, blank=True)
 
-    farmland_percent = models.DecimalField(max_digits=5, decimal_places=2, default=0)
-    cooperative_centers = models.PositiveIntegerField(default=0)
-    markets = models.PositiveIntegerField(default=0)
+    farmland_percent = models.DecimalField(max_digits=5, decimal_places=2, default=Decimal("20.00"))
+    cooperative_centers = models.PositiveIntegerField(default=1)
+    markets = models.PositiveIntegerField(default=1)
 
-    health_centers = models.PositiveIntegerField(default=0)
-    education_centers = models.PositiveIntegerField(default=0)
-    development_projects = models.PositiveIntegerField(default=0)
+    health_centers = models.PositiveIntegerField(default=1)
+    education_centers = models.PositiveIntegerField(default=1)
+    development_projects = models.PositiveIntegerField(default=1)
 
     notes = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -2594,9 +2595,6 @@ class RoadSocioEconomic(models.Model):
         if self.farmland_percent is not None:
             if not (Decimal("0") <= self.farmland_percent <= Decimal("100")):
                 errors["farmland_percent"] = "Farmland percent must be between 0 and 100."
-
-        if self.road_link_type_id is None:
-            errors["road_link_type"] = "Road link type is required."
 
         from traffic.models import TrafficSurveySummary  # avoid circular import
 
