@@ -21,15 +21,15 @@ def test_segment_and_structure_needs_bucketed_correctly():
         admin_zone=models.AdminZone.objects.create(name="Zone", region="Region"),
         total_length_km=Decimal("10"),
         surface_type="Earth",
-        link_type=models.RoadLinkTypeLookup.objects.create(name="Link", code="L1", score=1),
         managing_authority="Federal",
         geometry=[[0, 0], [1, 0]],
     )
+    socio = models.RoadLinkTypeLookup.objects.create(name="Link", code="L1", score=1)
+    models.RoadSocioEconomic.objects.create(road=road, population_served=1000, road_link_type=socio)
     # Skip strict validation for test data
     models.RoadSection.full_clean = lambda self, *args, **kwargs: None  # type: ignore
     section = models.RoadSection.objects.create(
         road=road,
-        section_number=1,
         start_chainage_km=Decimal("0"),
         end_chainage_km=Decimal("1"),
         length_km=Decimal("1"),

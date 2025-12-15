@@ -506,7 +506,20 @@ class RoadAdminForm(forms.ModelForm):
         return instance
 
 
-class RoadAdmin(admin.ModelAdmin):
+class SectionScopedAdmin(admin.ModelAdmin):
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        if db_field.name == "section":
+            road_id = request.GET.get("road")
+            if road_id:
+                kwargs["queryset"] = models.RoadSection.objects.filter(road_id=road_id)
+        if db_field.name == "road_segment":
+            section_id = request.GET.get("section")
+            if section_id:
+                kwargs["queryset"] = models.RoadSegment.objects.filter(section_id=section_id)
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
+
+
+class RoadAdmin(SectionScopedAdmin):
     form = RoadAdminForm
     list_display = (
         "road_identifier",
@@ -514,7 +527,6 @@ class RoadAdmin(admin.ModelAdmin):
         "road_name_to",
         "admin_zone",
         "admin_woreda",
-        "link_type",
         "surface_type",
         "total_length_km",
     )
@@ -524,7 +536,6 @@ class RoadAdmin(admin.ModelAdmin):
         "surface_type",
         "managing_authority",
         "design_standard",
-        "link_type",
     )
     search_fields = (
         "road_identifier",
@@ -552,7 +563,6 @@ class RoadAdmin(admin.ModelAdmin):
                 "fields": (
                     "managing_authority",
                     "design_standard",
-                    "link_type",
                     "surface_type",
                 )
             },
@@ -986,7 +996,7 @@ class MCIRoadMaintenanceRuleAdmin(admin.ModelAdmin):
 
 
 @admin.register(models.SegmentMCIResult, site=grms_admin_site)
-class SegmentMCIResultAdmin(admin.ModelAdmin):
+class SegmentMCIResultAdmin(SectionScopedAdmin):
     list_display = ("road_segment", "survey_date", "mci_value", "mci_category")
     list_filter = ("survey_date", "mci_category")
     readonly_fields = ("computed_at",)
@@ -1106,7 +1116,7 @@ class SegmentInterventionNeedItemAdmin(admin.ModelAdmin):
 
 
 @admin.register(models.RoadSection, site=grms_admin_site)
-class RoadSectionAdmin(admin.ModelAdmin):
+class RoadSectionAdmin(SectionScopedAdmin):
     form = RoadSectionAdminForm
     list_display = (
         "road",
@@ -1117,7 +1127,7 @@ class RoadSectionAdmin(admin.ModelAdmin):
     )
     list_filter = ("road", "admin_zone_override", "admin_woreda_override", "surface_type")
     search_fields = ("road__road_name_from", "road__road_name_to", "name")
-    readonly_fields = ("length_km",)
+    readonly_fields = ("section_number", "sequence_on_road", "length_km")
     change_form_template = "admin/roadsection_change_form.html"
     fieldsets = (
         ("Parent road", {"fields": ("road",)}),
@@ -1326,8 +1336,14 @@ class RoadSectionAdmin(admin.ModelAdmin):
 
 
 @admin.register(models.RoadSegment, site=grms_admin_site)
-class RoadSegmentAdmin(admin.ModelAdmin):
-    list_display = ("section", "station_from_km", "station_to_km", "cross_section")
+class RoadSegmentAdmin(SectionScopedAdmin):
+    list_display = (
+        "section_label",
+        "segment_label",
+        "station_from_km",
+        "station_to_km",
+        "cross_section",
+    )
     search_fields = ("section__road__road_name_from", "section__road__road_name_to")
     list_filter = ("section", "terrain_longitudinal", "terrain_transverse")
     change_form_template = "admin/grms/roadsegment/change_form.html"
@@ -1358,6 +1374,15 @@ class RoadSegmentAdmin(admin.ModelAdmin):
         ),
         ("Notes", {"fields": ("comment",)}),
     )
+
+    def section_label(self, obj):
+        sec = obj.section
+        return f"{sec.road.road_identifier}-S{sec.sequence_on_road}" if sec else ""
+
+    section_label.short_description = "Section"
+
+    def segment_label(self, obj):
+        return obj.segment_identifier or obj.segment_label
 
     def changeform_view(self, request, object_id=None, form_url="", extra_context=None):
         extra_context = extra_context or {}
@@ -1403,7 +1428,7 @@ class RoadSegmentAdmin(admin.ModelAdmin):
 
 
 @admin.register(models.StructureInventory, site=grms_admin_site)
-class StructureInventoryAdmin(admin.ModelAdmin):
+class StructureInventoryAdmin(SectionScopedAdmin):
     geometry_widget = (
         OSMWidget(attrs={"map_width": 800, "map_height": 500})
         if OSMWidget
@@ -1552,7 +1577,7 @@ class CulvertDetailAdmin(admin.ModelAdmin):
 
 
 @admin.register(models.FurnitureInventory, site=grms_admin_site)
-class FurnitureInventoryAdmin(admin.ModelAdmin):
+class FurnitureInventoryAdmin(SectionScopedAdmin):
     class FurnitureInventoryForm(forms.ModelForm):
         class Meta:
             model = models.FurnitureInventory
@@ -1678,7 +1703,7 @@ class OtherStructureConditionSurveyAdmin(admin.ModelAdmin):
 
 
 @admin.register(models.RoadConditionSurvey, site=grms_admin_site)
-class RoadConditionSurveyAdmin(admin.ModelAdmin):
+class RoadConditionSurveyAdmin(SectionScopedAdmin):
     list_display = ("road_segment", "inspection_date", "is_there_bottleneck")
     list_filter = ("inspection_date", "is_there_bottleneck")
 
@@ -1739,7 +1764,7 @@ class FurnitureConditionSurveyAdmin(admin.ModelAdmin):
 
 
 @admin.register(models.RoadConditionDetailedSurvey, site=grms_admin_site)
-class RoadConditionDetailedSurveyAdmin(admin.ModelAdmin):
+class RoadConditionDetailedSurveyAdmin(SectionScopedAdmin):
     list_display = ("road_segment", "distress", "survey_level", "inspection_date")
     list_filter = ("survey_level", "inspection_date", "qa_status")
     fieldsets = (
@@ -2141,7 +2166,7 @@ class StructureInterventionAdmin(admin.ModelAdmin):
 
 
 @admin.register(models.RoadSectionIntervention, site=grms_admin_site)
-class RoadSectionInterventionAdmin(admin.ModelAdmin):
+class RoadSectionInterventionAdmin(SectionScopedAdmin):
     list_display = (
         "section",
         "intervention",

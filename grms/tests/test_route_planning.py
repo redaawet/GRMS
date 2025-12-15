@@ -217,8 +217,6 @@ class RoadGeometryTests(RoadNetworkMixin, APITestCase):
 
         section = models.RoadSection.objects.create(
             road=road,
-            section_number=2,
-            sequence_on_road=2,
             start_chainage_km=Decimal("0"),
             end_chainage_km=Decimal("1"),
             length_km=Decimal("1"),

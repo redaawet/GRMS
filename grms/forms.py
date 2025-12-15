@@ -166,9 +166,6 @@ class RoadAlignmentForm(forms.ModelForm):
 class RoadSectionBasicForm(forms.ModelForm):
     """Initial step for creating a road section linked to a road."""
 
-    section_sequence = forms.IntegerField(
-        label="Section sequence", min_value=1, help_text="Ordered position along the road"
-    )
     length_km = forms.DecimalField(
         label="Length (km)", max_digits=8, decimal_places=3, required=False, widget=forms.HiddenInput
     )
@@ -177,8 +174,6 @@ class RoadSectionBasicForm(forms.ModelForm):
         model = models.RoadSection
         fields = (
             "road",
-            "section_number",
-            "section_sequence",
             "start_chainage_km",
             "end_chainage_km",
             "surface_type",
@@ -192,11 +187,8 @@ class RoadSectionBasicForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         if self.road:
             self.fields["road"].initial = self.road.id
-        # Align the displayed sequence with the underlying model field name.
-        if self.instance and self.instance.pk:
-            self.fields["section_sequence"].initial = self.instance.sequence_on_road
-            if self.instance.length_km is not None:
-                self.fields["length_km"].initial = self.instance.length_km
+        if self.instance and self.instance.pk and self.instance.length_km is not None:
+            self.fields["length_km"].initial = self.instance.length_km
 
     def clean_surface_thickness_cm(self) -> Optional[Decimal]:
         value = self.cleaned_data.get("surface_thickness_cm")
@@ -219,6 +211,5 @@ class RoadSectionBasicForm(forms.ModelForm):
     def save(self, commit: bool = True):
         if self.road:
             self.instance.road = self.road
-        self.instance.sequence_on_road = self.cleaned_data.get("section_sequence") or 1
         # Model.save will compute length_km and enforce uniqueness/overlaps.
         return super().save(commit=commit)
