@@ -98,9 +98,9 @@ class Migration(migrations.Migration):
                 help_text="Ordered position of this segment within the parent section",
             ),
         ),
+        migrations.RunPython(populate_sequences, noop),
         migrations.AlterUniqueTogether(
             name="roadsegment",
             unique_together={("section", "sequence_on_section")},
         ),
-        migrations.RunPython(populate_sequences, noop),
     ]
