@@ -6,46 +6,49 @@
       <input id="sidebar-search" class="sidebar-search" type="search" placeholder="Search menu…" aria-label="Search menu" />
     </div>
 
-    <nav class="sidebar-nav" aria-label="GRMS admin navigation">
-      {% for group_title, group_items in MENU_GROUPS.items %}
-        <div class="sidebar-group" data-group="{{ group_title|slugify }}">
-          <button class="sg-header" type="button" aria-expanded="false">
-            <span class="sg-title">{{ group_title }}</span>
-            <span class="sg-chevron" aria-hidden="true">▸</span>
-          </button>
-
-          <div class="sg-content">
-            {% if group_items.items %}
-              {% for subgroup_title, subgroup_items in group_items.items %}
-                <div class="sidebar-subgroup">
-                  <div class="ss-title">{{ subgroup_title }}</div>
-                  <div class="ss-list">
-                    {% for model_name, display_name in subgroup_items %}
-                      {% resolve_model model_name as model %}
-                      {% if model %}
-                        <a class="ss-link menu-item" href="{% url model|admin_urlname:'changelist' %}">
-                          {{ display_name }}
-                        </a>
-                      {% endif %}
-                    {% endfor %}
-                  </div>
-                </div>
-              {% endfor %}
-            {% else %}
-              <div class="sg-list">
-                {% for model_name, display_name in group_items %}
-                  {% resolve_model model_name as model %}
-                  {% if model %}
-                    <a class="ss-link menu-item" href="{% url model|admin_urlname:'changelist' %}">
-                      {{ display_name }}
-                    </a>
-                  {% endif %}
-                {% endfor %}
-              </div>
-            {% endif %}
-          </div>
-        </div>
-      {% endfor %}
-    </nav>
+  <div class="sidebar-header">
+    <input id="sidebar-search" class="sidebar-search" type="search" placeholder="Search menu…" aria-label="Search menu"/>
   </div>
+
+  <nav class="sidebar-nav" aria-label="GRMS admin navigation">
+    {% for group_title, group_items in MENU_GROUPS.items %}
+      <div class="sidebar-group" data-group="{{ group_title|slugify }}" id="sidebar-group-{{ forloop.counter }}">
+        <button class="sg-header" type="button" aria-expanded="true" aria-controls="sidebar-group-{{ forloop.counter }}-content">
+          <span class="sg-title">{{ group_title }}</span>
+          <span class="sg-toggle" aria-hidden="true">▾</span>
+        </button>
+
+        <div class="sg-content" id="sidebar-group-{{ forloop.counter }}-content">
+          {% if group_items.items %}
+            {% for subgroup_title, subgroup_items in group_items.items %}
+              <div class="sidebar-subgroup">
+                <div class="ss-title">{{ subgroup_title }}</div>
+                <div class="ss-list">
+                  {% for model_name, display_name in subgroup_items %}
+                    {% resolve_model model_name as model %}
+                    {% if model %}
+                      <a class="ss-link menu-item" href="{% url model|admin_urlname:'changelist' %}">
+                        {{ display_name }}
+                      </a>
+                    {% endif %}
+                  {% endfor %}
+                </div>
+              </div>
+            {% endfor %}
+          {% else %}
+            <div class="sg-list">
+              {% for model_name, display_name in group_items %}
+                {% resolve_model model_name as model %}
+                {% if model %}
+                  <a class="ss-link menu-item" href="{% url model|admin_urlname:'changelist' %}">
+                    {{ display_name }}
+                  </a>
+                {% endif %}
+              {% endfor %}
+            </div>
+          {% endif %}
+        </div>
+      </div>
+    {% endfor %}
+  </nav>
 </aside>
