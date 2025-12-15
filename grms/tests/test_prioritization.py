@@ -61,7 +61,6 @@ class RoadNetworkMixin:
 
         section = models.RoadSection.objects.create(
             road=road,
-            section_number=1,
             start_chainage_km=Decimal("0"),
             end_chainage_km=Decimal("10"),
             length_km=Decimal("10"),

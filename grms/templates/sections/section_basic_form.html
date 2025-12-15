@@ -32,15 +32,8 @@
             {{ form.road }}
             <div class="form-grid">
                 <div class="form-field">
-                    <label for="id_section_number">Section number</label>
-                    {{ form.section_number }}
-                    {{ form.section_number.errors }}
-                    <p class="help">Must be unique within this road.</p>
-                </div>
-                <div class="form-field">
-                    <label for="id_section_sequence">Section sequence</label>
-                    {{ form.section_sequence }}
-                    {{ form.section_sequence.errors }}
+                    <label>Section identifier</label>
+                    <p class="help">Automatically assigned as sections are created.</p>
                 </div>
                 <div class="form-field">
                     <label for="id_start_chainage_km">Start chainage (km)</label>
