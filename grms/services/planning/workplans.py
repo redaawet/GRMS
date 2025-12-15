@@ -4,13 +4,15 @@ from __future__ import annotations
 from collections import defaultdict
 from dataclasses import dataclass
 from decimal import Decimal
+import logging
 from typing import Dict, Iterable, List, Tuple
 
 from django.db.models import Prefetch
 
 from grms import models
-from grms.services import workplan_costs
 from grms.utils import geometry_length_km, geos_length_km
+
+logger = logging.getLogger(__name__)
 
 BUCKET_FIELDS = (
     "rm_cost",
@@ -122,6 +124,31 @@ def _ensure_bucket_default() -> Dict[str, Decimal]:
     return {field: Decimal("0") for field in BUCKET_FIELDS}
 
 
+def _bucket_for_section_intervention(intervention: models.RoadSectionIntervention) -> str | None:
+    code = (intervention.intervention.intervention_code or "").lower()
+    category = (intervention.intervention.category or "").lower()
+
+    explicit_map = {
+        "rm": "rm_cost",
+        "pm": "pm_cost",
+        "rehab": "rehab_cost",
+        "rb": "road_bneck_cost",
+        "sb": "structure_bneck_cost",
+    }
+
+    for prefix, bucket in explicit_map.items():
+        if code.startswith(prefix):
+            return bucket
+
+    if category == "structure":
+        return "structure_bneck_cost"
+    if category == "bottleneck":
+        return "road_bneck_cost"
+
+    logger.warning("Unable to map intervention %s to SRAD bucket", intervention.intervention_id)
+    return None
+
+
 def _apply_segment_needs(section: models.RoadSection, fiscal_year: int, buckets: Dict[str, Decimal]):
     segment_items = (
         models.SegmentInterventionNeedItem.objects.filter(
@@ -164,6 +191,10 @@ def compute_section_workplan_rows(road: models.Road, fiscal_year: int) -> Tuple[
     sections = road.sections.prefetch_related(
         Prefetch("segments"),
         Prefetch("structures"),
+        Prefetch(
+            "planned_interventions",
+            queryset=models.RoadSectionIntervention.objects.filter(intervention_year=fiscal_year).select_related("intervention"),
+        ),
     ).all()
 
     rows: List[WorkplanRow] = []
@@ -171,8 +202,19 @@ def compute_section_workplan_rows(road: models.Road, fiscal_year: int) -> Tuple[
 
     for section in sections:
         buckets = _ensure_bucket_default()
-        _apply_segment_needs(section, fiscal_year, buckets)
-        _apply_structure_needs(section, fiscal_year, buckets)
+        interventions = getattr(section, "planned_interventions", None)
+        if interventions is not None:
+            interventions = list(interventions.all())
+        if interventions:
+            for intervention in interventions:
+                bucket = _bucket_for_section_intervention(intervention)
+                if not bucket:
+                    continue
+                estimated_cost = _decimal(getattr(intervention, "estimated_cost", None))
+                buckets[bucket] += estimated_cost
+        else:
+            _apply_segment_needs(section, fiscal_year, buckets)
+            _apply_structure_needs(section, fiscal_year, buckets)
 
         length_km = _decimal(section.length_km)
         surface_cond = _latest_mci_category_name(section)
@@ -205,7 +247,6 @@ def compute_section_workplan_rows(road: models.Road, fiscal_year: int) -> Tuple[
 
     road_link_type = getattr(getattr(road, "socioeconomic", None), "road_link_type", None)
     header_context = {
-        "woreda_name": getattr(getattr(road, "admin_woreda", None), "name", ""),
         "road_class": road_link_type or getattr(road, "surface_type", ""),
         "road_name": getattr(road, "road_name_from", ""),
         "rank_no": ranking.rank if ranking else None,
@@ -215,7 +256,11 @@ def compute_section_workplan_rows(road: models.Road, fiscal_year: int) -> Tuple[
 
 
 def compute_annual_workplan_rows(
-    fiscal_year: int, group: str | None = None
+    fiscal_year: int,
+    group: str | None = None,
+    *,
+    budget_cap_birr: Decimal | None = None,
+    include_partial_last_road: bool = True,
 ) -> Tuple[List[Dict[str, object]], Dict[str, Decimal], Dict[str, object]]:
     ranking_qs = models.RoadRankingResult.objects.filter(fiscal_year=fiscal_year)
     if group:
@@ -225,16 +270,10 @@ def compute_annual_workplan_rows(
     rows: List[Dict[str, object]] = []
     totals = defaultdict(Decimal)
 
-    cost_rows, _cost_totals, debug_counts = workplan_costs.compute_global_costs_by_road(
-        include_debug=True
-    )
-    cost_map = {row["road"].id: row for row in cost_rows}
-    debug_counts["cost_map_roads"] = len(cost_map)
-
     for ranking in rankings:
         road = ranking.road
-        cost_row = cost_map.get(road.id)
-        if not cost_row:
+        section_rows, section_totals, _ = compute_section_workplan_rows(road, fiscal_year)
+        if not section_rows:
             continue
 
         road_link_type = getattr(getattr(road, "socioeconomic", None), "road_link_type", None)
@@ -242,23 +281,60 @@ def compute_annual_workplan_rows(
             "road": road,
             "road_no": road.road_identifier,
             "road_class": road_link_type or getattr(road, "surface_type", ""),
-            "road_length_km": cost_row.get("road_length_km", Decimal("0")),
+            "road_length_km": _decimal(getattr(road, "total_length_km", None)),
             "rank": ranking.rank,
-            "rm_cost": cost_row.get("rm_cost", Decimal("0")),
-            "pm_cost": cost_row.get("pm_cost", Decimal("0")),
-            "rehab_cost": cost_row.get("rehab_cost", Decimal("0")),
-            "road_bneck_cost": cost_row.get("road_bneck_cost", Decimal("0")),
-            "structure_bneck_cost": cost_row.get("structure_bneck_cost", Decimal("0")),
+            "rm_cost": section_totals.get("rm_cost", Decimal("0")),
+            "pm_cost": section_totals.get("pm_cost", Decimal("0")),
+            "rehab_cost": section_totals.get("rehab_cost", Decimal("0")),
+            "road_bneck_cost": section_totals.get("road_bneck_cost", Decimal("0")),
+            "structure_bneck_cost": section_totals.get("structure_bneck_cost", Decimal("0")),
         }
-        row_total["year_cost"] = cost_row.get(
-            "total_cost", sum(row_total[key] for key in BUCKET_FIELDS)
-        )
+        row_total["year_cost"] = sum(row_total[key] for key in BUCKET_FIELDS)
 
         rows.append(row_total)
-        for field in ("road_length_km", *BUCKET_FIELDS, "year_cost"):
-            totals[field] += row_total[field]
 
     rows.sort(key=lambda entry: entry.get("rank", 0) or 0)
+
+    funded_rows: List[Dict[str, object]] = []
+    remaining_budget = Decimal(budget_cap_birr) if budget_cap_birr else None
+
+    for row_total in rows:
+        if remaining_budget is None:
+            selection_factor = Decimal("1")
+            funding_status = "FULL"
+        else:
+            road_cost = row_total["year_cost"]
+            if road_cost <= remaining_budget:
+                selection_factor = Decimal("1")
+                funding_status = "FULL"
+                remaining_budget -= road_cost
+            elif include_partial_last_road and remaining_budget > 0:
+                selection_factor = remaining_budget / road_cost
+                funding_status = "PARTIAL"
+                remaining_budget = Decimal("0")
+            else:
+                break
+
+        funded_row = dict(row_total)
+        funded_row["funding_status"] = funding_status
+        funded_row["funded_percent"] = (selection_factor * Decimal(100)).quantize(Decimal("0.01"))
+        funded_amount = Decimal("0")
+        totals["road_length_km"] += row_total.get("road_length_km", Decimal("0"))
+        for field in BUCKET_FIELDS:
+            funded_value = (row_total[field] * selection_factor).quantize(Decimal("0.01"))
+            funded_row[f"funded_{field}"] = funded_value
+            funded_amount += funded_value
+            totals[field] += funded_value
+        funded_row["funded_amount"] = funded_amount
+        totals["year_cost"] += funded_amount
+        funded_row["year_cost"] = row_total["year_cost"]
+        funded_row["unfunded_amount"] = row_total["year_cost"] - funded_amount
+        funded_rows.append(funded_row)
+
+        if remaining_budget is not None and remaining_budget <= 0:
+            break
+
+    rows = funded_rows if funded_rows else rows
 
     first_ranking = rankings[0] if rankings else None
     header_context = {
@@ -266,10 +342,8 @@ def compute_annual_workplan_rows(
         "region_name": getattr(
             getattr(getattr(first_ranking, "road", None), "admin_zone", None), "name", ""
         ),
-        "woreda_name": getattr(
-            getattr(getattr(first_ranking, "road", None), "admin_woreda", None), "name", ""
-        ),
-        "debug_counts": debug_counts,
+        "debug_counts": {},
+        "remaining_budget": remaining_budget if remaining_budget is not None else None,
     }
 
     return rows, totals, header_context

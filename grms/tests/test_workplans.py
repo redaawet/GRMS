@@ -160,3 +160,124 @@ def test_segment_and_structure_needs_bucketed_correctly():
     assert annual_row["road_bneck_cost"] == cost_row["road_bneck_cost"]
     assert annual_row["structure_bneck_cost"] == cost_row["structure_bneck_cost"]
     assert annual_row["year_cost"] == cost_row["total_cost"]
+
+
+@pytest.mark.django_db
+def test_section_interventions_used_for_costs():
+    road = models.Road.objects.create(
+        road_identifier="RTR-2",
+        road_name_from="A",
+        road_name_to="B",
+        design_standard="DC1",
+        admin_zone=models.AdminZone.objects.create(name="Zone2", region="Region2"),
+        total_length_km=Decimal("5"),
+        surface_type="Gravel",
+        managing_authority="Federal",
+        geometry=[[0, 0], [1, 0]],
+    )
+    models.RoadRankingResult.objects.create(
+        road=road,
+        fiscal_year=2026,
+        road_class_or_surface_group="paved",
+        population_served=Decimal("1"),
+        benefit_factor=Decimal("1"),
+        cost_of_improvement=Decimal("1"),
+        road_index=Decimal("10"),
+        rank=1,
+    )
+    models.RoadSection.full_clean = lambda self, *args, **kwargs: None  # type: ignore
+    section = models.RoadSection.objects.create(
+        road=road,
+        start_chainage_km=Decimal("0"),
+        end_chainage_km=Decimal("1"),
+        length_km=Decimal("1"),
+        surface_type="Gravel",
+    )
+    intervention_lookup = models.InterventionLookup.objects.create(
+        intervention_code="RM01",
+        name="Routine",
+        category="Road",
+        unit_measure="km",
+        default_unit_cost=Decimal("100"),
+        effective_date="2020-01-01",
+    )
+    models.RoadSectionIntervention.objects.create(
+        section=section,
+        intervention=intervention_lookup,
+        scope="Full Section",
+        start_chainage_km=Decimal("0"),
+        end_chainage_km=Decimal("1"),
+        length_km=Decimal("1"),
+        estimated_cost=Decimal("123.45"),
+        intervention_year=2026,
+    )
+
+    rows, totals, _ = compute_section_workplan_rows(road, 2026)
+    assert len(rows) == 1
+    assert totals["rm_cost"] == Decimal("123.45")
+    annual_rows, annual_totals, _ = compute_annual_workplan_rows(2026)
+    assert len(annual_rows) == 1
+    assert annual_rows[0]["rm_cost"] == Decimal("123.45")
+    assert annual_totals["rm_cost"] == Decimal("123.45")
+
+
+@pytest.mark.django_db
+def test_budget_cap_applies_partial_last_road():
+    zone = models.AdminZone.objects.create(name="Zone3", region="Region3")
+    roads = []
+    for idx, cost in enumerate((Decimal("100"), Decimal("80"), Decimal("60")), start=1):
+        road = models.Road.objects.create(
+            road_identifier=f"RTR-{idx}",
+            road_name_from="A",
+            road_name_to="B",
+            design_standard="DC1",
+            admin_zone=zone,
+            total_length_km=Decimal("1"),
+            surface_type="Earth",
+            managing_authority="Federal",
+            geometry=[[0, 0], [1, 0]],
+        )
+        models.RoadSection.full_clean = lambda self, *args, **kwargs: None  # type: ignore
+        section = models.RoadSection.objects.create(
+            road=road,
+            start_chainage_km=Decimal("0"),
+            end_chainage_km=Decimal("1"),
+            length_km=Decimal("1"),
+            surface_type="Earth",
+        )
+        intervention_lookup = models.InterventionLookup.objects.create(
+            intervention_code="RM0%s" % idx,
+            name="Routine",
+            category="Road",
+            unit_measure="km",
+            default_unit_cost=Decimal("100"),
+            effective_date="2020-01-01",
+        )
+        models.RoadSectionIntervention.objects.create(
+            section=section,
+            intervention=intervention_lookup,
+            scope="Full Section",
+            estimated_cost=cost,
+            intervention_year=2027,
+        )
+        models.RoadRankingResult.objects.create(
+            road=road,
+            fiscal_year=2027,
+            road_class_or_surface_group="unpaved",
+            population_served=Decimal("1"),
+            benefit_factor=Decimal("1"),
+            cost_of_improvement=Decimal("1"),
+            road_index=Decimal("10"),
+            rank=idx,
+        )
+        roads.append(road)
+
+    rows, totals, _ = compute_annual_workplan_rows(
+        2027, budget_cap_birr=Decimal("190"), include_partial_last_road=True
+    )
+
+    assert len(rows) == 3
+    assert rows[-1]["funding_status"] == "PARTIAL"
+    assert rows[-1]["funded_amount"] == Decimal("10.00")
+    assert rows[-1]["funded_percent"] == Decimal("16.67")
+    assert totals["rm_cost"] == Decimal("190.00")
