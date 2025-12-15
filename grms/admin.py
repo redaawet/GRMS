@@ -1922,8 +1922,16 @@ class FurnitureConditionDetailedSurveyAdmin(admin.ModelAdmin):
     )
 
 
+class RoadSocioEconomicForm(forms.ModelForm):
+    class Meta:
+        model = models.RoadSocioEconomic
+        fields = "__all__"
+        widgets = {"population_served": forms.NumberInput(attrs={"style": "width: 10ch;"})}
+
+
 @admin.register(models.RoadSocioEconomic, site=grms_admin_site)
 class RoadSocioEconomicAdmin(admin.ModelAdmin):
+    form = RoadSocioEconomicForm
     list_display = (
         "road",
         "population_served",
