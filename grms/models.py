@@ -1889,7 +1889,7 @@ class SegmentMCIResult(models.Model):
 
     mci_value = models.DecimalField(max_digits=6, decimal_places=2)
 
-    mci_category = models.ForeignKey(
+    rating = models.ForeignKey(
         MCICategoryLookup,
         null=True,
         blank=True,

@@ -1015,8 +1015,8 @@ class MCIRoadMaintenanceRuleAdmin(admin.ModelAdmin):
 
 @admin.register(models.SegmentMCIResult, site=grms_admin_site)
 class SegmentMCIResultAdmin(SectionScopedAdmin):
-    list_display = ("road_segment", "survey_date", "mci_value", "mci_category")
-    list_filter = ("survey_date", "mci_category")
+    list_display = ("road_segment", "survey_date", "mci_value", "rating")
+    list_filter = ("survey_date", "rating")
     readonly_fields = ("computed_at",)
 
 from django.contrib import admin

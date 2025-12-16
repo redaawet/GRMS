@@ -36,9 +36,6 @@ MODEL_GROUP_MAP: Dict[str, str] = {
     # Condition
     "roadconditionsurvey": "Condition",
     "structureconditionsurvey": "Condition",
-    "bridgeconditionsurvey": "Condition",
-    "culvertconditionsurvey": "Condition",
-    "otherstructureconditionsurvey": "Condition",
     "furnitureconditionsurvey": "Condition",
     # Distress
     "roadconditiondetailedsurvey": "Distress",
@@ -103,7 +100,7 @@ LABEL_OVERRIDES: Dict[str, str] = {
     "roadsection": "Sections",
     "roadsegment": "Segments",
     "roadsocioeconomic": "Socioeconomic",
-    "structureinventory": "Structures",
+    "structureinventory": " General",
     "bridgedetail": "Bridges",
     "culvertdetail": "Culverts",
     "forddetail": "Fords",
@@ -112,9 +109,6 @@ LABEL_OVERRIDES: Dict[str, str] = {
     "furnitureinventory": "Furniture",
     "roadconditionsurvey": "Road condition",
     "structureconditionsurvey": "Structure condition",
-    "bridgeconditionsurvey": "Bridge condition",
-    "culvertconditionsurvey": "Culvert condition",
-    "otherstructureconditionsurvey": "Other structures",
     "furnitureconditionsurvey": "Furniture condition",
     "roadconditiondetailedsurvey": "Road distress",
     "structureconditiondetailedsurvey": "Structure distress",

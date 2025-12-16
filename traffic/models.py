@@ -365,6 +365,8 @@ class TrafficSurveySummary(models.Model):
     traffic_survey = models.ForeignKey(
         TrafficSurvey,
         on_delete=models.CASCADE,
+        null=True,        # TEMP
+        blank=True,       # TEMP
         related_name="summaries",
     )
 
