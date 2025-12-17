@@ -1670,8 +1670,7 @@ class MCIWeightConfig(models.Model):
 
 
 class MCICategoryLookup(models.Model):
-    name = models.CharField(max_length=50)
-    code = models.CharField(max_length=10)
+    rating = models.CharField(max_length=10)
 
     mci_min = models.DecimalField(max_digits=5, decimal_places=2)
     mci_max = models.DecimalField(max_digits=5, decimal_places=2)
@@ -1691,10 +1690,10 @@ class MCICategoryLookup(models.Model):
 
     class Meta:
         ordering = ["severity_order", "mci_min"]
-        unique_together = ("code", "mci_min", "mci_max")
+        unique_together = ("rating", "mci_min", "mci_max")
 
     def __str__(self):  # pragma: no cover
-        return f"{self.name} ({self.code})"
+        return f"{self.rating}"
 
     @classmethod
     def match_for_mci(cls, value):

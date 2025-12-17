@@ -985,8 +985,7 @@ class MCIWeightConfigAdmin(admin.ModelAdmin):
 @admin.register(models.MCICategoryLookup, site=grms_admin_site)
 class MCICategoryLookupAdmin(admin.ModelAdmin):
     list_display = (
-        "name",
-        "code",
+        "rating",
         "mci_min",
         "mci_max",
         "severity_order",
@@ -1062,45 +1061,6 @@ class StructureInterventionRecommendationAdmin(admin.ModelAdmin):
     def recommended_item_display(self, obj):
         wi = obj.recommended_item
         return f"{wi.work_code} - {wi.description}"
-
-
-@admin.register(models.SegmentInterventionNeed, site=grms_admin_site)
-class SegmentInterventionNeedAdmin(SectionScopedAdmin):
-    list_display = ("road", "section", "segment", "fiscal_year")
-    list_filter = ("fiscal_year",)
-    search_fields = ("segment__section__road__road_identifier", "segment__id")
-    list_select_related = ("segment", "segment__section", "segment__section__road")
-
-    def road(self, obj):
-        return road_id(obj.segment.section.road)
-
-    def section(self, obj):
-        return section_id(obj.segment.section)
-
-    def segment(self, obj):
-        return segment_label(obj.segment)
-
-
-@admin.register(models.SegmentInterventionNeedItem, site=grms_admin_site)
-class SegmentInterventionNeedItemAdmin(SectionScopedAdmin):
-    list_display = ("need_display", "intervention_code")
-    list_filter = ("intervention_item__work_code",)
-    search_fields = ("need__segment__section__road__road_identifier", "intervention_item__work_code")
-    list_select_related = ("need", "need__segment", "need__segment__section", "need__segment__section__road")
-
-    def need_display(self, obj):
-        return segment_label(obj.need.segment)
-
-    need_display.short_description = "Segment need"
-
-    def intervention_code(self, obj):
-        item = obj.intervention_item
-        if not item:
-            return None
-        return f"{item.work_code} - {item.description}"
-
-    intervention_code.short_description = "Intervention"
-
 
 @admin.register(models.RoadSection, site=grms_admin_site)
 class RoadSectionAdmin(SectionScopedAdmin):
@@ -1638,63 +1598,6 @@ class StructureConditionInterventionRuleAdmin(admin.ModelAdmin):
     list_filter = ("structure_type", "is_active")
     ordering = ("structure_type", "condition__code")
 
-
-@admin.register(models.BridgeConditionSurvey, site=grms_admin_site)
-class BridgeConditionSurveyAdmin(admin.ModelAdmin):
-    fieldsets = (
-        ("Structure survey", {"fields": ("structure_survey",)}),
-        (
-            "Component ratings",
-            {
-                "fields": (
-                    "deck_condition",
-                    "abutment_condition",
-                    "pier_condition",
-                    "wearing_surface",
-                    "expansion_joint_ok",
-                )
-            },
-        ),
-        ("Remarks", {"fields": ("remarks",)}),
-    )
-
-
-@admin.register(models.CulvertConditionSurvey, site=grms_admin_site)
-class CulvertConditionSurveyAdmin(admin.ModelAdmin):
-    fieldsets = (
-        ("Structure survey", {"fields": ("structure_survey",)}),
-        (
-            "Component ratings",
-            {
-                "fields": (
-                    "inlet_condition",
-                    "outlet_condition",
-                    "barrel_condition",
-                    "headwall_condition",
-                )
-            },
-        ),
-        ("Remarks", {"fields": ("remarks",)}),
-    )
-
-
-@admin.register(models.OtherStructureConditionSurvey, site=grms_admin_site)
-class OtherStructureConditionSurveyAdmin(admin.ModelAdmin):
-    fieldsets = (
-        ("Structure survey", {"fields": ("structure_survey",)}),
-        (
-            "Component ratings",
-            {
-                "fields": (
-                    "wall_condition",
-                    "ford_condition",
-                )
-            },
-        ),
-        ("Remarks", {"fields": ("remarks",)}),
-    )
-
-
 @admin.register(models.RoadConditionSurvey, site=grms_admin_site)
 class RoadConditionSurveyAdmin(SectionScopedAdmin):
     list_display = ("road_segment", "inspection_date", "is_there_bottleneck")
@@ -2055,41 +1958,6 @@ class BenefitFactorAdmin(admin.ModelAdmin):
     def has_change_permission(self, request, obj=None):
         return False if obj else super().has_change_permission(request, obj)
 
-
-@admin.register(models.PrioritizationResult, site=grms_admin_site)
-class PrioritizationResultAdmin(admin.ModelAdmin):
-    list_display = (
-        "road",
-        "fiscal_year",
-        "priority_rank",
-        "ranking_index",
-        "benefit_score",
-        "improvement_cost",
-    )
-    list_filter = ("fiscal_year", "road__admin_zone", "road__admin_woreda")
-    search_fields = ("road__road_identifier", "road__road_name_from", "road__road_name_to")
-    readonly_fields = (
-        "road",
-        "section",
-        "fiscal_year",
-        "population_served",
-        "benefit_score",
-        "improvement_cost",
-        "ranking_index",
-        "priority_rank",
-        "recommended_budget",
-        "approved_budget",
-        "calculation_date",
-        "notes",
-    )
-
-    def has_add_permission(self, request):
-        return False
-
-    def has_change_permission(self, request, obj=None):
-        return False if obj else super().has_change_permission(request, obj)
-
-
 @admin.register(models.RoadRankingResult, site=grms_admin_site)
 class RoadRankingResultAdmin(admin.ModelAdmin):
     list_display = (
@@ -2122,109 +1990,6 @@ class RoadRankingResultAdmin(admin.ModelAdmin):
         return False if obj else super().has_change_permission(request, obj)
 
 
-@admin.register(models.AnnualWorkPlan, site=grms_admin_site)
-class AnnualWorkPlanAdmin(admin.ModelAdmin):
-    list_display = ("road_label", "fiscal_year", "priority_rank", "status", "total_budget")
-    list_filter = ("fiscal_year", "road__admin_zone")
-    search_fields = ("road__road_identifier", "road__road_name_from", "road__road_name_to")
-    list_select_related = ("road",)
-
-    def road_label(self, obj):
-        return road_id(obj.road)
-
-    road_label.short_description = "Road"
-
-@admin.register(models.StructureInterventionNeed, site=grms_admin_site)
-class StructureInterventionNeedAdmin(admin.ModelAdmin):
-    list_display = ("structure_desc", "fiscal_year")
-    list_filter = ("fiscal_year",)
-    search_fields = ("structure__road__road_identifier", "structure__structure_name")
-    list_select_related = ("structure", "structure__road")
-
-    def structure_desc(self, obj):
-        return structure_label(obj.structure)
-
-    structure_desc.short_description = "Structure"
-
-
-@admin.register(models.StructureInterventionNeedItem, site=grms_admin_site)
-class StructureInterventionNeedItemAdmin(admin.ModelAdmin):
-    list_display = ("need_display", "intervention_code")
-    list_filter = ("intervention_item__work_code",)
-    search_fields = ("need__structure__road__road_identifier", "intervention_item__work_code")
-    list_select_related = ("need", "need__structure", "need__structure__road")
-
-    def need_display(self, obj):
-        return structure_label(obj.need.structure)
-
-    need_display.short_description = "Structure need"
-
-    def intervention_code(self, obj):
-        item = obj.intervention_item
-        if not item:
-            return None
-        return f"{item.work_code} - {item.description}"
-
-    intervention_code.short_description = "Intervention"
-
-
-@admin.register(models.StructureIntervention, site=grms_admin_site)
-class StructureInterventionAdmin(admin.ModelAdmin):
-    list_display = (
-        "structure_desc",
-        "intervention",
-        "intervention_year",
-        "status",
-        "estimated_cost",
-    )
-    list_filter = ("intervention_year", "structure__road__admin_zone")
-    search_fields = (
-        "structure__road__road_identifier",
-        "structure__road__road_name_from",
-        "structure__road__road_name_to",
-    )
-    list_select_related = ("structure", "structure__road")
-
-    def structure_desc(self, obj):
-        return structure_label(obj.structure)
-
-    structure_desc.short_description = "Structure"
-
-
-@admin.register(models.RoadSectionIntervention, site=grms_admin_site)
-class RoadSectionInterventionAdmin(SectionScopedAdmin):
-    list_display = (
-        "road",
-        "section",
-        "chainage",
-        "intervention_year",
-        "status",
-        "estimated_cost",
-    )
-    list_filter = ("intervention_year", "section__road__admin_zone")
-    search_fields = (
-        "section__road__road_identifier",
-        "section__road__road_name_from",
-        "section__road__road_name_to",
-    )
-    list_select_related = ("section", "section__road", "intervention")
-
-    def road(self, obj):
-        return road_id(obj.section.road)
-
-    def section(self, obj):
-        return section_id(obj.section)
-
-    def chainage(self, obj):
-        start = fmt_km(getattr(obj, "start_chainage_km", None))
-        end = fmt_km(getattr(obj, "end_chainage_km", None))
-        if start == "?" and end == "?":
-            return "—"
-        if start != "?" and end != "?":
-            return f"{start}–{end} km"
-        return f"{start} km" if end == "?" else f"{end} km"
-
-    chainage.short_description = "Chainage"
 
 
 # Register supporting models without custom admins
@@ -2236,7 +2001,6 @@ for model in [
     models.DistressCondition,
     models.DistressActivity,
     # ConditionRating REMOVED – replaced by ConditionFactorLookup
-    models.InterventionLookup,
     models.UnitCost,
     models.FordDetail,
     models.RetainingWallDetail,

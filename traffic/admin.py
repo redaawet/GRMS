@@ -11,7 +11,6 @@ from .models import (
     PcuLookup,
     TrafficCountRecord,
     TrafficCycleSummary,
-    TrafficForPrioritization,
     TrafficSurveyOverall,
     TrafficQC,
     TrafficSurvey,
@@ -199,30 +198,6 @@ class TrafficSurveyOverallAdmin(_ReadOnlyAdmin):
     list_display = ("road", "fiscal_year", "adt_total", "pcu_total", "confidence_score")
     list_filter = ("fiscal_year", "road")
     search_fields = ("road__name",)
-
-
-@admin.register(TrafficForPrioritization, site=grms_admin_site)
-class TrafficForPrioritizationAdmin(_ReadOnlyAdmin):
-    readonly_fields = (
-        "road",
-        "fiscal_year",
-        "value_type",
-        "value",
-        "source_survey",
-        "prepared_at",
-    )
-    list_display = ("road", "value", "weight", "updated_at")
-    list_filter = ("road",)
-    search_fields = ("road__name",)
-
-    def weight(self, obj):  # pragma: no cover - admin hook
-        return getattr(obj, "weight", None) or getattr(obj, "value_type", None)
-
-    def updated_at(self, obj):  # pragma: no cover - admin hook
-        return getattr(obj, "updated_at", None) or obj.prepared_at
-
-    updated_at.admin_order_field = "prepared_at"
-
 
 @admin.register(TrafficQC, site=grms_admin_site)
 class TrafficQcAdmin(admin.ModelAdmin):

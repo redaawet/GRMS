@@ -14,10 +14,47 @@ GROUP_ORDER: Sequence[str] = (
     "Condition",
     "Distress",
     "Traffic",
-    "Maintenance & Planning",
+    "Maintenance Plan",
     "Reference & Lookups",
     "System",
 )
+GROUP_ITEM_ORDERS: Dict[str, Sequence[str]] = {
+    "Traffic": (
+        "trafficsurvey",
+        "trafficcountrecord",
+        "trafficcyclesummary",
+        "trafficsurveysummary",
+        "trafficsurveyoverall",
+        "trafficqc",
+        "nightadjustmentlookup",
+        "pculookup",
+    ),
+
+    "Maintenance Plan": (
+ 
+        # Computed results / interventions
+        "segmentmciresult",                  # Segment MCI
+        "benefitfactor",                    # Benefit factors
+        "segmentinterventionrecommendation", # Segment interventions
+        "structureinterventionrecommendation",# Structure interventions
+        "roadsectionintervention",           # Section interventions
+
+        # Ranking + planning + reports last
+        "roadrankingresult",                 # Road rankings
+        "annualworkplan",                    # Annual/Work plan (model)
+        "sectionworkplanreport",             # Section annual workplan (report)
+        "annualworkplanreport",              # Annual workplan (report)
+        "roadglobalcostreport",              # Global cost of road works
+        # Rules / configs first
+        "mciroadmaintenancerule",            # MCI rules
+        "structureconditionlookup",          # Structure condition codes
+        "structureconditioninterventionrule",# Structure intervention rules
+        # Benefit configuration (keep together)
+        "benefitcategory",                   # Benefit categories
+        "benefitcriterion",                  # Benefit criteria
+        "benefitcriterionscale",             # Benefit Criterion scale
+    ),
+}
 
 MODEL_GROUP_MAP: Dict[str, str] = {
     # Road Network
@@ -50,30 +87,22 @@ MODEL_GROUP_MAP: Dict[str, str] = {
     "trafficqc": "Traffic",
     "nightadjustmentlookup": "Traffic",
     "pculookup": "Traffic",
-    "trafficforprioritization": "Traffic",
     # Maintenance & Planning
-    "segmentmciresult": "Maintenance & Planning",
-    "mciroadmaintenancerule": "Maintenance & Planning",
-    "segmentinterventionrecommendation": "Maintenance & Planning",
-    "segmentinterventionneed": "Maintenance & Planning",
-    "segmentinterventionneeditem": "Maintenance & Planning",
-    "structureconditionlookup": "Maintenance & Planning",
-    "structureconditioninterventionrule": "Maintenance & Planning",
-    "structureinterventionrecommendation": "Maintenance & Planning",
-    "structureinterventionneed": "Maintenance & Planning",
-    "structureinterventionneeditem": "Maintenance & Planning",
-    "structureintervention": "Maintenance & Planning",
-    "roadsectionintervention": "Maintenance & Planning",
-    "benefitcategory": "Maintenance & Planning",
-    "benefitcriterion": "Maintenance & Planning",
-    "benefitcriterionscale": "Maintenance & Planning",
-    "benefitfactor": "Maintenance & Planning",
-    "roadrankingresult": "Maintenance & Planning",
-    "prioritizationresult": "Maintenance & Planning",
-    "annualworkplan": "Maintenance & Planning",
-    "roadglobalcostreport": "Maintenance & Planning",
-    "sectionworkplanreport": "Maintenance & Planning",
-    "annualworkplanreport": "Maintenance & Planning",
+    "segmentmciresult": "Maintenance Plan",
+    "mciroadmaintenancerule": "Maintenance Plan",
+    "segmentinterventionrecommendation": "Maintenance Plan",
+    "structureconditionlookup": "Maintenance Plan",
+    "structureconditioninterventionrule": "Maintenance Plan",
+    "structureinterventionrecommendation": "Maintenance Plan",
+    "benefitcategory": "Maintenance Plan",
+    "benefitcriterion": "Maintenance Plan",
+    "benefitcriterionscale": "Maintenance Plan",
+    "benefitfactor": "Maintenance Plan",
+    "roadrankingresult": "Maintenance Plan",
+    "annualworkplan": "Maintenance Plan",
+    "roadglobalcostreport": "Maintenance Plan",
+    "sectionworkplanreport": "Maintenance Plan",
+    "annualworkplanreport": "Maintenance Plan",
     # Reference & Lookups
     "activitylookup": "Reference & Lookups",
     "interventioncategory": "Reference & Lookups",
@@ -113,34 +142,26 @@ LABEL_OVERRIDES: Dict[str, str] = {
     "roadconditiondetailedsurvey": "Road distress",
     "structureconditiondetailedsurvey": "Structure distress",
     "furnitureconditiondetailedsurvey": "Furniture distress",
-    "trafficsurvey": "Traffic survey",
-    "trafficcountrecord": "Traffic count",
+    "trafficsurvey": "General",
+    "trafficcountrecord": "Traffic daily",
     "trafficcyclesummary": "Traffic cycle",
     "trafficsurveysummary": "Traffic summary",
-    "trafficsurveyoverall": "Traffic overall",
+    "trafficsurveyoverall": "ADT",
     "trafficqc": "Traffic QC",
     "nightadjustmentlookup": "Night adjust",
     "pculookup": "PCU lookup",
-    "trafficforprioritization": "Traffic priority",
     "segmentmciresult": "Segment MCI",
     "mciroadmaintenancerule": "MCI rules",
-    "segmentinterventionrecommendation": "Segment plans",
-    "segmentinterventionneed": "Segment intervention needs",
-    "segmentinterventionneeditem": "Segment need items",
+    "segmentinterventionrecommendation": "Segment  interventions",
     "structureconditionlookup": "Structure condition codes",
     "structureconditioninterventionrule": "Structure intervention rules",
     "structureinterventionrecommendation": "Structure interventions",
-    "structureinterventionneed": "Structure intervention needs",
     "structureinterventionneeditem": "Structure need items",
-    "structureintervention": "Structure interventions",
-    "roadsectionintervention": "Section interventions",
     "benefitcategory": "Benefit categories",
     "benefitcriterion": "Benefit criteria",
-    "benefitcriterionscale": "Criterion scale",
+    "benefitcriterionscale": "Benefit Criterion scale",
     "benefitfactor": "Benefit factors",
     "roadrankingresult": "Road rankings",
-    "prioritizationresult": "Priority results",
-    "annualworkplan": "Work plan",
     "roadglobalcostreport": "Global cost of road works",
     "sectionworkplanreport": "Section annual workplan",
     "annualworkplanreport": "Annual workplan",
@@ -262,6 +283,21 @@ def build_menu_groups(admin_site) -> MenuGroup:
     ordered = OrderedDict()
     for title in GROUP_ORDER:
         items = groups.get(title, [])
-        if items:
+        if not items:
+            continue
+
+        order_list = GROUP_ITEM_ORDERS.get(title)
+        if order_list:
+            order_map = {name: idx for idx, name in enumerate(order_list)}
+
+            def sort_key(pair: MenuTarget):
+                object_name, label = pair
+                norm = _normalise(object_name)
+                return (order_map.get(norm, 10_000), label.lower())
+
+            ordered[title] = sorted(items, key=sort_key)
+        else:
             ordered[title] = sorted(items, key=lambda pair: pair[1].lower())
+
     return ordered
+
