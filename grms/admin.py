@@ -1525,13 +1525,27 @@ class StructureInventoryAdmin(SectionScopedAdmin):
             cleaned = super().clean()
             easting = cleaned.get("easting")
             northing = cleaned.get("northing")
+            station_km = cleaned.get("station_km")
+            geometry_type = cleaned.get("geometry_type") or getattr(
+                self.instance, "geometry_type", models.StructureInventory.POINT
+            )
+            location_point = cleaned.get("location_point")
 
             if (easting is None) ^ (northing is None):
                 missing = "northing" if easting is not None else "easting"
-                raise forms.ValidationError({missing: "Provide both easting and northing to set the point location."})
+                raise forms.ValidationError({missing: "Provide both Easting and Northing."})
 
             if easting is not None and northing is not None:
                 cleaned["location_point"] = _utm_point(easting, northing)
+
+            if (
+                geometry_type == models.StructureInventory.POINT
+                and cleaned.get("location_point") is None
+                and station_km is None
+            ):
+                raise forms.ValidationError(
+                    "Provide Easting & Northing, or Chainage (km), or select a Location point on the map."
+                )
 
             return cleaned
 
