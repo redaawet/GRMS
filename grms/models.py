@@ -2574,12 +2574,23 @@ class BenefitCriterionScale(models.Model):
 class RoadSocioEconomic(models.Model):
     """Manual socio-economic inputs captured once per road."""
 
-    road = models.OneToOneField(Road, on_delete=models.CASCADE, related_name="socioeconomic")
+    road = models.OneToOneField(
+        Road,
+        on_delete=models.CASCADE,
+        related_name="socioeconomic",
+        help_text="Road this socio-economic record applies to.",
+    )
 
-    population_served = models.PositiveIntegerField(default=10000)
+    population_served = models.PositiveIntegerField(
+        default=10000,
+        help_text="Estimated population served by the road.",
+    )
 
-    trading_centers = models.PositiveIntegerField(default=1)
-    villages = models.PositiveIntegerField(default=1)
+    trading_centers = models.PositiveIntegerField(
+        default=1,
+        help_text="Number of trading centers served.",
+    )
+    villages = models.PositiveIntegerField(default=1, help_text="Number of villages served.")
     road_link_type = models.ForeignKey(
         RoadLinkTypeLookup,
         on_delete=models.PROTECT,
@@ -2588,17 +2599,39 @@ class RoadSocioEconomic(models.Model):
         related_name="socioeconomic_records",
         help_text="Functional road class (socio-economic input)",
     )
-    adt_override = models.PositiveIntegerField(null=True, blank=True)
+    adt_override = models.PositiveIntegerField(
+        "ADT override",
+        null=True,
+        blank=True,
+        help_text="Average daily traffic value to use when survey data is absent.",
+    )
 
-    farmland_percent = models.DecimalField(max_digits=5, decimal_places=2, default=Decimal("20.00"))
-    cooperative_centers = models.PositiveIntegerField(default=1)
-    markets = models.PositiveIntegerField(default=1)
+    farmland_percent = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default=Decimal("20.00"),
+        help_text="Share of surrounding area that is farmland (percent).",
+    )
+    cooperative_centers = models.PositiveIntegerField(
+        default=1,
+        help_text="Number of cooperative centers served.",
+    )
+    markets = models.PositiveIntegerField(default=1, help_text="Number of markets served.")
 
-    health_centers = models.PositiveIntegerField(default=1)
-    education_centers = models.PositiveIntegerField(default=1)
-    development_projects = models.PositiveIntegerField(default=1)
+    health_centers = models.PositiveIntegerField(
+        default=1,
+        help_text="Number of health centers served.",
+    )
+    education_centers = models.PositiveIntegerField(
+        default=1,
+        help_text="Number of education centers served.",
+    )
+    development_projects = models.PositiveIntegerField(
+        default=1,
+        help_text="Number of development projects served.",
+    )
 
-    notes = models.TextField(blank=True)
+    notes = models.TextField(blank=True, help_text="Additional notes about the socio-economic context.")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
