@@ -19,6 +19,9 @@
         return match ? parseInt(match[1], 10) : null;
     }
 
+    // Ensure maps created before DOM ready are captured.
+    patchLeafletMapFactory();
+
     function patchLeafletMapFactory() {
         if (!window.L || L._grmsPatched) {
             return;
@@ -35,6 +38,9 @@
                         var inputId = containerId.replace(/_map$/, "");
                         window.GRMS_MAPS[inputId] = mapInstance;
                     }
+                }
+                if (mapInstance && mapInstance._container) {
+                    mapInstance._container._grmsLeafletMap = mapInstance;
                 }
             } catch (err) {
                 // ignore
@@ -53,6 +59,14 @@
         var keys = Object.keys(maps);
         if (keys.length) {
             return maps[keys[0]];
+        }
+
+        var containers = document.querySelectorAll(".leaflet-container");
+        for (var i = 0; i < containers.length; i++) {
+            var c = containers[i];
+            if (c._grmsLeafletMap) {
+                return c._grmsLeafletMap;
+            }
         }
         return null;
     }
