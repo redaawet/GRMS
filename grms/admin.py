@@ -30,6 +30,10 @@ except Exception:  # pragma: no cover - fallback when GIS libs missing
     OSMWidget = None
 
 
+UTM_ZONE = 37
+UTM_SRID = 32637
+
+
 def _serialize_geometry(geom):
     if not geom:
         return None
@@ -66,6 +70,113 @@ def _reverse_or_empty(name: str, object_id):
     if not object_id:
         return ""
     return reverse(name, args=[object_id])
+
+
+def _coordinates_to_wgs84(coords, srid):
+    if not coords:
+        return None
+    try:
+        x, y = coords
+    except Exception:
+        return None
+    if x is None or y is None:
+        return None
+
+    if srid == UTM_SRID:
+        try:
+            lat, lng = utm_to_wgs84(float(x), float(y), zone=UTM_ZONE)
+            return float(lng), float(lat)
+        except Exception:
+            return None
+
+    try:
+        return float(x), float(y)
+    except Exception:
+        return None
+
+
+def _utm_point(easting, northing):
+    try:
+        from django.contrib.gis.geos import Point
+
+        return Point(float(easting), float(northing), srid=UTM_SRID)
+    except Exception:
+        return {
+            "type": "Point",
+            "coordinates": [float(easting), float(northing)],
+            "srid": UTM_SRID,
+        }
+
+
+def _point_to_wgs84(point):
+    if not point:
+        return None
+
+    srid = None
+    coords = None
+
+    if isinstance(point, dict):
+        srid = point.get("srid")
+        coords = point.get("coordinates")
+    else:
+        srid = getattr(point, "srid", None)
+        coords = (getattr(point, "x", None), getattr(point, "y", None))
+
+    if hasattr(point, "transform"):
+        try:
+            geom_4326 = point.transform(4326, clone=True) if srid and srid != 4326 else point
+            return {"lng": float(geom_4326.x), "lat": float(geom_4326.y)}
+        except Exception:
+            pass
+
+    converted = _coordinates_to_wgs84(coords, srid)
+    if converted:
+        lng, lat = converted
+        return {"lng": lng, "lat": lat}
+
+    return point_to_lat_lng(point)
+
+
+def _point_to_utm(point):
+    if not point:
+        return None, None
+
+    srid = None
+    coords = None
+
+    if isinstance(point, dict):
+        srid = point.get("srid")
+        coords = point.get("coordinates")
+    else:
+        srid = getattr(point, "srid", None)
+        coords = (getattr(point, "x", None), getattr(point, "y", None))
+
+    if hasattr(point, "transform"):
+        try:
+            if srid and srid != UTM_SRID:
+                point = point.transform(UTM_SRID, clone=True)
+                srid = UTM_SRID
+            if srid == UTM_SRID:
+                return float(point.x), float(point.y)
+        except Exception:
+            pass
+
+    if srid == UTM_SRID:
+        try:
+            if not coords or len(coords) < 2:
+                return None, None
+            return float(coords[0]), float(coords[1])
+        except Exception:
+            return None, None
+
+    latlng = point_to_lat_lng(point)
+    if latlng:
+        try:
+            return wgs84_to_utm(latlng["lat"], latlng["lng"], zone=UTM_ZONE)
+        except Exception:
+            return None, None
+
+    return None, None
 
 
 MenuTarget = str | Tuple[str, str]
@@ -1376,6 +1487,67 @@ class RoadSegmentAdmin(SectionScopedAdmin):
 
 @admin.register(models.StructureInventory, site=grms_admin_site)
 class StructureInventoryAdmin(SectionScopedAdmin):
+    class StructureInventoryAdminForm(forms.ModelForm):
+        easting = forms.DecimalField(
+            label="Easting (m)",
+            max_digits=12,
+            decimal_places=2,
+            required=False,
+            help_text="UTM Easting in meters (e.g., 512345.67).",
+            widget=forms.NumberInput(attrs={"step": "0.01"}),
+        )
+        northing = forms.DecimalField(
+            label="Northing (m)",
+            max_digits=12,
+            decimal_places=2,
+            required=False,
+            help_text="UTM Northing in meters (e.g., 1554321.89).",
+            widget=forms.NumberInput(attrs={"step": "0.01"}),
+        )
+
+        class Meta:
+            model = models.StructureInventory
+            fields = "__all__"
+
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            self.fields["station_km"].label = "Chainage (km)"
+
+            instance = self.instance
+            if instance and getattr(instance, "location_point", None):
+                easting, northing = _point_to_utm(instance.location_point)
+                if easting is not None:
+                    self.fields["easting"].initial = float(easting)
+                if northing is not None:
+                    self.fields["northing"].initial = float(northing)
+
+        def clean(self):
+            cleaned = super().clean()
+            easting = cleaned.get("easting")
+            northing = cleaned.get("northing")
+
+            if (easting is None) ^ (northing is None):
+                missing = "northing" if easting is not None else "easting"
+                raise forms.ValidationError({missing: "Provide both easting and northing to set the point location."})
+
+            if easting is not None and northing is not None:
+                cleaned["location_point"] = _utm_point(easting, northing)
+
+            return cleaned
+
+        def save(self, commit=True):
+            instance = super().save(commit=False)
+
+            easting = self.cleaned_data.get("easting")
+            northing = self.cleaned_data.get("northing")
+            if easting is not None and northing is not None:
+                instance.location_point = self.cleaned_data.get("location_point")
+
+            if commit:
+                instance.save()
+                self.save_m2m()
+            return instance
+
     geometry_widget = (
         OSMWidget(attrs={"map_width": 800, "map_height": 500})
         if OSMWidget
@@ -1387,6 +1559,7 @@ class StructureInventoryAdmin(SectionScopedAdmin):
     search_fields = ("road__road_identifier", "structure_category")
     list_select_related = ("road", "section")
     readonly_fields = ("created_date", "modified_date")
+    form = StructureInventoryAdminForm
     formfield_overrides = {
         PointField: {"widget": geometry_widget},
         LineStringField: {"widget": geometry_widget},
@@ -1409,9 +1582,17 @@ class StructureInventoryAdmin(SectionScopedAdmin):
             {
                 "classes": ("structure-point",),
                 "fields": (
-                    "station_km",
+                    ("easting", "northing"),
                     "location_point",
                 ),
+            },
+        ),
+        (
+            "Chainage",
+            {
+                "classes": ("collapse", "structure-point"),
+                "fields": ("station_km",),
+                "description": "Chainage reference for point structures.",
             },
         ),
         (
@@ -1430,12 +1611,68 @@ class StructureInventoryAdmin(SectionScopedAdmin):
     )
 
     class Media:
-        js = ("grms/js/structure-inventory-admin.js",)
+        js = ("grms/js/structure-inventory-admin.js", "grms/js/structureinventory_overlay.js")
 
     def label(self, obj):
         return structure_label(obj)
 
     label.short_description = "Structure"
+
+    def get_urls(self):
+        urls = super().get_urls()
+        custom = [
+            path(
+                "structures_geojson/",
+                self.admin_site.admin_view(self.structures_geojson_view),
+                name="grms_structureinventory_structures_geojson",
+            ),
+        ]
+        return custom + urls
+
+    def structures_geojson_view(self, request):
+        road_id = request.GET.get("road_id")
+        if not road_id:
+            return JsonResponse({"error": "road_id is required."}, status=400)
+
+        qs = models.StructureInventory.objects.filter(road_id=road_id).exclude(location_point__isnull=True)
+
+        exclude_id = request.GET.get("exclude_id")
+        if exclude_id and exclude_id.isdigit():
+            qs = qs.exclude(id=exclude_id)
+
+        current_id = None
+        try:
+            current_id = int(request.GET.get("current_id", "") or 0)
+        except (TypeError, ValueError):
+            current_id = None
+
+        features = []
+        for structure in qs:
+            point_latlng = _point_to_wgs84(structure.location_point)
+            coords = None
+            if point_latlng:
+                coords = (point_latlng.get("lng"), point_latlng.get("lat"))
+
+            if not coords:
+                continue
+
+            properties = {
+                "id": structure.id,
+                "category": structure.structure_category,
+                "label": structure_label(structure),
+                "station_km": float(structure.station_km) if structure.station_km is not None else None,
+                "name": structure.structure_name,
+                "is_current": bool(current_id and structure.id == current_id),
+            }
+            features.append(
+                {
+                    "type": "Feature",
+                    "geometry": {"type": "Point", "coordinates": [coords[0], coords[1]]},
+                    "properties": properties,
+                }
+            )
+
+        return JsonResponse({"type": "FeatureCollection", "features": features})
 
 
 @admin.register(models.BridgeDetail, site=grms_admin_site)
