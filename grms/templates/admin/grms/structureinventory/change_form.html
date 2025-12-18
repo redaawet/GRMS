@@ -1,0 +1,40 @@
+{% extends "admin/change_form.html" %}
+{% load static %}
+
+{% block extrahead %}
+    {{ block.super }}
+    {% if structure_map_config %}
+        {{ structure_map_config|json_script:"structure-map-config" }}
+    {% endif %}
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+{% endblock %}
+
+{% block extrastyle %}
+    {{ block.super }}
+    <style>
+        #structure-overlay-panel {
+            margin-top: 1rem;
+        }
+
+        #structure-overlay-map {
+            height: 360px;
+            border: 1px solid #d0d0d0;
+            border-radius: 6px;
+        }
+
+        #structure-overlay-status {
+            margin: 0.25rem 0 0.5rem;
+        }
+    </style>
+{% endblock %}
+
+{% block after_field_sets %}
+    {{ block.super }}
+    <div id="structure-overlay-panel">
+        <h3>Structures on this road</h3>
+        <p class="help">Select a road to view other structures on the same alignment. The current structure is omitted from the overlay.</p>
+        <div id="structure-overlay-status" class="help"></div>
+        <div id="structure-overlay-map" role="region" aria-label="Structure overlay map"></div>
+    </div>
+{% endblock %}
