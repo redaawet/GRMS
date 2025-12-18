@@ -1972,7 +1972,7 @@ class SegmentMCIResult(models.Model):
                 "shoulder_factor": shoulder_factor,
                 "surface_factor": surface_factor,
                 "mci_value": mci_value,
-                "mci_category": category,
+                "rating": category,
                 "recommended_intervention": recommended,
             },
         )
@@ -2799,4 +2799,3 @@ class AnnualWorkPlan(models.Model):
 
     def __str__(self) -> str:  # pragma: no cover
         return f"Annual work plan {self.fiscal_year} - {self.road_id}"
-

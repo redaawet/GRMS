@@ -56,14 +56,14 @@ def _decimal(value) -> Decimal:
     return Decimal(str(value)) if value is not None else Decimal("0")
 
 
-def _latest_mci_category_name(section: models.RoadSection) -> str | None:
+def _latest_rating_name(section: models.RoadSection) -> str | None:
     surveys = (
         models.SegmentMCIResult.objects.filter(road_segment__section=section)
-        .select_related("mci_category")
+        .select_related("rating")
         .order_by("-survey_date", "-id")
     )
     result = surveys.first()
-    return getattr(getattr(result, "mci_category", None), "name", None)
+    return getattr(getattr(result, "rating", None), "name", None)
 
 
 def _section_surface_type(section: models.RoadSection) -> str:
@@ -101,7 +101,7 @@ def compute_section_workplan_rows(road: models.Road, fiscal_year: int) -> Tuple[
     for section in sections:
         buckets = section_costs.get(section.id, {field: Decimal("0") for field in BUCKET_FIELDS})
         length_km = _decimal(section.length_km)
-        surface_cond = _latest_mci_category_name(section)
+        surface_cond = _latest_rating_name(section)
 
         row = WorkplanRow(
             rd_sec_no=section.section_number,
