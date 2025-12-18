@@ -32,7 +32,6 @@ except Exception:  # pragma: no cover - fallback when GIS libs missing
 
 UTM_ZONE = 37
 UTM_SRID = 32637
-DEFAULT_MAP_CENTER = {"lat": 9.0, "lng": 39.0}
 
 
 def _serialize_geometry(geom):
@@ -1560,7 +1559,6 @@ class StructureInventoryAdmin(SectionScopedAdmin):
     search_fields = ("road__road_identifier", "structure_category")
     list_select_related = ("road", "section")
     readonly_fields = ("created_date", "modified_date")
-    change_form_template = "admin/grms/structureinventory/change_form.html"
     form = StructureInventoryAdminForm
     formfield_overrides = {
         PointField: {"widget": geometry_widget},
@@ -1613,7 +1611,7 @@ class StructureInventoryAdmin(SectionScopedAdmin):
     )
 
     class Media:
-        js = ("grms/js/structure-inventory-admin.js",)
+        js = ("grms/js/structure-inventory-admin.js", "grms/js/structureinventory_overlay.js")
 
     def label(self, obj):
         return structure_label(obj)
@@ -1642,6 +1640,12 @@ class StructureInventoryAdmin(SectionScopedAdmin):
         if exclude_id and exclude_id.isdigit():
             qs = qs.exclude(id=exclude_id)
 
+        current_id = None
+        try:
+            current_id = int(request.GET.get("current_id", "") or 0)
+        except (TypeError, ValueError):
+            current_id = None
+
         features = []
         for structure in qs:
             point_latlng = _point_to_wgs84(structure.location_point)
@@ -1658,6 +1662,7 @@ class StructureInventoryAdmin(SectionScopedAdmin):
                 "label": structure_label(structure),
                 "station_km": float(structure.station_km) if structure.station_km is not None else None,
                 "name": structure.structure_name,
+                "is_current": bool(current_id and structure.id == current_id),
             }
             features.append(
                 {
@@ -1668,20 +1673,6 @@ class StructureInventoryAdmin(SectionScopedAdmin):
             )
 
         return JsonResponse({"type": "FeatureCollection", "features": features})
-
-    def changeform_view(self, request, object_id=None, form_url="", extra_context=None):
-        extra_context = extra_context or {}
-        instance = self.get_object(request, object_id)
-        point_latlng = _point_to_wgs84(getattr(instance, "location_point", None)) if instance else None
-
-        extra_context["structure_map_config"] = {
-            "overlayUrl": reverse("admin:grms_structureinventory_structures_geojson"),
-            "instanceId": getattr(instance, "pk", None),
-            "roadId": getattr(instance, "road_id", None),
-            "center": point_latlng or DEFAULT_MAP_CENTER,
-            "defaultZoom": 8,
-        }
-        return super().changeform_view(request, object_id, form_url, extra_context)
 
 
 @admin.register(models.BridgeDetail, site=grms_admin_site)
