@@ -1083,8 +1083,10 @@ class StructureInventory(models.Model):
         road_length = float(self.road.total_length_km) if getattr(self, "road", None) else None
 
         if geometry_type == self.POINT:
-            if self.station_km is None:
-                errors["station_km"] = "Station km is required for point structures."
+            if self.location_point is None and self.station_km is None:
+                errors["location_point"] = (
+                    "Provide Easting & Northing, or Chainage (km), or select a Location point on the map."
+                )
             if self.start_chainage_km is not None:
                 errors["start_chainage_km"] = "Start chainage is only applicable to line structures."
             if self.end_chainage_km is not None:
