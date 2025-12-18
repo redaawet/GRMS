@@ -56,14 +56,60 @@ def _decimal(value) -> Decimal:
     return Decimal(str(value)) if value is not None else Decimal("0")
 
 
-def _latest_rating_name(section: models.RoadSection) -> str | None:
-    surveys = (
-        models.SegmentMCIResult.objects.filter(road_segment__section=section)
-        .select_related("rating")
-        .order_by("-survey_date", "-id")
+def compute_surface_condition_for_section(section: models.RoadSection, fiscal_year: int) -> str:
+    segments = (
+        models.RoadSegment.objects.filter(section=section).only("id", "station_from_km", "station_to_km")
     )
-    result = surveys.first()
-    return getattr(getattr(result, "rating", None), "name", None)
+
+    seg_len: Dict[int, Decimal] = {}
+    total_len = Decimal("0")
+    for segment in segments:
+        length = Decimal(str((segment.station_to_km or 0) - (segment.station_from_km or 0)))
+        if length <= 0:
+            continue
+        seg_len[segment.id] = length
+        total_len += length
+
+    if total_len <= 0:
+        return "None"
+
+    results = (
+        models.SegmentMCIResult.objects.filter(
+            road_segment_id__in=list(seg_len.keys()), survey_date__year=fiscal_year
+        )
+        .select_related("rating")
+        .only("road_segment_id", "mci_value", "rating__rating", "rating__mci_min", "rating__mci_max")
+    )
+
+    length_by_label: Dict[str, Decimal] = {}
+    weighted_mci_sum = Decimal("0")
+    used_len = Decimal("0")
+
+    for result in results:
+        length = seg_len.get(result.road_segment_id)
+        if not length:
+            continue
+
+        label = getattr(result.rating, "rating", None) or "Unknown"
+        length_by_label[label] = length_by_label.get(label, Decimal("0")) + length
+
+        if result.mci_value is not None:
+            weighted_mci_sum += Decimal(str(result.mci_value)) * length
+            used_len += length
+
+    if not length_by_label:
+        return "None"
+
+    label, max_len = max(length_by_label.items(), key=lambda kv: kv[1])
+    if (max_len / total_len) >= Decimal("0.50"):
+        return label
+
+    if used_len > 0:
+        weighted_mci = weighted_mci_sum / used_len
+        category = models.MCICategoryLookup.match_for_mci(weighted_mci)
+        if category:
+            return getattr(category, "rating", str(category))
+    return "Mixed"
 
 
 def _section_surface_type(section: models.RoadSection) -> str:
@@ -101,7 +147,7 @@ def compute_section_workplan_rows(road: models.Road, fiscal_year: int) -> Tuple[
     for section in sections:
         buckets = section_costs.get(section.id, {field: Decimal("0") for field in BUCKET_FIELDS})
         length_km = _decimal(section.length_km)
-        surface_cond = _latest_rating_name(section)
+        surface_cond = compute_surface_condition_for_section(section, fiscal_year)
 
         row = WorkplanRow(
             rd_sec_no=section.section_number,

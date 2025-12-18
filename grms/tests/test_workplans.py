@@ -281,3 +281,76 @@ def test_budget_cap_applies_partial_last_road():
     assert rows[-1]["funded_amount"] == Decimal("10.00")
     assert rows[-1]["funded_percent"] == Decimal("16.67")
     assert totals["rm_cost"] == Decimal("190.00")
+
+
+@pytest.mark.django_db
+def test_surface_condition_majority_and_mixed():
+    models.RoadSection.full_clean = lambda self, *args, **kwargs: None  # type: ignore
+    weight_config = models.MCIWeightConfig.objects.create(
+        name="Default", effective_from="2020-01-01", weight_drainage=Decimal("0.4"), weight_shoulder=Decimal("0.2")
+    )
+    good = models.MCICategoryLookup.objects.create(rating="Good", mci_min=Decimal("0"), mci_max=Decimal("2"))
+    fair = models.MCICategoryLookup.objects.create(rating="Fair", mci_min=Decimal("2"), mci_max=Decimal("3"))
+    poor = models.MCICategoryLookup.objects.create(rating="Poor", mci_min=Decimal("3"), mci_max=Decimal("5"))
+
+    def make_road(name: str) -> models.Road:
+        return models.Road.objects.create(
+            road_identifier=name,
+            road_name_from="A",
+            road_name_to="B",
+            design_standard="DC1",
+            admin_zone=models.AdminZone.objects.create(name=f"Zone {name}", region="Region"),
+            total_length_km=Decimal("10"),
+            surface_type="Gravel",
+            managing_authority="Federal",
+            geometry=[[0, 0], [1, 0]],
+        )
+
+    def make_section(road: models.Road) -> models.RoadSection:
+        return models.RoadSection.objects.create(
+            road=road,
+            start_chainage_km=Decimal("0"),
+            end_chainage_km=Decimal("10"),
+            length_km=Decimal("10"),
+            surface_type="Gravel",
+        )
+
+    def add_segment(section: models.RoadSection, start: str, end: str, category: models.MCICategoryLookup, mci: str):
+        segment = models.RoadSegment.objects.create(
+            section=section,
+            station_from_km=Decimal(start),
+            station_to_km=Decimal(end),
+            cross_section="Cutting",
+            terrain_transverse="Flat",
+            terrain_longitudinal="Flat",
+        )
+        survey = models.RoadConditionSurvey.objects.create(road_segment=segment, inspection_date="2025-01-01")
+        models.SegmentMCIResult.objects.create(
+            road_segment=segment,
+            survey=survey,
+            weight_config=weight_config,
+            survey_date=survey.inspection_date,
+            mci_value=Decimal(mci),
+            rating=category,
+        )
+        return segment
+
+    road_majority = make_road("RTR-MAJ")
+    section_majority = make_section(road_majority)
+    add_segment(section_majority, "0", "4", good, "1.0")
+    add_segment(section_majority, "4", "7", good, "1.5")
+    add_segment(section_majority, "7", "10", fair, "2.5")
+
+    rows, _, _ = compute_section_workplan_rows(road_majority, 2025)
+    assert len(rows) == 1
+    assert rows[0].surface_cond == "Good"
+
+    road_mixed = make_road("RTR-MIX")
+    section_mixed = make_section(road_mixed)
+    add_segment(section_mixed, "0", "4", good, "1.0")
+    add_segment(section_mixed, "4", "7", fair, "2.5")
+    add_segment(section_mixed, "7", "10", poor, "4.0")
+
+    mixed_rows, _, _ = compute_section_workplan_rows(road_mixed, 2025)
+    assert len(mixed_rows) == 1
+    assert mixed_rows[0].surface_cond == "Fair"
