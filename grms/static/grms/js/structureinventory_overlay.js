@@ -27,9 +27,14 @@
         L.map = function () {
             var mapInstance = originalMap.apply(this, arguments);
             try {
-                window._grmsLeafletMap = mapInstance;
-                if (mapInstance && mapInstance._container) {
-                    mapInstance._container._grmsLeafletMap = mapInstance;
+                window.GRMS_MAPS = window.GRMS_MAPS || {};
+                var containerId = mapInstance && mapInstance._container && mapInstance._container.id;
+                if (containerId) {
+                    window.GRMS_MAPS[containerId] = mapInstance;
+                    if (containerId.endsWith("_map")) {
+                        var inputId = containerId.replace(/_map$/, "");
+                        window.GRMS_MAPS[inputId] = mapInstance;
+                    }
                 }
             } catch (err) {
                 // ignore
@@ -41,15 +46,13 @@
 
     function findLeafletMap() {
         if (!window.L) return null;
-        if (window._grmsLeafletMap) return window._grmsLeafletMap;
-
-        var container =
-            document.querySelector(".leaflet-container") ||
-            document.querySelector("[id$='_map']") ||
-            document.querySelector("#id_location_point");
-
-        if (container && container._grmsLeafletMap) {
-            return container._grmsLeafletMap;
+        var maps = window.GRMS_MAPS || {};
+        if (maps["id_location_point"]) {
+            return maps["id_location_point"];
+        }
+        var keys = Object.keys(maps);
+        if (keys.length) {
+            return maps[keys[0]];
         }
         return null;
     }
@@ -137,27 +140,21 @@
         }
     }
 
-    function waitForMap(attempts, delay, callback) {
-        var tryCount = 0;
-        function attempt() {
-            var map = findLeafletMap();
-            if (map) {
-                callback(map);
-                return;
-            }
-            tryCount += 1;
-            if (tryCount < attempts) {
-                setTimeout(attempt, delay);
-            }
-        }
-        attempt();
-    }
-
     function init() {
         if (!window.L) return;
         patchLeafletMapFactory();
 
-        waitForMap(10, 300, function (map) {
+        var attempts = 0;
+        function attachWhenReady() {
+            var map = findLeafletMap();
+            if (!map && attempts < 10) {
+                attempts += 1;
+                setTimeout(attachWhenReady, 300);
+                return;
+            }
+            if (!map) {
+                return;
+            }
             var overlayGroup = L.layerGroup().addTo(map);
             var currentGroup = L.layerGroup().addTo(map);
 
@@ -173,7 +170,9 @@
                     });
                 });
             }
-        });
+        }
+
+        attachWhenReady();
     }
 
     ready(init);
