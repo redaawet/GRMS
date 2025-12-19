@@ -1,0 +1,29 @@
+{% extends "admin/base_site.html" %}
+
+{% block content %}
+  <h1>Reports</h1>
+  <p class="help">Download Excel-ready exports for key GRMS inventories and surveys.</p>
+
+  <section>
+    <h2>Road inventory</h2>
+    <p><a class="button" href="{% url 'grms-reports-road-inventory' %}">Download road inventory (.xlsx)</a></p>
+  </section>
+
+  <section>
+    <h2>Structure inventory</h2>
+    <form method="get" action="{% url 'grms-reports-structure-inventory' %}">
+      <label for="structure-report-road">Road ID (optional)</label>
+      <input type="text" id="structure-report-road" name="road" placeholder="Road ID">
+      <button type="submit" class="button">Download structure inventory (.xlsx)</button>
+    </form>
+  </section>
+
+  <section>
+    <h2>Condition surveys</h2>
+    <form method="get" action="{% url 'grms-reports-condition-surveys' %}">
+      <label for="condition-report-year">Fiscal year (optional)</label>
+      <input type="number" id="condition-report-year" name="fiscal_year" placeholder="2024">
+      <button type="submit" class="button">Download condition surveys (.xlsx)</button>
+    </form>
+  </section>
+{% endblock %}
