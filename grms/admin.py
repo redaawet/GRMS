@@ -179,10 +179,10 @@ def _overlay_map_config(road_id=None, section_id=None, current_id=None):
         "section_id": section_id,
         "current_id": current_id,
         "urls": {
-            "road": reverse("grms-geojson-road"),
-            "sections": reverse("grms-geojson-sections"),
-            "segments": reverse("grms-geojson-segments"),
-            "structures": reverse("grms-geojson-structures"),
+            "road": reverse("admin:grms-geojson-road"),
+            "sections": reverse("admin:grms-geojson-sections"),
+            "segments": reverse("admin:grms-geojson-segments"),
+            "structures": reverse("admin:grms-geojson-structures"),
         },
     }
 
