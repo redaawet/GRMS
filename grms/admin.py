@@ -1913,7 +1913,7 @@ class StructureInventoryAdmin(RoadSectionCascadeAdminMixin, SectionScopedAdmin):
         point = _point_to_wgs84(obj.location_point) if obj else None
         if not point:
             return "—"
-        return f\"{point['lat']:.6f}, {point['lng']:.6f}\"
+        return f"{point['lat']:.6f}, {point['lng']:.6f}"
 
     derived_lat_lng.short_description = "Lat/Lng"
 
