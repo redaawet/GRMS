@@ -24,8 +24,10 @@ class TrafficSurveyAdmin(admin.ModelAdmin):
     change_form_template = "admin/traffic/trafficsurvey/change_form.html"
     form = TrafficSurveyAdminForm
     list_display = ("road", "survey_year", "cycle_number", "method", "qa_status")
-    list_filter = ("road", "survey_year", "cycle_number", "method", "qa_status")
-    search_fields = ("road__name", "observer")
+    list_filter = ("survey_year", "cycle_number", "method", "qa_status")
+    search_fields = ("road__road_identifier", "road__road_name_from", "road__road_name_to", "observer")
+    autocomplete_fields = ("road", "qa_status")
+    change_list_template = "admin/grms/change_list_with_road_filter.html"
 
     fieldsets = (
         (
@@ -60,6 +62,11 @@ class TrafficSurveyAdmin(admin.ModelAdmin):
             },
         ),
     )
+
+    def changelist_view(self, request, extra_context=None):
+        extra_context = extra_context or {}
+        extra_context["show_section_quick_filter"] = False
+        return super().changelist_view(request, extra_context=extra_context)
 
     def get_readonly_fields(self, request, obj=None):  # pragma: no cover - admin hook
         readonly = list(super().get_readonly_fields(request, obj))
@@ -168,8 +175,8 @@ class TrafficCycleSummaryAdmin(_ReadOnlyAdmin):
         "cycle_daily_24hr",
         "cycle_pcu",
     )
-    list_filter = ("road", "vehicle_class", "cycle_number")
-    search_fields = ("road__name",)
+    list_filter = ("vehicle_class", "cycle_number")
+    search_fields = ("road__road_identifier", "road__road_name_from", "road__road_name_to")
 
 
 @admin.register(TrafficSurveySummary, site=grms_admin_site)
@@ -185,8 +192,8 @@ class TrafficSurveySummaryAdmin(_ReadOnlyAdmin):
         "pcu_final",
         "confidence_score",
     )
-    list_filter = ("road", "vehicle_class", "fiscal_year")
-    search_fields = ("road__name",)
+    list_filter = ("vehicle_class", "fiscal_year")
+    search_fields = ("road__road_identifier", "road__road_name_from", "road__road_name_to")
 
 
 @admin.register(TrafficSurveyOverall, site=grms_admin_site)
@@ -196,8 +203,8 @@ class TrafficSurveyOverallAdmin(_ReadOnlyAdmin):
     This fixes the 'no rows displayed' issue caused by list_display mismatches.
     """
     list_display = ("road", "fiscal_year", "adt_total", "pcu_total", "confidence_score")
-    list_filter = ("fiscal_year", "road")
-    search_fields = ("road__name",)
+    list_filter = ("fiscal_year",)
+    search_fields = ("road__road_identifier", "road__road_name_from", "road__road_name_to")
 
 @admin.register(TrafficQC, site=grms_admin_site)
 class TrafficQcAdmin(admin.ModelAdmin):
