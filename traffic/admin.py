@@ -27,9 +27,7 @@ class TrafficSurveyAdmin(admin.ModelAdmin):
     list_display = ("road", "survey_year", "cycle_number", "method", "qa_status")
     list_filter = ("survey_year", "cycle_number", "method", "qa_status")
     search_fields = ("road__road_identifier", "road__road_name_from", "road__road_name_to", "observer")
-    _AUTO = ("road", "qa_status")
-    autocomplete_fields = valid_autocomplete_fields(TrafficSurvey, _AUTO)
-    change_list_template = "admin/grms/change_list_with_road_filter.html"
+    autocomplete_fields = ("road", "qa_status")
 
     fieldsets = (
         (
@@ -65,10 +63,6 @@ class TrafficSurveyAdmin(admin.ModelAdmin):
         ),
     )
 
-    def changelist_view(self, request, extra_context=None):
-        extra_context = extra_context or {}
-        extra_context["show_section_quick_filter"] = False
-        return super().changelist_view(request, extra_context=extra_context)
 
     def get_readonly_fields(self, request, obj=None):  # pragma: no cover - admin hook
         readonly = list(super().get_readonly_fields(request, obj))

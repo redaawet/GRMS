@@ -58,10 +58,7 @@
       </div>
       <ul id="group-reporting" class="group-items sidebar-items collapse">
         <li class="model-item sidebar-item">
-          {% url 'grms-reports-index' as reports_url %}
-          {% if reports_url %}
-            <a href="{{ reports_url }}">Reports hub</a>
-          {% endif %}
+          <a href="{% url 'grms-reports-index' %}">Reports hub</a>
         </li>
       </ul>
     </li>

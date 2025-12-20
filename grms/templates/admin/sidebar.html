@@ -54,10 +54,7 @@
           </button>
           <div class="sg-content">
             <div class="sg-list">
-              {% url 'grms-reports-index' as reports_url %}
-              {% if reports_url %}
-                <a class="ss-link menu-item" href="{{ reports_url }}">Reports hub</a>
-              {% endif %}
+              <a class="ss-link menu-item" href="{% url 'grms-reports-index' %}">Reports hub</a>
             </div>
           </div>
         </div>
