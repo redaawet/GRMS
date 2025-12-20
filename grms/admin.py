@@ -20,6 +20,7 @@ from django.contrib.admin.widgets import AutocompleteSelect
 
 from . import models
 from .menu import build_menu_groups
+from .admin_utils import valid_autocomplete_fields, valid_list_display
 from traffic.models import TrafficSurveyOverall, TrafficSurveySummary
 from .gis_fields import LineStringField, PointField
 from .admin_cascades import (
@@ -1430,6 +1431,7 @@ class RoadSectionAdmin(RoadSectionCascadeAdminMixin, SectionScopedAdmin):
     autocomplete_fields = ("road", "admin_zone_override", "admin_woreda_override")
     readonly_fields = ("section_number", "sequence_on_road", "length_km")
     change_form_template = "admin/roadsection_change_form.html"
+    change_list_template = "admin/grms/change_list_with_road_filter.html"
     fieldsets = (
         ("Parent road", {"fields": ("road",)}),
         (
@@ -1686,6 +1688,7 @@ class RoadSegmentAdmin(RoadSectionCascadeAdminMixin, SectionScopedAdmin):
     autocomplete_fields = ("section",)
     actions = [export_road_segments_to_excel]
     change_form_template = "admin/grms/roadsegment/change_form.html"
+    change_list_template = "admin/grms/change_list_with_road_filter.html"
     fieldsets = (
         ("Identification", {"fields": ("road", "section")}),
         (

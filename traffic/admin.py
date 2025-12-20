@@ -2,6 +2,7 @@ from django.contrib import admin
 from django.urls import reverse
 
 from grms.admin import grms_admin_site, _road_map_context_url
+from grms.admin_utils import valid_autocomplete_fields
 from grms.models import Road
 from grms.services import map_services
 from grms.utils import point_to_lat_lng, wgs84_to_utm
