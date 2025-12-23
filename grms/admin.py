@@ -683,26 +683,8 @@ class GRMSAdminSite(AdminSite):
 
 # Instantiate a single GRMSAdminSite so every generated link and template helper
 # (e.g., {% url 'admin:index' %}) routes through the grouped dashboard instead
-# of Django's stock admin. Replace Django's default site object so add/change
-# pages also inherit the grouped layout.
+# of Django's stock admin. The custom site is mounted via project/urls.py.
 grms_admin_site = GRMSAdminSite(name="admin")
-admin.site = grms_admin_site
-admin.sites.site = grms_admin_site
-
-# Guarantee these models are only registered under the prioritized grouping.
-for model in (
-    models.RoadLinkTypeLookup,
-    models.RoadSocioEconomic,
-    models.BenefitCategory,
-    models.BenefitCriterion,
-    models.BenefitCriterionScale,
-    models.BenefitFactor,
-    models.PrioritizationResult,
-):
-    try:
-        admin.site.unregister(model)
-    except admin.sites.NotRegistered:
-        pass
 
 
 class RoadAdminForm(forms.ModelForm):
