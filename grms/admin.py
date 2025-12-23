@@ -1238,21 +1238,11 @@ class ActivityLookupAdmin(admin.ModelAdmin):
     search_fields = ("activity_code", "activity_name", "notes")
 
 
-if grms_admin_site.is_registered(models.InterventionLookup):
-    grms_admin_site.unregister(models.InterventionLookup)
-
-
-@admin.register(models.InterventionLookup, site=grms_admin_site)
 class InterventionLookupAdmin(admin.ModelAdmin):
     list_display = ("intervention_code", "name", "category", "unit_measure")
     search_fields = ("intervention_code", "name", "description")
 
 
-if grms_admin_site.is_registered(models.AnnualWorkPlan):
-    grms_admin_site.unregister(models.AnnualWorkPlan)
-
-
-@admin.register(models.AnnualWorkPlan, site=grms_admin_site)
 class AnnualWorkPlanAdmin(admin.ModelAdmin):
     list_display = ("fiscal_year", "road", "region", "woreda", "status")
     list_filter = ("fiscal_year", "status", "region")
@@ -1274,11 +1264,6 @@ class DistressConditionAdmin(admin.ModelAdmin):
     autocomplete_fields = ("distress",)
 
 
-if grms_admin_site.is_registered(models.DistressActivity):
-    grms_admin_site.unregister(models.DistressActivity)
-
-
-@admin.register(models.DistressActivity, site=grms_admin_site)
 class DistressActivityAdmin(admin.ModelAdmin):
     _AUTO = ("condition", "activity")
     _LD = ("condition", "activity", "scale_basis")
@@ -1289,6 +1274,18 @@ class DistressActivityAdmin(admin.ModelAdmin):
         "notes",
     )
     autocomplete_fields = valid_autocomplete_fields(models.DistressActivity, _AUTO)
+
+
+for model, admin_class in (
+    (models.InterventionLookup, InterventionLookupAdmin),
+    (models.AnnualWorkPlan, AnnualWorkPlanAdmin),
+    (models.DistressActivity, DistressActivityAdmin),
+):
+    try:
+        grms_admin_site.register(model, admin_class)
+    except admin.sites.AlreadyRegistered:
+        grms_admin_site.unregister(model)
+        grms_admin_site.register(model, admin_class)
 
 
 @admin.register(models.UnitCost, site=grms_admin_site)
