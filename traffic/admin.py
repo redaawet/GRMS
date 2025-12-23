@@ -2,6 +2,7 @@ from django.contrib import admin
 from django.urls import reverse
 
 from grms.admin import grms_admin_site, _road_map_context_url
+from grms.admin_utils import valid_autocomplete_fields
 from grms.models import Road
 from grms.services import map_services
 from grms.utils import point_to_lat_lng, wgs84_to_utm
@@ -21,6 +22,7 @@ from .models import (
 
 @admin.register(TrafficSurvey, site=grms_admin_site)
 class TrafficSurveyAdmin(admin.ModelAdmin):
+    autocomplete_fields = valid_autocomplete_fields(TrafficSurvey, ("road", "qa_status"))
     change_form_template = "admin/traffic/trafficsurvey/change_form.html"
     form = TrafficSurveyAdminForm
     list_display = ("road", "survey_year", "cycle_number", "method", "qa_status")
