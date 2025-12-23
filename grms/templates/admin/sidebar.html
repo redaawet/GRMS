@@ -47,6 +47,17 @@
             </div>
           </div>
         {% endfor %}
+        <div class="sidebar-group" data-group="reporting">
+          <button class="sg-header" type="button" aria-expanded="false">
+            <span class="sg-title">Reporting</span>
+            <span class="sg-chevron" aria-hidden="true">▸</span>
+          </button>
+          <div class="sg-content">
+            <div class="sg-list">
+              <a class="ss-link menu-item" href="{% url 'grms-reports-index' %}">Reports hub</a>
+            </div>
+          </div>
+        </div>
       </nav>
     </div>
   </div>
