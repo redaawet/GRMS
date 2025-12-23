@@ -1340,14 +1340,6 @@ class InterventionCategoryAdmin(admin.ModelAdmin):
     search_fields = ("name",)
     fieldsets = (("Intervention category", {"fields": ("name",)}),)
 
-
-@admin.register(models.InterventionLookup, site=grms_admin_site)
-class InterventionLookupAdmin(admin.ModelAdmin):
-    list_display = ("intervention_code", "name", "category", "unit_measure", "default_unit_cost")
-    list_filter = ("category", "unit_measure")
-    search_fields = ("intervention_code", "name")
-
-
 @admin.register(models.InterventionWorkItem, site=grms_admin_site)
 class InterventionWorkItemAdmin(admin.ModelAdmin):
     list_display = ("work_code", "description", "category", "unit", "unit_cost")
@@ -2736,24 +2728,6 @@ for model, admin_class in [
     except NotRegistered:
         pass
     grms_admin_site.register(model, admin_class)
-
-
-@admin.register(models.AnnualWorkPlan, site=grms_admin_site)
-class AnnualWorkPlanAdmin(admin.ModelAdmin):
-    autocomplete_fields = ("road",)
-    list_display = ("fiscal_year", "region", "woreda", "road", "priority_rank", "status")
-    list_filter = ("fiscal_year", "status", "region")
-    search_fields = ("road__road_identifier", "road__road_name_from", "road__road_name_to", "region", "woreda")
-
-    def get_readonly_fields(self, request, obj=None):
-        readonly = list(super().get_readonly_fields(request, obj))
-        if obj:
-            has_overall = TrafficSurveyOverall.objects.filter(
-                road=obj.road
-            ).exists()
-            if has_overall:
-                readonly.append("adt_override")
-        return readonly
 
 
 @admin.register(models.BenefitCategory, site=grms_admin_site)
