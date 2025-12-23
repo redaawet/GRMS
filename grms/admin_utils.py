@@ -1,33 +1,34 @@
 from django.core.exceptions import FieldDoesNotExist
-from django.db import models
 
 
-def valid_autocomplete_fields(model_cls, fields):
-    """Return only FK/M2M fields that exist on the model."""
-
-    valid = []
+def valid_autocomplete_fields(model, fields):
+    """
+    Return only fields that exist on model and are FK or M2M.
+    Prevents admin.E037 / admin.E038.
+    """
+    out = []
     for name in fields:
         try:
-            field = model_cls._meta.get_field(name)
+            field = model._meta.get_field(name)
         except FieldDoesNotExist:
             continue
-        if isinstance(field, (models.ForeignKey, models.ManyToManyField, models.OneToOneField)):
-            valid.append(name)
-    return tuple(valid)
+        if getattr(field, "many_to_one", False) or getattr(field, "many_to_many", False):
+            out.append(name)
+    return tuple(out)
 
 
-def valid_list_display(model_cls, fields):
-    """Return list_display entries that match model fields or attributes."""
-
-    valid = []
+def valid_list_display(model, admin_cls, fields):
+    """
+    Return only fields/callables valid for list_display.
+    Prevents admin.E108.
+    """
+    out = []
+    model_fields = {field.name for field in model._meta.get_fields() if getattr(field, "name", None)}
     for name in fields:
-        if hasattr(model_cls, name):
-            valid.append(name)
-            continue
-        try:
-            model_cls._meta.get_field(name)
-        except FieldDoesNotExist:
-            continue
-        else:
-            valid.append(name)
-    return tuple(valid)
+        if name in model_fields:
+            out.append(name)
+        elif hasattr(admin_cls, name):
+            out.append(name)
+        elif hasattr(model, name):
+            out.append(name)
+    return tuple(out)
