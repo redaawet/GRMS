@@ -1302,6 +1302,33 @@ class AdminWoredaAdmin(admin.ModelAdmin):
     fieldsets = (("Woreda", {"fields": ("name", "zone")}),)
 
 
+@admin.register(models.QAStatus, site=grms_admin_site)
+class QAStatusAdmin(admin.ModelAdmin):
+    list_display = ("status",)
+    search_fields = ("status",)
+
+
+@admin.register(models.ActivityLookup, site=grms_admin_site)
+class ActivityLookupAdmin(admin.ModelAdmin):
+    list_display = ("activity_code", "activity_name", "default_unit", "is_resource_based")
+    list_filter = ("default_unit", "is_resource_based")
+    search_fields = ("activity_code", "activity_name")
+
+
+@admin.register(models.DistressType, site=grms_admin_site)
+class DistressTypeAdmin(admin.ModelAdmin):
+    list_display = ("distress_code", "distress_name", "category")
+    list_filter = ("category",)
+    search_fields = ("distress_code", "distress_name")
+
+
+@admin.register(models.DistressCondition, site=grms_admin_site)
+class DistressConditionAdmin(admin.ModelAdmin):
+    list_display = ("distress", "severity_code", "extent_code")
+    list_filter = ("severity_code", "extent_code")
+    search_fields = ("distress__distress_code", "distress__distress_name")
+
+
 @admin.register(models.InterventionCategory, site=grms_admin_site)
 class InterventionCategoryAdmin(admin.ModelAdmin):
     list_display = ("name",)
@@ -2226,8 +2253,7 @@ class FurnitureInventoryAdmin(SectionScopedAdmin):
         "right_present",
     )
     list_filter = ("furniture_type",)
-    search_fields = ("section__road__road_identifier", "comments")
-    autocomplete_fields = ("section",)
+    search_fields = ("section__road__road_identifier", "furniture_type")
     readonly_fields = ("created_at", "modified_at")
     fieldsets = (
         ("Furniture Info", {"fields": ("furniture_type", "section")}),
@@ -2811,10 +2837,6 @@ class RoadRankingResultAdmin(admin.ModelAdmin):
 
 # Register supporting models without custom admins
 for model in [
-    models.QAStatus,
-    models.ActivityLookup,
-    models.DistressType,
-    models.DistressCondition,
     # ConditionRating REMOVED – replaced by ConditionFactorLookup
     models.FordDetail,
     models.RetainingWallDetail,
