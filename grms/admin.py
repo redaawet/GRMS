@@ -8,6 +8,7 @@ from decimal import Decimal, ROUND_HALF_UP
 
 from django import forms
 from django.contrib import admin, messages
+from django.contrib.admin.sites import NotRegistered
 from django.contrib.admin import AdminSite
 from django.db.models import Max, Min, Sum
 from django.template.response import TemplateResponse
@@ -487,26 +488,8 @@ class GRMSAdminSite(AdminSite):
 
 # Instantiate a single GRMSAdminSite so every generated link and template helper
 # (e.g., {% url 'admin:index' %}) routes through the grouped dashboard instead
-# of Django's stock admin. Replace Django's default site object so add/change
-# pages also inherit the grouped layout.
+# of Django's stock admin. The custom site is mounted via project/urls.py.
 grms_admin_site = GRMSAdminSite(name="admin")
-admin.site = grms_admin_site
-admin.sites.site = grms_admin_site
-
-# Guarantee these models are only registered under the prioritized grouping.
-for model in (
-    models.RoadLinkTypeLookup,
-    models.RoadSocioEconomic,
-    models.BenefitCategory,
-    models.BenefitCriterion,
-    models.BenefitCriterionScale,
-    models.BenefitFactor,
-    models.PrioritizationResult,
-):
-    try:
-        admin.site.unregister(model)
-    except admin.sites.NotRegistered:
-        pass
 
 
 class RoadAdminForm(forms.ModelForm):
@@ -1062,11 +1045,41 @@ class AdminWoredaAdmin(admin.ModelAdmin):
     fieldsets = (("Woreda", {"fields": ("name", "zone")}),)
 
 
+class QAStatusAdmin(admin.ModelAdmin):
+    list_display = ("status",)
+    search_fields = ("status",)
+
+
+class ActivityLookupAdmin(admin.ModelAdmin):
+    list_display = ("activity_code", "activity_name", "default_unit", "is_resource_based")
+    list_filter = ("default_unit", "is_resource_based")
+    search_fields = ("activity_code", "activity_name")
+
+
+class DistressTypeAdmin(admin.ModelAdmin):
+    list_display = ("distress_code", "distress_name", "category")
+    list_filter = ("category",)
+    search_fields = ("distress_code", "distress_name")
+
+
+class DistressConditionAdmin(admin.ModelAdmin):
+    list_display = ("distress", "severity_code", "extent_code")
+    list_filter = ("severity_code", "extent_code")
+    search_fields = ("distress__distress_code", "distress__distress_name")
+
+
 @admin.register(models.InterventionCategory, site=grms_admin_site)
 class InterventionCategoryAdmin(admin.ModelAdmin):
     list_display = ("name",)
     search_fields = ("name",)
     fieldsets = (("Intervention category", {"fields": ("name",)}),)
+
+
+@admin.register(models.InterventionLookup, site=grms_admin_site)
+class InterventionLookupAdmin(admin.ModelAdmin):
+    list_display = ("intervention_code", "name", "category", "unit_measure", "default_unit_cost")
+    list_filter = ("category", "unit_measure")
+    search_fields = ("intervention_code", "name")
 
 
 @admin.register(models.InterventionWorkItem, site=grms_admin_site)
@@ -1794,6 +1807,7 @@ class FurnitureInventoryAdmin(SectionScopedAdmin):
         "right_present",
     )
     list_filter = ("furniture_type",)
+    search_fields = ("section__road__road_identifier", "furniture_type")
     readonly_fields = ("created_at", "modified_at")
     fieldsets = (
         ("Furniture Info", {"fields": ("furniture_type", "section")}),
@@ -1805,8 +1819,8 @@ class FurnitureInventoryAdmin(SectionScopedAdmin):
     )
 
 
-@admin.register(models.StructureConditionSurvey, site=grms_admin_site)
 class StructureConditionSurveyAdmin(admin.ModelAdmin):
+    autocomplete_fields = ("structure", "qa_status")
     list_display = ("structure_desc", "survey_year", "condition_code", "condition_rating", "qa_status")
     list_filter = ("survey_year", "condition_rating")
     search_fields = ("structure__road__road_identifier", "structure__structure_category")
@@ -1886,8 +1900,8 @@ class RoadConditionSurveyAdmin(SectionScopedAdmin):
     )
 
 
-@admin.register(models.FurnitureConditionSurvey, site=grms_admin_site)
 class FurnitureConditionSurveyAdmin(admin.ModelAdmin):
+    autocomplete_fields = ("furniture", "qa_status")
     list_display = ("furniture", "survey_year", "condition_rating")
     list_filter = ("survey_year", "condition_rating")
     readonly_fields = ("created_at",)
@@ -1912,6 +1926,7 @@ class FurnitureConditionSurveyAdmin(admin.ModelAdmin):
 
 @admin.register(models.RoadConditionDetailedSurvey, site=grms_admin_site)
 class RoadConditionDetailedSurveyAdmin(SectionScopedAdmin):
+    autocomplete_fields = ("awp", "road_segment", "distress", "distress_condition", "activity", "qa_status")
     list_display = ("road_segment", "distress", "survey_level", "inspection_date")
     list_filter = ("survey_level", "inspection_date", "qa_status")
     fieldsets = (
@@ -1972,6 +1987,7 @@ class RoadConditionDetailedSurveyAdmin(SectionScopedAdmin):
 
 @admin.register(models.StructureConditionDetailedSurvey, site=grms_admin_site)
 class StructureConditionDetailedSurveyAdmin(admin.ModelAdmin):
+    autocomplete_fields = ("awp", "structure", "distress", "distress_condition", "activity", "qa_status")
     list_display = ("structure", "distress", "survey_level", "inspection_date")
     list_filter = ("survey_level", "inspection_date")
     fieldsets = (
@@ -2027,6 +2043,7 @@ class StructureConditionDetailedSurveyAdmin(admin.ModelAdmin):
 
 @admin.register(models.FurnitureConditionDetailedSurvey, site=grms_admin_site)
 class FurnitureConditionDetailedSurveyAdmin(admin.ModelAdmin):
+    autocomplete_fields = ("awp", "furniture", "distress", "distress_condition", "activity", "qa_status")
     list_display = ("furniture", "distress", "survey_level", "inspection_date")
     list_filter = ("survey_level", "inspection_date")
     fieldsets = (
@@ -2123,6 +2140,43 @@ class RoadSocioEconomicAdmin(admin.ModelAdmin):
             },
         ),
     )
+
+
+class DistressActivityAdmin(admin.ModelAdmin):
+    autocomplete_fields = ("condition", "activity")
+    list_display = ("condition", "activity", "quantity_value", "scale_basis")
+    list_filter = ("scale_basis",)
+    search_fields = ("condition__distress__distress_code", "activity__activity_code")
+
+
+class UnitCostAdmin(admin.ModelAdmin):
+    autocomplete_fields = ("intervention",)
+    list_display = ("intervention", "region", "unit_cost", "effective_date", "expiry_date")
+    list_filter = ("region", "effective_date", "expiry_date")
+    search_fields = ("intervention__intervention_code", "intervention__name", "region")
+
+
+for model, admin_class in [
+    (models.QAStatus, QAStatusAdmin),
+    (models.ActivityLookup, ActivityLookupAdmin),
+    (models.DistressType, DistressTypeAdmin),
+    (models.DistressCondition, DistressConditionAdmin),
+    (models.DistressActivity, DistressActivityAdmin),
+    (models.UnitCost, UnitCostAdmin),
+]:
+    try:
+        grms_admin_site.unregister(model)
+    except NotRegistered:
+        pass
+    grms_admin_site.register(model, admin_class)
+
+
+@admin.register(models.AnnualWorkPlan, site=grms_admin_site)
+class AnnualWorkPlanAdmin(admin.ModelAdmin):
+    autocomplete_fields = ("road",)
+    list_display = ("fiscal_year", "region", "woreda", "road", "priority_rank", "status")
+    list_filter = ("fiscal_year", "status", "region")
+    search_fields = ("road__road_identifier", "road__road_name_from", "road__road_name_to", "region", "woreda")
 
     def get_readonly_fields(self, request, obj=None):
         readonly = list(super().get_readonly_fields(request, obj))
@@ -2244,18 +2298,11 @@ class RoadRankingResultAdmin(admin.ModelAdmin):
 
 
 # Register supporting models without custom admins
-# Register supporting models without custom admins
 for model in [
-    models.QAStatus,
-    models.ActivityLookup,
-    models.DistressType,
-    models.DistressCondition,
-    models.DistressActivity,
     # ConditionRating REMOVED – replaced by ConditionFactorLookup
-    models.UnitCost,
     models.FordDetail,
     models.RetainingWallDetail,
     models.GabionWallDetail,
 ]:
-    if not admin.site.is_registered(model):
+    if not grms_admin_site.is_registered(model):
         grms_admin_site.register(model)

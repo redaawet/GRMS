@@ -1,11 +1,13 @@
 from pathlib import Path
 import os
+import warnings
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-SECRET_KEY = 'change-me-in-production'
-DEBUG = True
-ALLOWED_HOSTS = ['*']
-USE_POSTGIS = True
+SECRET_KEY = os.environ.get('SECRET_KEY', 'change-me-in-production')
+DEBUG = os.environ.get('DEBUG', 'true').lower() in ('1', 'true', 'yes')
+ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', '*').split(',')
+USE_POSTGIS = os.environ.get('USE_POSTGIS', 'true').lower() in ('1', 'true', 'yes')
+ALLOW_SPATIAL_FALLBACK = os.environ.get('ALLOW_SPATIAL_FALLBACK', 'false').lower() in ('1', 'true', 'yes')
 
 # -----------------------
 # Windows GDAL + GEOS paths (REAL OSGeo4W path)
@@ -13,11 +15,14 @@ USE_POSTGIS = True
 # -----------------------
 # Windows GDAL + GEOS paths (OSGeo4W)
 # -----------------------
-GDAL_LIBRARY_PATH = r"C:\OSGeo4W\bin\gdal312.dll"
-GEOS_LIBRARY_PATH = r"C:\OSGeo4W\bin\geos_c.dll"
+GDAL_LIBRARY_PATH = os.environ.get("GDAL_LIBRARY_PATH")
+GEOS_LIBRARY_PATH = os.environ.get("GEOS_LIBRARY_PATH")
 
-os.environ["GDAL_DATA"] = r"C:\OSGeo4W\share\gdal"
-os.environ["PROJ_LIB"] = r"C:\OSGeo4W\share\proj"
+if os.name == "nt":
+    GDAL_LIBRARY_PATH = GDAL_LIBRARY_PATH or r"C:\OSGeo4W\bin\gdal312.dll"
+    GEOS_LIBRARY_PATH = GEOS_LIBRARY_PATH or r"C:\OSGeo4W\bin\geos_c.dll"
+    os.environ.setdefault("GDAL_DATA", r"C:\OSGeo4W\share\gdal")
+    os.environ.setdefault("PROJ_LIB", r"C:\OSGeo4W\share\proj")
 
 
 INSTALLED_APPS = [
@@ -38,8 +43,6 @@ INSTALLED_APPS = [
 ]
 
 if USE_POSTGIS:
-    import warnings
-
     def _spatial_libs_available() -> bool:
         try:
             from django.contrib.gis.gdal import libgdal  # noqa: F401
@@ -47,12 +50,17 @@ if USE_POSTGIS:
 
             return True
         except Exception as exc:  # pragma: no cover - environment dependent
-            warnings.warn(
-                "USE_POSTGIS was requested but spatial libraries could not be loaded; "
-                "falling back to non-GIS configuration."
-            )
-            warnings.warn(str(exc))
-            return False
+            if ALLOW_SPATIAL_FALLBACK:
+                warnings.warn(
+                    "USE_POSTGIS was requested but spatial libraries could not be loaded; "
+                    "falling back to non-GIS configuration."
+                )
+                warnings.warn(str(exc))
+                return False
+            raise RuntimeError(
+                "USE_POSTGIS is enabled but required spatial libraries could not be loaded. "
+                "Install GDAL/GEOS system packages or set ALLOW_SPATIAL_FALLBACK=true to run without GIS."
+            ) from exc
 
     if _spatial_libs_available():
         INSTALLED_APPS.insert(6, 'django.contrib.gis')
@@ -100,6 +108,9 @@ if USE_POSTGIS:
             'PASSWORD': os.environ.get('POSTGRES_PASSWORD', 'Mniece@01-25'),
             'HOST': os.environ.get('POSTGRES_HOST', 'localhost'),
             'PORT': os.environ.get('POSTGRES_PORT', '5432'),
+            'TEST': {
+                'NAME': os.environ.get('POSTGRES_TEST_DB', os.environ.get('POSTGRES_DB', 'grms_test')),
+            },
         }
     }
 else:
