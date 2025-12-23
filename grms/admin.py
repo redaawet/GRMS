@@ -1462,7 +1462,6 @@ class RoadSectionAdmin(RoadSectionCascadeAdminMixin, SectionScopedAdmin):
     autocomplete_fields = ("road", "admin_zone_override", "admin_woreda_override")
     readonly_fields = ("section_number", "sequence_on_road", "length_km")
     change_form_template = "admin/roadsection_change_form.html"
-    change_list_template = "admin/grms/change_list_with_road_filter.html"
     fieldsets = (
         ("Parent road", {"fields": ("road",)}),
         (
@@ -1719,7 +1718,6 @@ class RoadSegmentAdmin(RoadSectionCascadeAdminMixin, SectionScopedAdmin):
     autocomplete_fields = ("section",)
     actions = [export_road_segments_to_excel]
     change_form_template = "admin/grms/roadsegment/change_form.html"
-    change_list_template = "admin/grms/change_list_with_road_filter.html"
     fieldsets = (
         ("Identification", {"fields": ("road", "section")}),
         (
@@ -2461,7 +2459,6 @@ class RoadConditionDetailedSurveyAdmin(SectionScopedAdmin):
     search_fields = ("road_segment__section__road__road_identifier", "distress__name")
     _AUTO = ("road_segment", "distress", "distress_condition", "activity", "qa_status", "awp")
     autocomplete_fields = valid_autocomplete_fields(models.RoadConditionDetailedSurvey, _AUTO)
-    change_list_template = "admin/grms/change_list_with_road_filter.html"
 
     class Media:
         js = ("grms/admin/cascade_road_section_segment.js",)
