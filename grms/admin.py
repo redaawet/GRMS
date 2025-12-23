@@ -1684,6 +1684,17 @@ class RoadSegmentAdminForm(RoadSectionFilterForm):
         instance = self.instance
         if instance and getattr(instance, "section_id", None):
             self.fields["road"].initial = instance.section.road
+        section_field = self.fields.get("section")
+        if section_field:
+            section_field.queryset = models.RoadSection.objects.none()
+            road_id = self.data.get("road") or self.initial.get("road")
+            if not road_id and instance and getattr(instance, "section_id", None):
+                road_id = instance.section.road_id
+            if road_id and str(road_id).isdigit():
+                section_field.queryset = (
+                    models.RoadSection.objects.filter(road_id=int(road_id))
+                    .order_by("sequence_on_road")
+                )
         road_rel = models.RoadSection._meta.get_field("road").remote_field
         self.fields["road"].widget = AutocompleteSelect(road_rel, grms_admin_site)
 
