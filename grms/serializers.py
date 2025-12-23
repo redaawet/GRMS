@@ -128,6 +128,9 @@ class StructureInventorySerializer(serializers.ModelSerializer):
             "structure_name",
             "geometry_type",
             "station_km",
+            "easting_m",
+            "northing_m",
+            "utm_zone",
             "location_latitude",
             "location_longitude",
             "location_point",
@@ -347,4 +350,3 @@ class AnnualWorkPlanSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.AnnualWorkPlan
         fields = "__all__"
-
