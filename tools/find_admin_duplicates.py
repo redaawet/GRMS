@@ -30,6 +30,8 @@ def main() -> int:
             occurrences[model].append(f"{rel_path} (decorator)")
         for match in REGISTER_RE.finditer(text):
             model = match.group("model").strip()
+            if model == "model":
+                continue
             occurrences[model].append(f"{rel_path} (register)")
 
     duplicates = {model: refs for model, refs in occurrences.items() if len(refs) > 1}

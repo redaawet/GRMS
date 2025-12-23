@@ -9,6 +9,7 @@ from decimal import Decimal, ROUND_HALF_UP
 
 from django import forms
 from django.contrib import admin, messages
+from django.contrib.admin.sites import NotRegistered
 from django.contrib.admin import AdminSite
 from django.db.models import Max, Min, Sum, Q
 from django.template.response import TemplateResponse
@@ -1302,27 +1303,23 @@ class AdminWoredaAdmin(admin.ModelAdmin):
     fieldsets = (("Woreda", {"fields": ("name", "zone")}),)
 
 
-@admin.register(models.QAStatus, site=grms_admin_site)
 class QAStatusAdmin(admin.ModelAdmin):
     list_display = ("status",)
     search_fields = ("status",)
 
 
-@admin.register(models.ActivityLookup, site=grms_admin_site)
 class ActivityLookupAdmin(admin.ModelAdmin):
     list_display = ("activity_code", "activity_name", "default_unit", "is_resource_based")
     list_filter = ("default_unit", "is_resource_based")
     search_fields = ("activity_code", "activity_name")
 
 
-@admin.register(models.DistressType, site=grms_admin_site)
 class DistressTypeAdmin(admin.ModelAdmin):
     list_display = ("distress_code", "distress_name", "category")
     list_filter = ("category",)
     search_fields = ("distress_code", "distress_name")
 
 
-@admin.register(models.DistressCondition, site=grms_admin_site)
 class DistressConditionAdmin(admin.ModelAdmin):
     list_display = ("distress", "severity_code", "extent_code")
     list_filter = ("severity_code", "extent_code")
@@ -2265,7 +2262,6 @@ class FurnitureInventoryAdmin(SectionScopedAdmin):
     )
 
 
-@admin.register(models.StructureConditionSurvey, site=grms_admin_site)
 class StructureConditionSurveyAdmin(admin.ModelAdmin):
     autocomplete_fields = ("structure", "qa_status")
     list_display = ("structure_desc", "survey_year", "condition_code", "condition_rating", "qa_status")
@@ -2404,7 +2400,6 @@ class RoadConditionSurveyAdmin(RoadSectionSegmentCascadeAdminMixin, SectionScope
     )
 
 
-@admin.register(models.FurnitureConditionSurvey, site=grms_admin_site)
 class FurnitureConditionSurveyAdmin(admin.ModelAdmin):
     autocomplete_fields = ("furniture", "qa_status")
     list_display = ("furniture", "survey_year", "condition_rating")
@@ -2694,7 +2689,6 @@ class RoadSocioEconomicAdmin(admin.ModelAdmin):
     )
 
 
-@admin.register(models.DistressActivity, site=grms_admin_site)
 class DistressActivityAdmin(admin.ModelAdmin):
     autocomplete_fields = ("condition", "activity")
     list_display = ("condition", "activity", "quantity_value", "scale_basis")
@@ -2702,12 +2696,26 @@ class DistressActivityAdmin(admin.ModelAdmin):
     search_fields = ("condition__distress__distress_code", "activity__activity_code")
 
 
-@admin.register(models.UnitCost, site=grms_admin_site)
 class UnitCostAdmin(admin.ModelAdmin):
     autocomplete_fields = ("intervention",)
     list_display = ("intervention", "region", "unit_cost", "effective_date", "expiry_date")
     list_filter = ("region", "effective_date", "expiry_date")
     search_fields = ("intervention__intervention_code", "intervention__name", "region")
+
+
+for model, admin_class in [
+    (models.QAStatus, QAStatusAdmin),
+    (models.ActivityLookup, ActivityLookupAdmin),
+    (models.DistressType, DistressTypeAdmin),
+    (models.DistressCondition, DistressConditionAdmin),
+    (models.DistressActivity, DistressActivityAdmin),
+    (models.UnitCost, UnitCostAdmin),
+]:
+    try:
+        grms_admin_site.unregister(model)
+    except NotRegistered:
+        pass
+    grms_admin_site.register(model, admin_class)
 
 
 @admin.register(models.AnnualWorkPlan, site=grms_admin_site)
