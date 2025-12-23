@@ -51,5 +51,17 @@
 
   {% endfor %}
 
+    <li class="model-group group">
+      <div class="group-header sidebar-group-title" data-group="reporting">
+        <span class="group-title">Reporting</span>
+        <span class="toggle-icon">▸</span>
+      </div>
+      <ul id="group-reporting" class="group-items sidebar-items collapse">
+        <li class="model-item sidebar-item">
+          <a href="{% url 'grms-reports-index' %}">Reports hub</a>
+        </li>
+      </ul>
+    </li>
+
   </ul>
 </nav>

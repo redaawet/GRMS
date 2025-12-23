@@ -1,0 +1,27 @@
+{% load static %}
+
+{% if overlay_map_config %}
+  {{ overlay_map_config|json_script:"overlay-map-config" }}
+{% endif %}
+
+{% block extrahead %}{% endblock %}
+
+<div class="overlay-map-panel">
+  <h3>Asset context map</h3>
+  <p class="help">Shows the parent road alignment and nearby assets. The current record is highlighted.</p>
+  <div id="overlay-map" class="overlay-map-panel__map" role="region" aria-label="Asset overlay map"></div>
+</div>
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="{% static 'grms/admin/overlay_map.js' %}" defer></script>
+<style>
+  .overlay-map-panel {
+    margin-top: 1rem;
+  }
+  .overlay-map-panel__map {
+    height: 360px;
+    border: 1px solid #d0d0d0;
+    border-radius: 6px;
+  }
+</style>
