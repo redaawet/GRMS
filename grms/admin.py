@@ -19,6 +19,7 @@ from openpyxl import Workbook
 
 from . import models
 from .menu import build_menu_groups
+from .admin_utils import valid_autocomplete_fields, valid_list_display
 from traffic.models import TrafficSurveyOverall, TrafficSurveySummary
 from .gis_fields import LineStringField, PointField
 from .admin_cascades import (
@@ -178,10 +179,10 @@ def _overlay_map_config(road_id=None, section_id=None, current_id=None):
         "section_id": section_id,
         "current_id": current_id,
         "urls": {
-            "road": reverse("grms-geojson-road"),
-            "sections": reverse("grms-geojson-sections"),
-            "segments": reverse("grms-geojson-segments"),
-            "structures": reverse("grms-geojson-structures"),
+            "road": reverse("admin:grms-geojson-road"),
+            "sections": reverse("admin:grms-geojson-sections"),
+            "segments": reverse("admin:grms-geojson-segments"),
+            "structures": reverse("admin:grms-geojson-structures"),
         },
     }
 
@@ -1253,6 +1254,28 @@ class ActivityLookupAdmin(admin.ModelAdmin):
     search_fields = ("activity_code", "activity_name", "notes")
 
 
+if grms_admin_site.is_registered(models.InterventionLookup):
+    grms_admin_site.unregister(models.InterventionLookup)
+
+
+@admin.register(models.InterventionLookup, site=grms_admin_site)
+class InterventionLookupAdmin(admin.ModelAdmin):
+    list_display = ("intervention_code", "name", "category", "unit_measure")
+    search_fields = ("intervention_code", "name", "description")
+
+
+if grms_admin_site.is_registered(models.AnnualWorkPlan):
+    grms_admin_site.unregister(models.AnnualWorkPlan)
+
+
+@admin.register(models.AnnualWorkPlan, site=grms_admin_site)
+class AnnualWorkPlanAdmin(admin.ModelAdmin):
+    list_display = ("fiscal_year", "road", "region", "woreda", "status")
+    list_filter = ("fiscal_year", "status", "region")
+    search_fields = ("road__road_identifier", "region", "woreda")
+    autocomplete_fields = ("road",)
+
+
 @admin.register(models.DistressType, site=grms_admin_site)
 class DistressTypeAdmin(admin.ModelAdmin):
     list_display = ("distress_code", "distress_name", "category")
@@ -1267,22 +1290,29 @@ class DistressConditionAdmin(admin.ModelAdmin):
     autocomplete_fields = ("distress",)
 
 
+if grms_admin_site.is_registered(models.DistressActivity):
+    grms_admin_site.unregister(models.DistressActivity)
+
+
 @admin.register(models.DistressActivity, site=grms_admin_site)
 class DistressActivityAdmin(admin.ModelAdmin):
-    list_display = ("distress_condition", "activity", "scale_basis")
+    _AUTO = ("condition", "activity")
+    _LD = ("condition", "activity", "scale_basis")
+    list_display = valid_list_display(models.DistressActivity, admin.ModelAdmin, _LD)
     search_fields = (
-        "distress_condition__distress__distress_code",
+        "condition__distress__distress_code",
         "activity__activity_name",
         "notes",
     )
-    autocomplete_fields = ("distress_condition", "activity")
+    autocomplete_fields = valid_autocomplete_fields(models.DistressActivity, _AUTO)
 
 
 @admin.register(models.UnitCost, site=grms_admin_site)
 class UnitCostAdmin(admin.ModelAdmin):
     list_display = ("intervention", "region", "unit_cost", "effective_date", "expiry_date")
     search_fields = ("intervention__intervention_code", "intervention__name", "region", "notes")
-    autocomplete_fields = ("intervention",)
+    _AUTO = ("intervention",)
+    autocomplete_fields = valid_autocomplete_fields(models.UnitCost, _AUTO)
 
 
 @admin.register(models.AdminZone, site=grms_admin_site)
@@ -1913,7 +1943,7 @@ class StructureInventoryAdmin(RoadSectionCascadeAdminMixin, SectionScopedAdmin):
         point = _point_to_wgs84(obj.location_point) if obj else None
         if not point:
             return "—"
-        return f\"{point['lat']:.6f}, {point['lng']:.6f}\"
+        return f"{point['lat']:.6f}, {point['lng']:.6f}"
 
     derived_lat_lng.short_description = "Lat/Lng"
 
@@ -2239,7 +2269,8 @@ class StructureConditionSurveyAdmin(admin.ModelAdmin):
     search_fields = ("structure__road__road_identifier", "structure__structure_category")
     list_select_related = ("structure", "structure__road")
     readonly_fields = ("created_at", "modified_at")
-    autocomplete_fields = ("structure", "condition_code", "condition_rating", "qa_status")
+    _AUTO = ("structure", "qa_status")
+    autocomplete_fields = valid_autocomplete_fields(models.StructureConditionSurvey, _AUTO)
     fieldsets = (
         ("Structure", {"fields": ("structure",)}),
         (
@@ -2376,7 +2407,8 @@ class FurnitureConditionSurveyAdmin(admin.ModelAdmin):
     list_display = ("furniture", "survey_year", "condition_rating")
     list_filter = ("survey_year", "condition_rating")
     readonly_fields = ("created_at",)
-    autocomplete_fields = ("furniture", "condition_rating", "qa_status")
+    _AUTO = ("furniture", "qa_status")
+    autocomplete_fields = valid_autocomplete_fields(models.FurnitureConditionSurvey, _AUTO)
     fieldsets = (
         ("Furniture", {"fields": ("furniture",)}),
         (
@@ -2429,7 +2461,8 @@ class RoadConditionDetailedSurveyAdmin(RoadSectionSegmentCascadeAdminMixin, Sect
     list_display = ("road_segment", "distress", "survey_level", "inspection_date")
     list_filter = ("survey_level", "inspection_date", "qa_status")
     search_fields = ("road_segment__section__road__road_identifier", "distress__name")
-    autocomplete_fields = ("road_segment", "distress", "distress_condition", "activity", "qa_status", "awp")
+    _AUTO = ("road_segment", "distress", "distress_condition", "activity", "qa_status", "awp")
+    autocomplete_fields = valid_autocomplete_fields(models.RoadConditionDetailedSurvey, _AUTO)
     change_list_template = "admin/grms/change_list_with_road_filter.html"
 
     class Media:
@@ -2506,7 +2539,8 @@ class RoadConditionDetailedSurveyAdmin(RoadSectionSegmentCascadeAdminMixin, Sect
 class StructureConditionDetailedSurveyAdmin(admin.ModelAdmin):
     list_display = ("structure", "distress", "survey_level", "inspection_date")
     list_filter = ("survey_level", "inspection_date")
-    autocomplete_fields = ("structure", "distress", "distress_condition", "activity", "qa_status", "awp")
+    _AUTO = ("structure", "distress", "distress_condition", "activity", "qa_status", "awp")
+    autocomplete_fields = valid_autocomplete_fields(models.StructureConditionDetailedSurvey, _AUTO)
     fieldsets = (
         (
             "Survey context",
