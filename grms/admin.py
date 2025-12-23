@@ -1691,7 +1691,7 @@ class RoadSegmentAdminForm(RoadSectionFilterForm):
         section_field = self.fields.get("section")
         if section_field:
             section_field.queryset = models.RoadSection.objects.none()
-            road_id = self.data.get("road") or self.initial.get("road")
+            road_id = self.data.get("road") or getattr(instance, "road_id", None)
             if not road_id and instance and getattr(instance, "section_id", None):
                 road_id = instance.section.road_id
             road_id = getattr(road_id, "id", road_id)
