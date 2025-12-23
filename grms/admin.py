@@ -1470,7 +1470,6 @@ class RoadSectionAdmin(RoadSectionCascadeAdminMixin, SectionScopedAdmin):
     autocomplete_fields = ("road", "admin_zone_override", "admin_woreda_override")
     readonly_fields = ("section_number", "sequence_on_road", "length_km")
     change_form_template = "admin/roadsection_change_form.html"
-    change_list_template = "admin/grms/change_list_with_road_filter.html"
     fieldsets = (
         ("Parent road", {"fields": ("road",)}),
         (
@@ -1690,9 +1689,24 @@ class RoadSegmentAdminForm(RoadSectionFilterForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        for name in ("road", "section"):
+            field = self.fields.get(name)
+            if field is not None and isinstance(getattr(field, "choices", None), list) and hasattr(field, "queryset"):
+                field.queryset = field.queryset
         instance = self.instance
         if instance and getattr(instance, "section_id", None):
             self.fields["road"].initial = instance.section.road
+        section_field = self.fields.get("section")
+        if section_field:
+            section_field.queryset = models.RoadSection.objects.none()
+            road_id = self.data.get("road") or self.initial.get("road")
+            if not road_id and instance and getattr(instance, "section_id", None):
+                road_id = instance.section.road_id
+            road_id = getattr(road_id, "id", road_id)
+            if road_id is not None and str(road_id).isdigit():
+                section_field.queryset = models.RoadSection.objects.filter(
+                    road_id=int(road_id)
+                ).order_by("sequence_on_road")
         road_rel = models.RoadSection._meta.get_field("road").remote_field
         self.fields["road"].widget = AutocompleteSelect(road_rel, grms_admin_site)
 
@@ -1727,7 +1741,6 @@ class RoadSegmentAdmin(RoadSectionCascadeAdminMixin, SectionScopedAdmin):
     autocomplete_fields = ("section",)
     actions = [export_road_segments_to_excel]
     change_form_template = "admin/grms/roadsegment/change_form.html"
-    change_list_template = "admin/grms/change_list_with_road_filter.html"
     fieldsets = (
         ("Identification", {"fields": ("road", "section")}),
         (
@@ -2469,7 +2482,6 @@ class RoadConditionDetailedSurveyAdmin(SectionScopedAdmin):
     search_fields = ("road_segment__section__road__road_identifier", "distress__name")
     _AUTO = ("road_segment", "distress", "distress_condition", "activity", "qa_status", "awp")
     autocomplete_fields = valid_autocomplete_fields(models.RoadConditionDetailedSurvey, _AUTO)
-    change_list_template = "admin/grms/change_list_with_road_filter.html"
 
     class Media:
         js = ("grms/admin/cascade_road_section_segment.js",)
