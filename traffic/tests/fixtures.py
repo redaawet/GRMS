@@ -12,6 +12,7 @@ from traffic.models import (
     PcuLookup,
     TrafficCountRecord,
     TrafficSurvey,
+    run_auto_qc_for_survey,
 )
 
 PCU_FACTORS: Mapping[str, Decimal] = {
@@ -219,3 +220,17 @@ def all_cycle_surveys(
     cycle_three_survey: TrafficSurvey,
 ) -> Iterable[TrafficSurvey]:
     return (traffic_survey, cycle_two_survey, cycle_three_survey)
+
+
+@pytest.fixture
+def traffic_test_dataset(traffic_survey: TrafficSurvey, traffic_counts: List[TrafficCountRecord], pcu_defaults):
+    """Provide a minimal dataset that exercises FK wiring and QA gating."""
+
+    run_auto_qc_for_survey(traffic_survey)
+    traffic_survey.refresh_from_db()
+    return {
+        "survey": traffic_survey,
+        "counts": traffic_counts,
+        "road": traffic_survey.road,
+        "qa_status": traffic_survey.qa_status,
+    }
