@@ -14,3 +14,20 @@ def valid_autocomplete_fields(model_cls, fields):
         if isinstance(field, (models.ForeignKey, models.ManyToManyField, models.OneToOneField)):
             valid.append(name)
     return tuple(valid)
+
+
+def valid_list_display(model_cls, fields):
+    """Return list_display entries that match model fields or attributes."""
+
+    valid = []
+    for name in fields:
+        if hasattr(model_cls, name):
+            valid.append(name)
+            continue
+        try:
+            model_cls._meta.get_field(name)
+        except FieldDoesNotExist:
+            continue
+        else:
+            valid.append(name)
+    return tuple(valid)
