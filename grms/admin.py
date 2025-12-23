@@ -1688,19 +1688,6 @@ class RoadSegmentAdminForm(RoadSectionFilterForm):
         instance = self.instance
         if instance and getattr(instance, "section_id", None):
             self.fields["road"].initial = instance.section.road
-        section_field = self.fields.get("section")
-        if section_field:
-            section_field.queryset = models.RoadSection.objects.none()
-            road_id = self.data.get("road") or getattr(instance, "road_id", None)
-            if not road_id and instance and getattr(instance, "section_id", None):
-                road_id = instance.section.road_id
-            road_id = getattr(road_id, "id", road_id)
-            if road_id is not None and str(road_id).isdigit():
-                section_field.queryset = models.RoadSection.objects.filter(
-                    road_id=int(road_id)
-                ).order_by("sequence_on_road")
-        road_rel = models.RoadSection._meta.get_field("road").remote_field
-        self.fields["road"].widget = AutocompleteSelect(road_rel, grms_admin_site)
 
     def clean(self):
         cleaned = super().clean()
@@ -1772,6 +1759,20 @@ class RoadSegmentAdmin(RoadSectionCascadeAdminMixin, SectionScopedAdmin):
 
     class Media:
         js = ("grms/admin/cascade_road_section_segment.js",)
+
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        field = super().formfield_for_foreignkey(db_field, request, **kwargs)
+        if db_field.name == "section":
+            road_id = request.GET.get("road") or request.GET.get("road__id__exact")
+            if not road_id and request.method == "POST":
+                road_id = request.POST.get("road")
+            if road_id and str(road_id).isdigit():
+                field.queryset = models.RoadSection.objects.filter(
+                    road_id=int(road_id)
+                ).order_by("sequence_on_road")
+            else:
+                field.queryset = models.RoadSection.objects.none()
+        return field
 
     def changeform_view(self, request, object_id=None, form_url="", extra_context=None):
         extra_context = extra_context or {}
