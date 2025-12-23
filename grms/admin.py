@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from io import BytesIO
 from typing import Dict, List, Sequence, Tuple
 
 import csv
@@ -9,26 +10,31 @@ from decimal import Decimal, ROUND_HALF_UP
 from django import forms
 from django.contrib import admin, messages
 from django.contrib.admin import AdminSite
-from django.db.models import Max, Min, Sum
+from django.db.models import Max, Min, Sum, Q
 from django.template.response import TemplateResponse
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import redirect
 from django.urls import path, reverse
+from openpyxl import Workbook
+from django.contrib.admin.widgets import AutocompleteSelect
 
 from . import models
 from .menu import build_menu_groups
+from .admin_utils import valid_autocomplete_fields, valid_list_display
 from traffic.models import TrafficSurveyOverall, TrafficSurveySummary
 from .gis_fields import LineStringField, PointField
+from .admin_cascades import (
+    RoadSectionCascadeAdminMixin,
+    RoadSectionFilterForm,
+    RoadSectionSegmentCascadeAdminMixin,
+    RoadSectionSegmentFilterForm,
+    RoadSectionStructureCascadeAdminMixin,
+)
+from . import admin_geojson, admin_reports
 from .services import map_services, mci_intervention, prioritization, workplan_costs
 from .services.planning import road_ranking, workplans
 from .utils import make_point, point_to_lat_lng, utm_to_wgs84, wgs84_to_utm
 from .utils_labels import fmt_km, road_id, section_id, segment_label, structure_label
-
-try:  # pragma: no cover - depends on spatial libs
-    from django.contrib.gis.forms import OSMWidget
-except Exception:  # pragma: no cover - fallback when GIS libs missing
-    OSMWidget = None
-
 
 UTM_ZONE = 37
 UTM_SRID = 32637
@@ -70,6 +76,116 @@ def _reverse_or_empty(name: str, object_id):
     if not object_id:
         return ""
     return reverse(name, args=[object_id])
+
+
+def _workbook_response(filename: str, workbook: Workbook) -> HttpResponse:
+    buffer = BytesIO()
+    workbook.save(buffer)
+    buffer.seek(0)
+    response = HttpResponse(
+        buffer.getvalue(),
+        content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+    response["Content-Disposition"] = f"attachment; filename={filename}"
+    return response
+
+
+def export_road_segments_to_excel(modeladmin, request, queryset):
+    workbook = Workbook()
+    ws = workbook.active
+    ws.title = "Road segments"
+    ws.append(
+        [
+            "Road ID",
+            "Section",
+            "Segment",
+            "Station from (km)",
+            "Station to (km)",
+            "Cross section",
+            "Terrain (transverse)",
+            "Terrain (longitudinal)",
+        ]
+    )
+    segments = queryset.select_related("section", "section__road")
+    for segment in segments:
+        ws.append(
+            [
+                segment.section.road.road_identifier,
+                section_id(segment.section),
+                segment_label(segment),
+                segment.station_from_km,
+                segment.station_to_km,
+                segment.cross_section,
+                segment.terrain_transverse,
+                segment.terrain_longitudinal,
+            ]
+        )
+    return _workbook_response("road_segments.xlsx", workbook)
+
+
+export_road_segments_to_excel.short_description = "Export selected to Excel"
+
+
+def export_structures_to_excel(modeladmin, request, queryset):
+    workbook = Workbook()
+    ws = workbook.active
+    ws.title = "Structures"
+    ws.append(["Road ID", "Section", "Category", "Structure", "Easting (m)", "Northing (m)"])
+    structures = queryset.select_related("road", "section")
+    for structure in structures:
+        ws.append(
+            [
+                structure.road.road_identifier,
+                section_id(structure.section) if structure.section_id else "",
+                structure.structure_category,
+                structure.structure_name or "",
+                structure.easting_m,
+                structure.northing_m,
+            ]
+        )
+    return _workbook_response("structures.xlsx", workbook)
+
+
+export_structures_to_excel.short_description = "Export selected to Excel"
+
+
+def export_condition_surveys_to_excel(modeladmin, request, queryset):
+    workbook = Workbook()
+    ws = workbook.active
+    ws.title = "Condition surveys"
+    ws.append(["Road ID", "Section", "Segment", "Inspection date", "MCI"])
+    surveys = queryset.select_related("road_segment", "road_segment__section", "road_segment__section__road")
+    for survey in surveys:
+        mci_value = None
+        if getattr(survey, "mci_result", None):
+            mci_value = survey.mci_result.mci_value
+        ws.append(
+            [
+                survey.road_segment.section.road.road_identifier,
+                section_id(survey.road_segment.section),
+                segment_label(survey.road_segment),
+                survey.inspection_date,
+                mci_value,
+            ]
+        )
+    return _workbook_response("condition_surveys.xlsx", workbook)
+
+
+export_condition_surveys_to_excel.short_description = "Export selected to Excel"
+
+
+def _overlay_map_config(road_id=None, section_id=None, current_id=None):
+    return {
+        "road_id": road_id,
+        "section_id": section_id,
+        "current_id": current_id,
+        "urls": {
+            "road": reverse("grms-geojson-road"),
+            "sections": reverse("grms-geojson-sections"),
+            "segments": reverse("grms-geojson-segments"),
+            "structures": reverse("grms-geojson-structures"),
+        },
+    }
 
 
 def _coordinates_to_wgs84(coords, srid):
@@ -198,6 +314,85 @@ class GRMSAdminSite(AdminSite):
         """Build menu groups dynamically from the registered admin models."""
         self.MENU_GROUPS = build_menu_groups(self)
         return self.MENU_GROUPS
+
+    def get_urls(self):
+        urls = super().get_urls()
+        custom = [
+            path("grms/reports/", self.admin_view(admin_reports.reports_index_view), name="grms-reports-index"),
+            path(
+                "grms/reports/road-inventory.xlsx",
+                self.admin_view(admin_reports.road_inventory_report_view),
+                name="grms-reports-road-inventory",
+            ),
+            path(
+                "grms/reports/structure-inventory.xlsx",
+                self.admin_view(admin_reports.structure_inventory_report_view),
+                name="grms-reports-structure-inventory",
+            ),
+            path(
+                "grms/reports/condition-surveys.xlsx",
+                self.admin_view(admin_reports.condition_survey_report_view),
+                name="grms-reports-condition-surveys",
+            ),
+            path("grms/geojson/road/", self.admin_view(admin_geojson.road_geojson_view), name="grms-geojson-road"),
+            path(
+                "grms/geojson/sections/",
+                self.admin_view(admin_geojson.sections_geojson_view),
+                name="grms-geojson-sections",
+            ),
+            path(
+                "grms/geojson/segments/",
+                self.admin_view(admin_geojson.segments_geojson_view),
+                name="grms-geojson-segments",
+            ),
+            path(
+                "grms/geojson/structures/",
+                self.admin_view(admin_geojson.structures_geojson_view),
+                name="grms-geojson-structures",
+            ),
+            path(
+                "grms/road-autocomplete/",
+                self.admin_view(self.road_autocomplete_view),
+                name="grms-road-autocomplete",
+            ),
+            path(
+                "grms/section-autocomplete/",
+                self.admin_view(self.section_autocomplete_view),
+                name="grms-section-autocomplete",
+            ),
+        ]
+        return custom + urls
+
+    def road_autocomplete_view(self, request):
+        term = request.GET.get("q", "").strip()
+        qs = models.Road.objects.all()
+        if term:
+            qs = qs.filter(
+                Q(road_identifier__icontains=term)
+                | Q(road_name_from__icontains=term)
+                | Q(road_name_to__icontains=term)
+            )
+        results = [
+            {"id": road.id, "label": str(road)} for road in qs.order_by("road_identifier")[:50]
+        ]
+        return JsonResponse({"results": results})
+
+    def section_autocomplete_view(self, request):
+        term = request.GET.get("q", "").strip()
+        road_id = request.GET.get("road_id")
+        qs = models.RoadSection.objects.all()
+        if road_id and road_id.isdigit():
+            qs = qs.filter(road_id=int(road_id))
+        if term:
+            qs = qs.filter(
+                Q(section_number__icontains=term)
+                | Q(name__icontains=term)
+                | Q(road__road_identifier__icontains=term)
+            )
+        results = [
+            {"id": section.id, "label": str(section)} for section in qs.order_by("section_number")[:50]
+        ]
+        return JsonResponse({"results": results})
 
     @staticmethod
     def _normalise(name: str) -> str:
@@ -621,11 +816,11 @@ class RoadAdminForm(forms.ModelForm):
 class SectionScopedAdmin(admin.ModelAdmin):
     def formfield_for_foreignkey(self, db_field, request, **kwargs):
         if db_field.name == "section":
-            road_id = request.GET.get("road")
+            road_id = request.POST.get("road") or request.GET.get("road")
             if road_id:
                 kwargs["queryset"] = models.RoadSection.objects.filter(road_id=road_id)
         if db_field.name in {"road_segment", "segment"}:
-            section_id = request.GET.get("section")
+            section_id = request.POST.get("section") or request.GET.get("section")
             if section_id:
                 kwargs["queryset"] = models.RoadSegment.objects.filter(section_id=section_id)
         return super().formfield_for_foreignkey(db_field, request, **kwargs)
@@ -656,6 +851,7 @@ class RoadAdmin(SectionScopedAdmin):
         "admin_woreda__name",
         "admin_zone__name",
     )
+    autocomplete_fields = ("admin_zone", "admin_woreda")
     change_form_template = "admin/grms/road/change_form.html"
     fieldsets = (
         (
@@ -1047,6 +1243,50 @@ class RoadLinkTypeLookupAdmin(admin.ModelAdmin):
     )
 
 
+@admin.register(models.QAStatus, site=grms_admin_site)
+class QAStatusAdmin(admin.ModelAdmin):
+    list_display = ("status",)
+    search_fields = ("status",)
+
+
+@admin.register(models.ActivityLookup, site=grms_admin_site)
+class ActivityLookupAdmin(admin.ModelAdmin):
+    list_display = ("activity_code", "activity_name", "default_unit", "is_resource_based")
+    search_fields = ("activity_code", "activity_name", "notes")
+
+
+@admin.register(models.DistressType, site=grms_admin_site)
+class DistressTypeAdmin(admin.ModelAdmin):
+    list_display = ("distress_code", "distress_name", "category")
+    list_filter = ("category",)
+    search_fields = ("distress_code", "distress_name", "notes")
+
+
+@admin.register(models.DistressCondition, site=grms_admin_site)
+class DistressConditionAdmin(admin.ModelAdmin):
+    list_display = ("distress", "severity_code", "extent_code")
+    search_fields = ("distress__distress_code", "distress__distress_name", "condition_notes")
+    autocomplete_fields = ("distress",)
+
+
+@admin.register(models.DistressActivity, site=grms_admin_site)
+class DistressActivityAdmin(admin.ModelAdmin):
+    list_display = ("distress_condition", "activity", "scale_basis")
+    search_fields = (
+        "distress_condition__distress__distress_code",
+        "activity__activity_name",
+        "notes",
+    )
+    autocomplete_fields = ("distress_condition", "activity")
+
+
+@admin.register(models.UnitCost, site=grms_admin_site)
+class UnitCostAdmin(admin.ModelAdmin):
+    list_display = ("intervention", "region", "unit_cost", "effective_date", "expiry_date")
+    search_fields = ("intervention__intervention_code", "intervention__name", "region", "notes")
+    autocomplete_fields = ("intervention",)
+
+
 @admin.register(models.AdminZone, site=grms_admin_site)
 class AdminZoneAdmin(admin.ModelAdmin):
     list_display = ("name", "region")
@@ -1108,6 +1348,7 @@ class InterventionWorkItemAdmin(admin.ModelAdmin):
     list_display = ("work_code", "description", "category", "unit", "unit_cost")
     list_filter = ("category",)
     search_fields = ("work_code", "description", "category__name")
+    autocomplete_fields = ("category",)
     fieldsets = (
         ("Work item", {"fields": ("category", "work_code", "description")}),
         ("Measurement", {"fields": ("unit", "unit_cost")}),
@@ -1125,6 +1366,7 @@ class ConditionFactorLookupAdmin(admin.ModelAdmin):
 class MCIWeightConfigAdmin(admin.ModelAdmin):
     list_display = ("name", "effective_from", "effective_to", "is_active")
     list_filter = ("is_active",)
+    search_fields = ("name",)
 
 
 @admin.register(models.MCICategoryLookup, site=grms_admin_site)
@@ -1163,15 +1405,8 @@ class SegmentMCIResultAdmin(SectionScopedAdmin):
     list_filter = ("survey_date", "rating")
     readonly_fields = ("computed_at",)
 
-from django.contrib import admin
-from django.db.models import Prefetch
 
-from grms.admin import grms_admin_site
-from grms.models import (
-    SegmentInterventionRecommendation,
-    StructureInterventionRecommendation,
-)
-@admin.register(SegmentInterventionRecommendation, site=grms_admin_site)
+@admin.register(models.SegmentInterventionRecommendation, site=grms_admin_site)
 class SegmentInterventionRecommendationAdmin(SectionScopedAdmin):
     list_display = ("road", "section", "segment", "mci_value", "recommended_item")
     search_fields = (
@@ -1180,6 +1415,7 @@ class SegmentInterventionRecommendationAdmin(SectionScopedAdmin):
     )
     list_select_related = ("segment", "segment__section", "segment__section__road", "recommended_item")
     list_filter = ("recommended_item__category", "recommended_item__work_code")
+    autocomplete_fields = ("segment", "recommended_item")
 
     def road(self, obj):
         return road_id(obj.segment.section.road)
@@ -1191,11 +1427,12 @@ class SegmentInterventionRecommendationAdmin(SectionScopedAdmin):
         return segment_label(obj.segment)
 
 
-@admin.register(StructureInterventionRecommendation, site=grms_admin_site)
+@admin.register(models.StructureInterventionRecommendation, site=grms_admin_site)
 class StructureInterventionRecommendationAdmin(admin.ModelAdmin):
     list_display = ("structure_desc", "condition_code", "recommended_item_display")
     search_fields = ("structure__road__road_identifier", "structure__structure_category")
     list_select_related = ("structure", "structure__road", "structure__section", "recommended_item")
+    autocomplete_fields = ("structure", "recommended_item")
 
     def structure_desc(self, obj):
         return structure_label(obj.structure)
@@ -1208,7 +1445,7 @@ class StructureInterventionRecommendationAdmin(admin.ModelAdmin):
         return f"{wi.work_code} - {wi.description}"
 
 @admin.register(models.RoadSection, site=grms_admin_site)
-class RoadSectionAdmin(SectionScopedAdmin):
+class RoadSectionAdmin(RoadSectionCascadeAdminMixin, SectionScopedAdmin):
     form = RoadSectionAdminForm
     list_display = (
         "road",
@@ -1217,10 +1454,18 @@ class RoadSectionAdmin(SectionScopedAdmin):
         "length_km",
         "surface_type",
     )
-    list_filter = ("road", "admin_zone_override", "admin_woreda_override", "surface_type")
-    search_fields = ("road__road_name_from", "road__road_name_to", "name")
+    list_filter = ("admin_zone_override", "admin_woreda_override", "surface_type")
+    search_fields = (
+        "section_number",
+        "name",
+        "road__road_identifier",
+        "road__road_name_from",
+        "road__road_name_to",
+    )
+    autocomplete_fields = ("road", "admin_zone_override", "admin_woreda_override")
     readonly_fields = ("section_number", "sequence_on_road", "length_km")
     change_form_template = "admin/roadsection_change_form.html"
+    change_list_template = "admin/grms/change_list_with_road_filter.html"
     fieldsets = (
         ("Parent road", {"fields": ("road",)}),
         (
@@ -1301,9 +1546,15 @@ class RoadSectionAdmin(SectionScopedAdmin):
     def changeform_view(self, request, object_id=None, form_url="", extra_context=None):
         extra_context = extra_context or {}
         instance = self.get_object(request, object_id)
-        extra_context["map_admin_config"] = self._build_map_config(instance, request=request)
-        extra_context["travel_modes"] = sorted(map_services.TRAVEL_MODES)
+        road_id = instance.road_id if instance else request.GET.get("road")
+        section_id = instance.id if instance else None
+        extra_context["overlay_map_config"] = _overlay_map_config(
+            road_id=road_id,
+            section_id=section_id,
+            current_id=section_id,
+        )
         return super().changeform_view(request, object_id, form_url, extra_context)
+
 
     def _build_map_config(self, section, request=None):
         road = getattr(section, "road", None)
@@ -1427,8 +1678,33 @@ class RoadSectionAdmin(SectionScopedAdmin):
         }
 
 
+class RoadSegmentAdminForm(RoadSectionFilterForm):
+    class Meta:
+        model = models.RoadSegment
+        fields = "__all__"
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        instance = self.instance
+        if instance and getattr(instance, "section_id", None):
+            self.fields["road"].initial = instance.section.road
+        road_rel = models.RoadSection._meta.get_field("road").remote_field
+        self.fields["road"].widget = AutocompleteSelect(road_rel, grms_admin_site)
+
+    def clean(self):
+        cleaned = super().clean()
+        road = cleaned.get("road")
+        section = cleaned.get("section")
+        if road and section and section.road_id != road.id:
+            raise forms.ValidationError({"section": "Selected section must belong to the chosen road."})
+        if road and not section:
+            raise forms.ValidationError({"section": "Select a section for the chosen road."})
+        return cleaned
+
+
 @admin.register(models.RoadSegment, site=grms_admin_site)
-class RoadSegmentAdmin(SectionScopedAdmin):
+class RoadSegmentAdmin(RoadSectionCascadeAdminMixin, SectionScopedAdmin):
+    form = RoadSegmentAdminForm
     list_display = (
         "section_label",
         "segment_label",
@@ -1436,11 +1712,19 @@ class RoadSegmentAdmin(SectionScopedAdmin):
         "station_to_km",
         "cross_section",
     )
-    search_fields = ("section__road__road_name_from", "section__road__road_name_to")
-    list_filter = ("section", "terrain_longitudinal", "terrain_transverse")
+    search_fields = (
+        "section__section_number",
+        "section__road__road_identifier",
+        "section__road__road_name_from",
+        "section__road__road_name_to",
+    )
+    list_filter = ("terrain_longitudinal", "terrain_transverse")
+    autocomplete_fields = ("section",)
+    actions = [export_road_segments_to_excel]
     change_form_template = "admin/grms/roadsegment/change_form.html"
+    change_list_template = "admin/grms/change_list_with_road_filter.html"
     fieldsets = (
-        ("Identification", {"fields": ("section",)}),
+        ("Identification", {"fields": ("road", "section")}),
         (
             "Location & geometry",
             {"fields": (("station_from_km", "station_to_km"), "carriageway_width_m")},
@@ -1476,11 +1760,33 @@ class RoadSegmentAdmin(SectionScopedAdmin):
     def segment_label(self, obj):
         return obj.segment_identifier or obj.segment_label
 
+    class Media:
+        js = ("grms/admin/cascade_road_section_segment.js",)
+
     def changeform_view(self, request, object_id=None, form_url="", extra_context=None):
         extra_context = extra_context or {}
         instance = self.get_object(request, object_id)
-        extra_context["map_admin_config"] = self._build_map_config(instance) if instance else None
+        if instance:
+            road_id = instance.section.road_id
+            section_id = instance.section_id
+            current_id = instance.id
+        else:
+            road_id = request.GET.get("road")
+            section_id = request.GET.get("section")
+            current_id = None
+        extra_context["overlay_map_config"] = _overlay_map_config(
+            road_id=road_id,
+            section_id=section_id,
+            current_id=current_id,
+        )
         return super().changeform_view(request, object_id, form_url, extra_context)
+
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        road_id = request.GET.get("road__id__exact")
+        if road_id and road_id.isdigit():
+            qs = qs.filter(section__road_id=int(road_id))
+        return qs
 
     def _build_map_config(self, segment):
         if not segment:
@@ -1520,25 +1826,8 @@ class RoadSegmentAdmin(SectionScopedAdmin):
 
 
 @admin.register(models.StructureInventory, site=grms_admin_site)
-class StructureInventoryAdmin(SectionScopedAdmin):
+class StructureInventoryAdmin(RoadSectionCascadeAdminMixin, SectionScopedAdmin):
     class StructureInventoryAdminForm(forms.ModelForm):
-        easting = forms.DecimalField(
-            label="Easting (m)",
-            max_digits=12,
-            decimal_places=2,
-            required=False,
-            help_text="UTM Easting in meters (e.g., 512345.67).",
-            widget=forms.NumberInput(attrs={"step": "0.01"}),
-        )
-        northing = forms.DecimalField(
-            label="Northing (m)",
-            max_digits=12,
-            decimal_places=2,
-            required=False,
-            help_text="UTM Northing in meters (e.g., 1554321.89).",
-            widget=forms.NumberInput(attrs={"step": "0.01"}),
-        )
-
         class Meta:
             model = models.StructureInventory
             fields = "__all__"
@@ -1550,32 +1839,30 @@ class StructureInventoryAdmin(SectionScopedAdmin):
             instance = self.instance
             if instance and getattr(instance, "location_point", None):
                 easting, northing = _point_to_utm(instance.location_point)
-                if easting is not None:
-                    self.fields["easting"].initial = float(easting)
-                if northing is not None:
-                    self.fields["northing"].initial = float(northing)
+                if easting is not None and instance.easting_m is None:
+                    self.fields["easting_m"].initial = float(easting)
+                if northing is not None and instance.northing_m is None:
+                    self.fields["northing_m"].initial = float(northing)
 
         def clean(self):
             cleaned = super().clean()
-            easting = cleaned.get("easting")
-            northing = cleaned.get("northing")
+            easting = cleaned.get("easting_m")
+            northing = cleaned.get("northing_m")
             station_km = cleaned.get("station_km")
             geometry_type = cleaned.get("geometry_type") or getattr(
                 self.instance, "geometry_type", models.StructureInventory.POINT
             )
-            location_point = cleaned.get("location_point")
 
             if (easting is None) ^ (northing is None):
-                missing = "northing" if easting is not None else "easting"
+                missing = "northing_m" if easting is not None else "easting_m"
                 raise forms.ValidationError({missing: "Provide both Easting and Northing."})
 
-            if easting is not None and northing is not None:
-                cleaned["location_point"] = _utm_point(easting, northing)
-
+            has_en = easting is not None and northing is not None
             if (
                 geometry_type == models.StructureInventory.POINT
                 and cleaned.get("location_point") is None
                 and station_km is None
+                and not has_en
             ):
                 raise forms.ValidationError(
                     "Provide Easting & Northing, or Chainage (km), or select a Location point on the map."
@@ -1583,31 +1870,21 @@ class StructureInventoryAdmin(SectionScopedAdmin):
 
             return cleaned
 
-        def save(self, commit=True):
-            instance = super().save(commit=False)
-
-            easting = self.cleaned_data.get("easting")
-            northing = self.cleaned_data.get("northing")
-            if easting is not None and northing is not None:
-                instance.location_point = self.cleaned_data.get("location_point")
-
-            if commit:
-                instance.save()
-                self.save_m2m()
-            return instance
-
-    geometry_widget = (
-        OSMWidget(attrs={"map_width": 800, "map_height": 500})
-        if OSMWidget
-        else forms.Textarea(attrs={"rows": 3})
-    )
+    geometry_widget = forms.Textarea(attrs={"rows": 3})
 
     list_display = ("label", "structure_category", "road", "section")
     list_filter = ("structure_category", "geometry_type")
-    search_fields = ("road__road_identifier", "structure_category")
+    search_fields = (
+        "structure_name",
+        "road__road_identifier",
+        "section__section_number",
+        "structure_category",
+    )
     list_select_related = ("road", "section")
-    readonly_fields = ("created_date", "modified_date")
+    readonly_fields = ("created_date", "modified_date", "derived_lat_lng")
     form = StructureInventoryAdminForm
+    autocomplete_fields = ("road", "section")
+    actions = [export_structures_to_excel]
     formfield_overrides = {
         PointField: {"widget": geometry_widget},
         LineStringField: {"widget": geometry_widget},
@@ -1630,8 +1907,9 @@ class StructureInventoryAdmin(SectionScopedAdmin):
             {
                 "classes": ("structure-point",),
                 "fields": (
-                    ("easting", "northing"),
+                    ("easting_m", "northing_m", "utm_zone"),
                     "location_point",
+                    "derived_lat_lng",
                 ),
             },
         ),
@@ -1659,7 +1937,32 @@ class StructureInventoryAdmin(SectionScopedAdmin):
     )
 
     class Media:
-        js = ("grms/js/structure-inventory-admin.js", "grms/js/structureinventory_overlay.js")
+        js = (
+            "grms/js/structure-inventory-admin.js",
+            "grms/admin/cascade_road_section_segment.js",
+        )
+
+    def derived_lat_lng(self, obj):
+        point = _point_to_wgs84(obj.location_point) if obj and obj.location_point else None
+        if not point:
+            return "—"
+        return f"{point['lat']:.6f}, {point['lng']:.6f}"
+
+
+    derived_lat_lng.short_description = "Lat/Lng"
+
+    def changeform_view(self, request, object_id=None, form_url="", extra_context=None):
+        extra_context = extra_context or {}
+        instance = self.get_object(request, object_id)
+        road_id = instance.road_id if instance else request.GET.get("road")
+        section_id = instance.section_id if instance else request.GET.get("section")
+        current_id = instance.id if instance else None
+        extra_context["overlay_map_config"] = _overlay_map_config(
+            road_id=road_id,
+            section_id=section_id,
+            current_id=current_id,
+        )
+        return super().changeform_view(request, object_id, form_url, extra_context)
 
     def label(self, obj):
         return structure_label(obj)
@@ -1723,11 +2026,68 @@ class StructureInventoryAdmin(SectionScopedAdmin):
         return JsonResponse({"type": "FeatureCollection", "features": features})
 
 
+class StructureDetailOverlayMixin:
+    def changeform_view(self, request, object_id=None, form_url="", extra_context=None):
+        extra_context = extra_context or {}
+        instance = self.get_object(request, object_id)
+        structure = getattr(instance, "structure", None) if instance else None
+        road_id = structure.road_id if structure else request.GET.get("road")
+        section_id = structure.section_id if structure else request.GET.get("section")
+        current_id = structure.id if structure else None
+        extra_context["overlay_map_config"] = _overlay_map_config(
+            road_id=road_id,
+            section_id=section_id,
+            current_id=current_id,
+        )
+        return super().changeform_view(request, object_id, form_url, extra_context)
+
+
+class StructureDetailFilterForm(RoadSectionSegmentFilterForm):
+    structure_category: str | None = None
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        instance = self.instance
+        if instance and getattr(instance, "structure_id", None):
+            structure = instance.structure
+            self.fields["road"].initial = structure.road
+            self.fields["section"].initial = structure.section
+
+    def clean(self):
+        cleaned = super().clean()
+        road = cleaned.get("road")
+        section = cleaned.get("section")
+        structure = cleaned.get("structure")
+
+        if structure:
+            if road and structure.road_id != road.id:
+                raise forms.ValidationError({"structure": "Selected structure must belong to the chosen road."})
+            if section and structure.section_id != section.id:
+                raise forms.ValidationError({"structure": "Selected structure must belong to the chosen section."})
+            if self.structure_category and structure.structure_category != self.structure_category:
+                raise forms.ValidationError({"structure": "Selected structure must match the required category."})
+        return cleaned
+
+
+class BridgeDetailForm(StructureDetailFilterForm):
+    structure_category = "Bridge"
+
+    class Meta:
+        model = models.BridgeDetail
+        fields = "__all__"
+
+
 @admin.register(models.BridgeDetail, site=grms_admin_site)
-class BridgeDetailAdmin(admin.ModelAdmin):
+class BridgeDetailAdmin(StructureDetailOverlayMixin, RoadSectionStructureCascadeAdminMixin, admin.ModelAdmin):
+    form = BridgeDetailForm
+    structure_category_codes = ("Bridge",)
     list_display = ("structure", "bridge_type", "span_count", "has_head_walls")
+    autocomplete_fields = ("structure",)
+    change_form_template = "admin/grms/structure_detail/change_form.html"
+    class Media:
+        js = ("grms/admin/cascade_structure_detail.js",)
     fieldsets = (
-        ("Structure", {"fields": ("structure",)}),
+        ("Structure", {"fields": ("road", "section", "structure")}),
         (
             "Bridge details",
             {
@@ -1741,50 +2101,53 @@ class BridgeDetailAdmin(admin.ModelAdmin):
     )
 
 
+class CulvertDetailForm(StructureDetailFilterForm):
+    structure_category = "Culvert"
+
+    class Meta:
+        model = models.CulvertDetail
+        fields = "__all__"
+
+    class Media:
+        js = ("grms/js/culvert-detail-admin.js",)
+
+    slab_box_fields = ("width_m", "span_m", "clear_height_m")
+    pipe_fields = ("num_pipes", "pipe_diameter_m")
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        culvert_type = self.initial.get("culvert_type") or getattr(self.instance, "culvert_type", None)
+        self._apply_field_state(culvert_type)
+
+    def _apply_field_state(self, culvert_type: str | None):
+        def set_disabled(field_names, disabled: bool):
+            for name in field_names:
+                field = self.fields.get(name)
+                if not field:
+                    continue
+                field.disabled = disabled
+                if disabled:
+                    field.widget.attrs["aria-disabled"] = "true"
+                else:
+                    field.widget.attrs.pop("aria-disabled", None)
+
+        if culvert_type in {"Slab Culvert", "Box Culvert"}:
+            set_disabled(self.pipe_fields, True)
+            set_disabled(self.slab_box_fields, False)
+        elif culvert_type == "Pipe Culvert":
+            set_disabled(self.slab_box_fields, True)
+            set_disabled(self.pipe_fields, False)
+        else:
+            set_disabled(self.pipe_fields, False)
+            set_disabled(self.slab_box_fields, False)
+
+
 @admin.register(models.CulvertDetail, site=grms_admin_site)
-class CulvertDetailAdmin(admin.ModelAdmin):
-    class CulvertDetailForm(forms.ModelForm):
-        class Media:
-            js = ("grms/js/culvert-detail-admin.js",)
-
-        class Meta:
-            model = models.CulvertDetail
-            fields = "__all__"
-
-        slab_box_fields = ("width_m", "span_m", "clear_height_m")
-        pipe_fields = ("num_pipes", "pipe_diameter_m")
-
-        def __init__(self, *args, **kwargs):
-            super().__init__(*args, **kwargs)
-            culvert_type = (
-                self.initial.get("culvert_type")
-                or getattr(self.instance, "culvert_type", None)
-            )
-            self._apply_field_state(culvert_type)
-
-        def _apply_field_state(self, culvert_type: str | None):
-            def set_disabled(field_names, disabled: bool):
-                for name in field_names:
-                    field = self.fields.get(name)
-                    if not field:
-                        continue
-                    field.disabled = disabled
-                    if disabled:
-                        field.widget.attrs["aria-disabled"] = "true"
-                    else:
-                        field.widget.attrs.pop("aria-disabled", None)
-
-            if culvert_type in {"Slab Culvert", "Box Culvert"}:
-                set_disabled(self.pipe_fields, True)
-                set_disabled(self.slab_box_fields, False)
-            elif culvert_type == "Pipe Culvert":
-                set_disabled(self.slab_box_fields, True)
-                set_disabled(self.pipe_fields, False)
-            else:
-                set_disabled(self.pipe_fields, False)
-                set_disabled(self.slab_box_fields, False)
-
+class CulvertDetailAdmin(StructureDetailOverlayMixin, RoadSectionStructureCascadeAdminMixin, admin.ModelAdmin):
     form = CulvertDetailForm
+    structure_category_codes = ("Culvert",)
+    autocomplete_fields = ("structure",)
+    change_form_template = "admin/grms/structure_detail/change_form.html"
     list_display = (
         "structure",
         "culvert_type",
@@ -1796,7 +2159,7 @@ class CulvertDetailAdmin(admin.ModelAdmin):
         "has_head_walls",
     )
     fieldsets = (
-        ("Structure", {"fields": ("structure",)}),
+        ("Structure", {"fields": ("road", "section", "structure")}),
         ("Culvert type", {"fields": ("culvert_type",)}),
         (
             "Slab/Box dimensions",
@@ -1805,6 +2168,68 @@ class CulvertDetailAdmin(admin.ModelAdmin):
         ("Pipe details", {"fields": (("num_pipes", "pipe_diameter_m"),)}),
         ("Head walls", {"fields": ("has_head_walls",)}),
     )
+    class Media:
+        js = ("grms/admin/cascade_structure_detail.js", "grms/js/culvert-detail-admin.js")
+
+
+class FordDetailForm(StructureDetailFilterForm):
+    structure_category = "Ford"
+
+    class Meta:
+        model = models.FordDetail
+        fields = "__all__"
+
+
+@admin.register(models.FordDetail, site=grms_admin_site)
+class FordDetailAdmin(StructureDetailOverlayMixin, RoadSectionStructureCascadeAdminMixin, admin.ModelAdmin):
+    form = FordDetailForm
+    structure_category_codes = ("Ford",)
+    autocomplete_fields = ("structure",)
+    change_form_template = "admin/grms/structure_detail/change_form.html"
+    list_display = ("structure",)
+    fieldsets = (("Structure", {"fields": ("road", "section", "structure")}),)
+    class Media:
+        js = ("grms/admin/cascade_structure_detail.js",)
+
+
+class RetainingWallDetailForm(StructureDetailFilterForm):
+    structure_category = "Retaining Wall"
+
+    class Meta:
+        model = models.RetainingWallDetail
+        fields = "__all__"
+
+
+@admin.register(models.RetainingWallDetail, site=grms_admin_site)
+class RetainingWallDetailAdmin(StructureDetailOverlayMixin, RoadSectionStructureCascadeAdminMixin, admin.ModelAdmin):
+    form = RetainingWallDetailForm
+    structure_category_codes = ("Retaining Wall",)
+    autocomplete_fields = ("structure",)
+    change_form_template = "admin/grms/structure_detail/change_form.html"
+    list_display = ("structure",)
+    fieldsets = (("Structure", {"fields": ("road", "section", "structure")}),)
+    class Media:
+        js = ("grms/admin/cascade_structure_detail.js",)
+
+
+class GabionWallDetailForm(StructureDetailFilterForm):
+    structure_category = "Gabion Wall"
+
+    class Meta:
+        model = models.GabionWallDetail
+        fields = "__all__"
+
+
+@admin.register(models.GabionWallDetail, site=grms_admin_site)
+class GabionWallDetailAdmin(StructureDetailOverlayMixin, RoadSectionStructureCascadeAdminMixin, admin.ModelAdmin):
+    form = GabionWallDetailForm
+    structure_category_codes = ("Gabion Wall",)
+    autocomplete_fields = ("structure",)
+    change_form_template = "admin/grms/structure_detail/change_form.html"
+    list_display = ("structure",)
+    fieldsets = (("Structure", {"fields": ("road", "section", "structure")}),)
+    class Media:
+        js = ("grms/admin/cascade_structure_detail.js",)
 
 
 @admin.register(models.FurnitureInventory, site=grms_admin_site)
@@ -1848,6 +2273,7 @@ class StructureConditionSurveyAdmin(admin.ModelAdmin):
     search_fields = ("structure__road__road_identifier", "structure__structure_category")
     list_select_related = ("structure", "structure__road")
     readonly_fields = ("created_at", "modified_at")
+    autocomplete_fields = ("structure", "condition_code", "condition_rating", "qa_status")
     fieldsets = (
         ("Structure", {"fields": ("structure",)}),
         (
@@ -1877,6 +2303,7 @@ class StructureConditionSurveyAdmin(admin.ModelAdmin):
 class StructureConditionLookupAdmin(admin.ModelAdmin):
     list_display = ("code", "name", "description")
     ordering = ("code",)
+    search_fields = ("code", "name", "description")
 
 
 @admin.register(models.StructureConditionInterventionRule, site=grms_admin_site)
@@ -1884,15 +2311,70 @@ class StructureConditionInterventionRuleAdmin(admin.ModelAdmin):
     list_display = ("structure_type", "condition", "intervention_item", "is_active")
     list_filter = ("structure_type", "is_active")
     ordering = ("structure_type", "condition__code")
+    autocomplete_fields = ("condition", "intervention_item")
+
+
+class RoadConditionSurveyForm(RoadSectionSegmentFilterForm):
+    class Meta:
+        model = models.RoadConditionSurvey
+        fields = "__all__"
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        instance = self.instance
+        if instance and getattr(instance, "road_segment_id", None):
+            segment = instance.road_segment
+            self.fields["road"].initial = segment.section.road
+            self.fields["section"].initial = segment.section
+
+    def clean(self):
+        cleaned = super().clean()
+        road = cleaned.get("road")
+        section = cleaned.get("section")
+        segment = cleaned.get("road_segment")
+
+        if segment:
+            if road and segment.section.road_id != road.id:
+                raise forms.ValidationError({"road_segment": "Segment must belong to the chosen road."})
+            if section and segment.section_id != section.id:
+                raise forms.ValidationError({"road_segment": "Segment must belong to the chosen section."})
+        return cleaned
+
 
 @admin.register(models.RoadConditionSurvey, site=grms_admin_site)
-class RoadConditionSurveyAdmin(SectionScopedAdmin):
+class RoadConditionSurveyAdmin(RoadSectionSegmentCascadeAdminMixin, SectionScopedAdmin):
+    form = RoadConditionSurveyForm
     list_display = ("road_segment", "inspection_date", "is_there_bottleneck")
     list_filter = ("inspection_date", "is_there_bottleneck")
+    search_fields = ("road_segment__section__road__road_identifier", "road_segment__segment_identifier")
+    autocomplete_fields = (
+        "road_segment",
+        "drainage_left",
+        "drainage_right",
+        "shoulder_left",
+        "shoulder_right",
+        "surface_condition",
+    )
+    actions = [export_condition_surveys_to_excel]
+
+    class Media:
+        js = ("grms/admin/cascade_road_section_segment.js",)
+
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        road_id = request.GET.get("road__id__exact")
+        if road_id and road_id.isdigit():
+            qs = qs.filter(road_segment__section__road_id=int(road_id))
+        section_id = request.GET.get("section__id__exact")
+        if section_id and section_id.isdigit():
+            qs = qs.filter(road_segment__section_id=int(section_id))
+        return qs
 
     fieldsets = (
         ("Survey Info", {
             "fields": (
+                "road",
+                "section",
                 "road_segment",
                 ("inspection_date", "inspected_by"),
             )
@@ -1928,6 +2410,7 @@ class FurnitureConditionSurveyAdmin(admin.ModelAdmin):
     list_display = ("furniture", "survey_year", "condition_rating")
     list_filter = ("survey_year", "condition_rating")
     readonly_fields = ("created_at",)
+    autocomplete_fields = ("furniture", "condition_rating", "qa_status")
     fieldsets = (
         ("Furniture", {"fields": ("furniture",)}),
         (
@@ -1947,11 +2430,53 @@ class FurnitureConditionSurveyAdmin(admin.ModelAdmin):
     )
 
 
+class RoadConditionDetailedSurveyForm(RoadSectionSegmentFilterForm):
+    class Meta:
+        model = models.RoadConditionDetailedSurvey
+        fields = "__all__"
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        instance = self.instance
+        if instance and getattr(instance, "road_segment_id", None):
+            segment = instance.road_segment
+            self.fields["road"].initial = segment.section.road
+            self.fields["section"].initial = segment.section
+
+    def clean(self):
+        cleaned = super().clean()
+        road = cleaned.get("road")
+        section = cleaned.get("section")
+        segment = cleaned.get("road_segment")
+
+        if segment:
+            if road and segment.section.road_id != road.id:
+                raise forms.ValidationError({"road_segment": "Segment must belong to the chosen road."})
+            if section and segment.section_id != section.id:
+                raise forms.ValidationError({"road_segment": "Segment must belong to the chosen section."})
+        return cleaned
+
+
 @admin.register(models.RoadConditionDetailedSurvey, site=grms_admin_site)
 class RoadConditionDetailedSurveyAdmin(SectionScopedAdmin):
     autocomplete_fields = ("awp", "road_segment", "distress", "distress_condition", "activity", "qa_status")
     list_display = ("road_segment", "distress", "survey_level", "inspection_date")
     list_filter = ("survey_level", "inspection_date", "qa_status")
+    search_fields = ("road_segment__section__road__road_identifier", "distress__name")
+    autocomplete_fields = ("road_segment", "distress", "distress_condition", "activity", "qa_status", "awp")
+
+    class Media:
+        js = ("grms/admin/cascade_road_section_segment.js",)
+
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        road_id = request.GET.get("road__id__exact")
+        if road_id and road_id.isdigit():
+            qs = qs.filter(road_segment__section__road_id=int(road_id))
+        section_id = request.GET.get("section__id__exact")
+        if section_id and section_id.isdigit():
+            qs = qs.filter(road_segment__section_id=int(section_id))
+        return qs
     fieldsets = (
         (
             "Survey context",
@@ -1959,6 +2484,8 @@ class RoadConditionDetailedSurveyAdmin(SectionScopedAdmin):
                 "fields": (
                     "survey_level",
                     "awp",
+                    "road",
+                    "section",
                     "road_segment",
                     "inspected_by",
                     "inspection_date",
@@ -2013,6 +2540,7 @@ class StructureConditionDetailedSurveyAdmin(admin.ModelAdmin):
     autocomplete_fields = ("awp", "structure", "distress", "distress_condition", "activity", "qa_status")
     list_display = ("structure", "distress", "survey_level", "inspection_date")
     list_filter = ("survey_level", "inspection_date")
+    autocomplete_fields = ("structure", "distress", "distress_condition", "activity", "qa_status", "awp")
     fieldsets = (
         (
             "Survey context",
@@ -2130,6 +2658,7 @@ class RoadSocioEconomicAdmin(admin.ModelAdmin):
     )
     list_filter = ("road__admin_zone", "road__admin_woreda")
     search_fields = ("road__road_identifier", "road__road_name_from", "road__road_name_to")
+    autocomplete_fields = ("road", "road_link_type")
     fieldsets = (
         ("Context", {"fields": ("road", "population_served", "road_link_type", "notes")}),
         (
@@ -2316,3 +2845,6 @@ for model in [
 ]:
     if not grms_admin_site.is_registered(model):
         grms_admin_site.register(model)
+
+if not grms_admin_site.is_registered(models.DistressActivity):
+    grms_admin_site.register(models.DistressActivity, DistressActivityAdmin)
