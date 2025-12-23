@@ -11,7 +11,7 @@
         var isLine = ["Retaining Wall", "Gabion Wall"].indexOf(category) !== -1;
         var pointSections = document.querySelectorAll(".structure-point");
         var lineSections = document.querySelectorAll(".structure-line");
-        var pointFields = ["station_km", "location_point", "easting", "northing"];
+        var pointFields = ["station_km", "location_point", "easting_m", "northing_m", "utm_zone"];
         var lineFields = ["start_chainage_km", "end_chainage_km", "location_line"];
 
         pointSections.forEach(function (section) {
