@@ -22,7 +22,7 @@ from .models import (
 
 @admin.register(TrafficSurvey, site=grms_admin_site)
 class TrafficSurveyAdmin(admin.ModelAdmin):
-    autocomplete_fields = ("road",)
+    autocomplete_fields = valid_autocomplete_fields(TrafficSurvey, ("road", "qa_status"))
     change_form_template = "admin/traffic/trafficsurvey/change_form.html"
     form = TrafficSurveyAdminForm
     list_display = ("road", "survey_year", "cycle_number", "method", "qa_status")
