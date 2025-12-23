@@ -1681,6 +1681,10 @@ class RoadSegmentAdminForm(RoadSectionFilterForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        for name in ("road", "section"):
+            field = self.fields.get(name)
+            if field is not None and isinstance(getattr(field, "choices", None), list) and hasattr(field, "queryset"):
+                field.queryset = field.queryset
         instance = self.instance
         if instance and getattr(instance, "section_id", None):
             self.fields["road"].initial = instance.section.road
