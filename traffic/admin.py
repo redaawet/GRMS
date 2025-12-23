@@ -26,7 +26,7 @@ class TrafficSurveyAdmin(admin.ModelAdmin):
     list_display = ("road", "survey_year", "cycle_number", "method", "qa_status")
     list_filter = ("survey_year", "cycle_number", "method", "qa_status")
     search_fields = ("road__road_identifier", "road__road_name_from", "road__road_name_to", "observer")
-    autocomplete_fields = ("road", "qa_status")
+    autocomplete_fields = ("road",)
     change_list_template = "admin/grms/change_list_with_road_filter.html"
 
     fieldsets = (
