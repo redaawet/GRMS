@@ -2668,7 +2668,6 @@ class RoadSocioEconomicAdmin(admin.ModelAdmin):
     )
 
 
-@admin.register(models.DistressActivity, site=grms_admin_site)
 class DistressActivityAdmin(admin.ModelAdmin):
     autocomplete_fields = ("condition", "activity")
     list_display = ("condition", "activity", "quantity_value", "scale_basis")
@@ -2823,3 +2822,6 @@ for model in [
 ]:
     if not grms_admin_site.is_registered(model):
         grms_admin_site.register(model)
+
+if not grms_admin_site.is_registered(models.DistressActivity):
+    grms_admin_site.register(models.DistressActivity, DistressActivityAdmin)
