@@ -1238,10 +1238,18 @@ class ActivityLookupAdmin(admin.ModelAdmin):
     search_fields = ("activity_code", "activity_name", "notes")
 
 
+if grms_admin_site.is_registered(models.InterventionLookup):
+    grms_admin_site.unregister(models.InterventionLookup)
+
+
 @admin.register(models.InterventionLookup, site=grms_admin_site)
 class InterventionLookupAdmin(admin.ModelAdmin):
     list_display = ("intervention_code", "name", "category", "unit_measure")
     search_fields = ("intervention_code", "name", "description")
+
+
+if grms_admin_site.is_registered(models.AnnualWorkPlan):
+    grms_admin_site.unregister(models.AnnualWorkPlan)
 
 
 @admin.register(models.AnnualWorkPlan, site=grms_admin_site)
@@ -1264,6 +1272,10 @@ class DistressConditionAdmin(admin.ModelAdmin):
     list_display = ("distress", "severity_code", "extent_code")
     search_fields = ("distress__distress_code", "distress__distress_name", "condition_notes")
     autocomplete_fields = ("distress",)
+
+
+if grms_admin_site.is_registered(models.DistressActivity):
+    grms_admin_site.unregister(models.DistressActivity)
 
 
 @admin.register(models.DistressActivity, site=grms_admin_site)
