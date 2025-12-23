@@ -26,6 +26,7 @@ from .utils import (
     point_to_lat_lng,
     slice_linestring_by_chainage,
     utm_to_wgs84,
+    wgs84_to_utm,
 )
 from .utils_labels import section_id, segment_label, structure_label
 
@@ -1009,6 +1010,24 @@ class StructureInventory(models.Model):
         blank=True,
         help_text="GPS coordinates of the structure",
     )
+    easting_m = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="UTM easting (m) for point structures",
+    )
+    northing_m = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="UTM northing (m) for point structures",
+    )
+    utm_zone = models.PositiveSmallIntegerField(
+        default=37,
+        help_text="UTM zone used for Easting/Northing values",
+    )
     location_line = LineStringField(
         srid=4326,
         null=True,
@@ -1083,7 +1102,12 @@ class StructureInventory(models.Model):
         road_length = float(self.road.total_length_km) if getattr(self, "road", None) else None
 
         if geometry_type == self.POINT:
-            if self.location_point is None and self.station_km is None:
+            if (self.easting_m is None) ^ (self.northing_m is None):
+                errors["easting_m"] = "Provide both Easting and Northing."
+
+            if self.location_point is None and self.station_km is None and (
+                self.easting_m is None or self.northing_m is None
+            ):
                 errors["location_point"] = (
                     "Provide Easting & Northing, or Chainage (km), or select a Location point on the map."
                 )
@@ -1182,6 +1206,24 @@ class StructureInventory(models.Model):
         if errors:
             raise ValidationError(errors)
 
+    def _sync_point_coordinates(self) -> None:
+        if self.geometry_type != self.POINT:
+            self.easting_m = None
+            self.northing_m = None
+            return
+
+        if self.easting_m is not None and self.northing_m is not None:
+            lat, lng = utm_to_wgs84(float(self.easting_m), float(self.northing_m), zone=self.utm_zone)
+            self.location_point = make_point(lat, lng)
+            return
+
+        if self.location_point is not None:
+            latlng = point_to_lat_lng(self.location_point)
+            if latlng:
+                easting, northing = wgs84_to_utm(latlng["lat"], latlng["lng"], zone=self.utm_zone)
+                self.easting_m = easting
+                self.northing_m = northing
+
     def _populate_geometry_fields(self) -> None:
         base_geometry = getattr(self.road, "geometry", None)
 
@@ -1214,6 +1256,7 @@ class StructureInventory(models.Model):
 
     def save(self, *args, **kwargs):
         self.full_clean()
+        self._sync_point_coordinates()
         self._populate_geometry_fields()
         super().save(*args, **kwargs)
 
