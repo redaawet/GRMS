@@ -1798,7 +1798,7 @@ class RoadSegmentAdmin(RoadSectionCascadeAdminMixin, SectionScopedAdmin):
         return obj.segment_identifier or obj.segment_label
 
     class Media:
-        js = ("grms/js/cascading_fk_autocomplete.js",)
+        js = ("grms/js/admin_autocomplete_cascade.js",)
 
     def formfield_for_foreignkey(self, db_field, request, **kwargs):
         field = super().formfield_for_foreignkey(db_field, request, **kwargs)
@@ -2021,7 +2021,7 @@ class StructureInventoryAdmin(RoadSectionCascadeAdminMixin, SectionScopedAdmin):
     class Media:
         js = (
             "grms/js/structure-inventory-admin.js",
-            "grms/js/cascading_fk_autocomplete.js",
+            "grms/js/admin_autocomplete_cascade.js",
         )
 
     def derived_lat_lng(self, obj):
@@ -2192,7 +2192,7 @@ class BridgeDetailAdmin(StructureDetailOverlayMixin, RoadSectionStructureCascade
     change_form_template = "admin/grms/structure_detail/change_form.html"
     class Media:
         js = (
-            "grms/js/cascading_fk_autocomplete.js",
+            "grms/js/admin_autocomplete_cascade.js",
             "grms/js/cascading_fk_select.js",
         )
     fieldsets = (
@@ -2279,7 +2279,7 @@ class CulvertDetailAdmin(StructureDetailOverlayMixin, RoadSectionStructureCascad
     )
     class Media:
         js = (
-            "grms/js/cascading_fk_autocomplete.js",
+            "grms/js/admin_autocomplete_cascade.js",
             "grms/js/cascading_fk_select.js",
             "grms/js/culvert-detail-admin.js",
         )
@@ -2303,7 +2303,7 @@ class FordDetailAdmin(StructureDetailOverlayMixin, RoadSectionStructureCascadeAd
     fieldsets = (("Structure", {"fields": ("road", "section", "structure")}),)
     class Media:
         js = (
-            "grms/js/cascading_fk_autocomplete.js",
+            "grms/js/admin_autocomplete_cascade.js",
             "grms/js/cascading_fk_select.js",
         )
 
@@ -2326,7 +2326,7 @@ class RetainingWallDetailAdmin(StructureDetailOverlayMixin, RoadSectionStructure
     fieldsets = (("Structure", {"fields": ("road", "section", "structure")}),)
     class Media:
         js = (
-            "grms/js/cascading_fk_autocomplete.js",
+            "grms/js/admin_autocomplete_cascade.js",
             "grms/js/cascading_fk_select.js",
         )
 
@@ -2349,7 +2349,7 @@ class GabionWallDetailAdmin(StructureDetailOverlayMixin, RoadSectionStructureCas
     fieldsets = (("Structure", {"fields": ("road", "section", "structure")}),)
     class Media:
         js = (
-            "grms/js/cascading_fk_autocomplete.js",
+            "grms/js/admin_autocomplete_cascade.js",
             "grms/js/cascading_fk_select.js",
         )
 
@@ -2469,7 +2469,7 @@ class RoadConditionSurveyAdmin(RoadSectionSegmentCascadeAdminMixin, SectionScope
 
     class Media:
         js = (
-            "grms/js/cascading_fk_autocomplete.js",
+            "grms/js/admin_autocomplete_cascade.js",
             "grms/js/cascading_fk_select.js",
         )
 
@@ -2569,7 +2569,7 @@ class RoadConditionDetailedSurveyAdmin(SectionScopedAdmin):
 
     class Media:
         js = (
-            "grms/js/cascading_fk_autocomplete.js",
+            "grms/js/admin_autocomplete_cascade.js",
             "grms/js/cascading_fk_select.js",
         )
 
