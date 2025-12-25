@@ -2,14 +2,20 @@ from __future__ import annotations
 
 from decimal import Decimal
 
-from django.test import TestCase
+from django.contrib.auth import get_user_model
+from django.test import RequestFactory, TestCase
 
 from grms import models
-from grms.admin import RoadConditionSurveyForm, RoadSegmentAdminForm
+from grms.admin import RoadConditionSurveyForm, RoadSegmentAdminForm, StructureInventoryAdmin
+from grms.admin import grms_admin_site
 
 
 class CascadeValidationTests(TestCase):
     def setUp(self):
+        self.user = get_user_model().objects.create_superuser(
+            username="admin", email="admin@example.com", password="password"
+        )
+        self.factory = RequestFactory()
         self.zone, _ = models.AdminZone.objects.get_or_create(name="Zone")
         self.woreda, _ = models.AdminWoreda.objects.get_or_create(name="Woreda", zone=self.zone)
         self.road = models.Road.objects.create(
@@ -65,6 +71,23 @@ class CascadeValidationTests(TestCase):
             terrain_longitudinal="Flat",
         )
 
+    def test_section_queryset_filters_by_road(self):
+        form = RoadSegmentAdminForm(data={"road": self.road.id})
+        section_ids = set(form.fields["section"].queryset.values_list("id", flat=True))
+        self.assertEqual(section_ids, {self.section.id})
+
+    def test_section_queryset_filters_for_structure_inventory(self):
+        form = StructureInventoryAdmin.form(data={"road": self.road.id})
+        section_ids = set(form.fields["section"].queryset.values_list("id", flat=True))
+        self.assertEqual(section_ids, {self.section.id})
+
+    def test_segment_queryset_filters_by_section(self):
+        form = RoadConditionSurveyForm(data={"section": self.section.id})
+        segment_ids = set(
+            form.fields["road_segment"].queryset.values_list("id", flat=True)
+        )
+        self.assertEqual(segment_ids, {self.segment.id})
+
     def test_mismatched_road_and_section_is_rejected(self):
         form = RoadSegmentAdminForm(
             data={
@@ -111,3 +134,17 @@ class CascadeValidationTests(TestCase):
         self.assertTrue(form.is_valid())
         survey = form.save()
         self.assertEqual(survey.road_segment_id, self.segment.id)
+
+    def test_section_autocomplete_filters_by_road(self):
+        admin_instance = grms_admin_site._registry[models.RoadSection]
+        request = self.factory.get("/admin/grms/roadsection/autocomplete/", {"road_id": self.road.id})
+        request.user = self.user
+        qs, _ = admin_instance.get_search_results(request, models.RoadSection.objects.all(), "")
+        self.assertEqual(set(qs), {self.section})
+
+    def test_segment_autocomplete_filters_by_section(self):
+        admin_instance = grms_admin_site._registry[models.RoadSegment]
+        request = self.factory.get("/admin/grms/roadsegment/autocomplete/", {"section_id": self.section.id})
+        request.user = self.user
+        qs, _ = admin_instance.get_search_results(request, models.RoadSegment.objects.all(), "")
+        self.assertEqual(set(qs), {self.segment})

@@ -8,6 +8,11 @@ from django.urls import path
 
 from . import models
 from .utils_labels import structure_label
+from .validators import (
+    validate_section_belongs_to_road,
+    validate_segment_belongs_to_road,
+    validate_segment_belongs_to_section,
+)
 
 
 class CascadeSelectMixin:
@@ -125,10 +130,7 @@ class RoadSectionFilterForm(forms.ModelForm):
         cleaned = super().clean()
         road = cleaned.get("road")
         section = cleaned.get("section")
-        if road and section and section.road_id != road.id:
-            raise forms.ValidationError(
-                {"section": "Selected section does not belong to the selected road."}
-            )
+        validate_section_belongs_to_road(road, section)
         return cleaned
 
 
@@ -169,14 +171,9 @@ class RoadSectionSegmentFilterForm(RoadSectionFilterForm):
         section = cleaned.get("section")
         segment_field_name = _segment_field_name(self)
         segment = cleaned.get(segment_field_name) if segment_field_name else None
-        errors = {}
-        if segment:
-            if section and segment.section_id != section.id:
-                errors[segment_field_name] = "Selected segment does not belong to the selected section."
-            if road and segment.section.road_id != road.id and segment_field_name not in errors:
-                errors[segment_field_name] = "Selected segment does not belong to the selected road."
-        if errors:
-            raise forms.ValidationError(errors)
+        if segment_field_name:
+            validate_segment_belongs_to_section(section, segment, field=segment_field_name)
+            validate_segment_belongs_to_road(road, segment, field=segment_field_name)
         return cleaned
 
 

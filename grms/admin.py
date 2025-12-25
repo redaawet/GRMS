@@ -32,6 +32,7 @@ from .admin_cascades import (
     RoadSectionStructureCascadeAdminMixin,
     _configure_cascade,
 )
+from .validators import validate_section_belongs_to_road
 from . import admin_geojson, admin_reports
 from .services import map_services, mci_intervention, prioritization, workplan_costs
 from .services.planning import road_ranking, workplans
@@ -1546,6 +1547,13 @@ class RoadSectionAdmin(RoadSectionCascadeAdminMixin, SectionScopedAdmin):
 
         return tuple(cleaned_fieldsets)
 
+    def get_search_results(self, request, queryset, search_term):
+        queryset, use_distinct = super().get_search_results(request, queryset, search_term)
+        road_id = request.GET.get("road_id")
+        if road_id and road_id.isdigit():
+            queryset = queryset.filter(road_id=int(road_id))
+        return queryset, use_distinct
+
     def get_urls(self):
         urls = super().get_urls()
         custom = [
@@ -1726,10 +1734,7 @@ class RoadSegmentAdminForm(RoadSectionFilterForm):
         cleaned = super().clean()
         road = cleaned.get("road")
         section = cleaned.get("section")
-        if road and section and section.road_id != road.id:
-            raise forms.ValidationError(
-                {"section": "Selected section does not belong to the selected road."}
-            )
+        validate_section_belongs_to_road(road, section)
         if road and not section:
             raise forms.ValidationError({"section": "Select a section for the chosen road."})
         return cleaned
@@ -1793,7 +1798,7 @@ class RoadSegmentAdmin(RoadSectionCascadeAdminMixin, SectionScopedAdmin):
         return obj.segment_identifier or obj.segment_label
 
     class Media:
-        js = ("grms/js/cascading_fk.js",)
+        js = ("grms/js/cascading_fk_autocomplete.js",)
 
     def formfield_for_foreignkey(self, db_field, request, **kwargs):
         field = super().formfield_for_foreignkey(db_field, request, **kwargs)
@@ -1833,6 +1838,13 @@ class RoadSegmentAdmin(RoadSectionCascadeAdminMixin, SectionScopedAdmin):
         if road_id and road_id.isdigit():
             qs = qs.filter(section__road_id=int(road_id))
         return qs
+
+    def get_search_results(self, request, queryset, search_term):
+        queryset, use_distinct = super().get_search_results(request, queryset, search_term)
+        section_id = request.GET.get("section_id")
+        if section_id and section_id.isdigit():
+            queryset = queryset.filter(section_id=int(section_id))
+        return queryset, use_distinct
 
     def _build_map_config(self, segment):
         if not segment:
@@ -1914,10 +1926,7 @@ class StructureInventoryAdmin(RoadSectionCascadeAdminMixin, SectionScopedAdmin):
             cleaned = super().clean()
             road = cleaned.get("road")
             section = cleaned.get("section")
-            if road and section and section.road_id != road.id:
-                raise forms.ValidationError(
-                    {"section": "Selected section does not belong to the selected road."}
-                )
+            validate_section_belongs_to_road(road, section)
 
             easting = cleaned.get("easting_m")
             northing = cleaned.get("northing_m")
@@ -2012,7 +2021,7 @@ class StructureInventoryAdmin(RoadSectionCascadeAdminMixin, SectionScopedAdmin):
     class Media:
         js = (
             "grms/js/structure-inventory-admin.js",
-            "grms/js/cascading_fk.js",
+            "grms/js/cascading_fk_autocomplete.js",
         )
 
     def derived_lat_lng(self, obj):
@@ -2040,6 +2049,16 @@ class StructureInventoryAdmin(RoadSectionCascadeAdminMixin, SectionScopedAdmin):
         return structure_label(obj)
 
     label.short_description = "Structure"
+
+    def get_search_results(self, request, queryset, search_term):
+        queryset, use_distinct = super().get_search_results(request, queryset, search_term)
+        road_id = request.GET.get("road_id")
+        if road_id and road_id.isdigit():
+            queryset = queryset.filter(road_id=int(road_id))
+        section_id = request.GET.get("section_id")
+        if section_id and section_id.isdigit():
+            queryset = queryset.filter(section_id=int(section_id))
+        return queryset, use_distinct
 
     def get_urls(self):
         urls = super().get_urls()
@@ -2172,7 +2191,10 @@ class BridgeDetailAdmin(StructureDetailOverlayMixin, RoadSectionStructureCascade
     autocomplete_fields = ("structure",)
     change_form_template = "admin/grms/structure_detail/change_form.html"
     class Media:
-        js = ("grms/js/cascading_fk.js",)
+        js = (
+            "grms/js/cascading_fk_autocomplete.js",
+            "grms/js/cascading_fk_select.js",
+        )
     fieldsets = (
         ("Structure", {"fields": ("road", "section", "structure")}),
         (
@@ -2256,7 +2278,11 @@ class CulvertDetailAdmin(StructureDetailOverlayMixin, RoadSectionStructureCascad
         ("Head walls", {"fields": ("has_head_walls",)}),
     )
     class Media:
-        js = ("grms/js/cascading_fk.js", "grms/js/culvert-detail-admin.js")
+        js = (
+            "grms/js/cascading_fk_autocomplete.js",
+            "grms/js/cascading_fk_select.js",
+            "grms/js/culvert-detail-admin.js",
+        )
 
 
 class FordDetailForm(StructureDetailFilterForm):
@@ -2276,7 +2302,10 @@ class FordDetailAdmin(StructureDetailOverlayMixin, RoadSectionStructureCascadeAd
     list_display = ("structure",)
     fieldsets = (("Structure", {"fields": ("road", "section", "structure")}),)
     class Media:
-        js = ("grms/js/cascading_fk.js",)
+        js = (
+            "grms/js/cascading_fk_autocomplete.js",
+            "grms/js/cascading_fk_select.js",
+        )
 
 
 class RetainingWallDetailForm(StructureDetailFilterForm):
@@ -2296,7 +2325,10 @@ class RetainingWallDetailAdmin(StructureDetailOverlayMixin, RoadSectionStructure
     list_display = ("structure",)
     fieldsets = (("Structure", {"fields": ("road", "section", "structure")}),)
     class Media:
-        js = ("grms/js/cascading_fk.js",)
+        js = (
+            "grms/js/cascading_fk_autocomplete.js",
+            "grms/js/cascading_fk_select.js",
+        )
 
 
 class GabionWallDetailForm(StructureDetailFilterForm):
@@ -2316,7 +2348,10 @@ class GabionWallDetailAdmin(StructureDetailOverlayMixin, RoadSectionStructureCas
     list_display = ("structure",)
     fieldsets = (("Structure", {"fields": ("road", "section", "structure")}),)
     class Media:
-        js = ("grms/js/cascading_fk.js",)
+        js = (
+            "grms/js/cascading_fk_autocomplete.js",
+            "grms/js/cascading_fk_select.js",
+        )
 
 
 @admin.register(models.FurnitureInventory, site=grms_admin_site)
@@ -2433,7 +2468,10 @@ class RoadConditionSurveyAdmin(RoadSectionSegmentCascadeAdminMixin, SectionScope
     actions = [export_condition_surveys_to_excel]
 
     class Media:
-        js = ("grms/js/cascading_fk.js",)
+        js = (
+            "grms/js/cascading_fk_autocomplete.js",
+            "grms/js/cascading_fk_select.js",
+        )
 
     def get_queryset(self, request):
         qs = super().get_queryset(request)
@@ -2530,7 +2568,10 @@ class RoadConditionDetailedSurveyAdmin(SectionScopedAdmin):
     autocomplete_fields = valid_autocomplete_fields(models.RoadConditionDetailedSurvey, _AUTO)
 
     class Media:
-        js = ("grms/js/cascading_fk.js",)
+        js = (
+            "grms/js/cascading_fk_autocomplete.js",
+            "grms/js/cascading_fk_select.js",
+        )
 
     def get_queryset(self, request):
         qs = super().get_queryset(request)
