@@ -153,3 +153,22 @@ class GRMSAdminSiteTests(TestCase):
         planning_group, planning_label = find_entry("BenefitCriterion")
         self.assertEqual(planning_group, "Maintenance & Planning")
         self.assertEqual(planning_label, "Benefit criteria")
+
+    def test_condition_menu_includes_three_condition_surveys(self):
+        request = self.factory.get("/admin/")
+        request.user = self.user
+
+        sections = grms_admin_site._build_sections(request)
+        condition_section = next(
+            section for section in sections if section["title"] == "Condition"
+        )
+        condition_models = {model["object_name"] for model in condition_section["models"]}
+
+        self.assertEqual(
+            condition_models,
+            {
+                "RoadConditionSurvey",
+                "StructureConditionSurvey",
+                "FurnitureConditionSurvey",
+            },
+        )
