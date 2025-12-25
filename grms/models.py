@@ -1092,7 +1092,7 @@ class StructureInventory(models.Model):
             errors["road"] = "Road is required for structures."
 
         if self.section_id and self.road_id and self.section.road_id != self.road_id:
-            errors["section"] = "Selected section must belong to the chosen road."
+            errors["section"] = "Selected section does not belong to the selected road."
 
         if category in {"Bridge", "Culvert", "Ford"} and geometry_type != self.POINT:
             errors["geometry_type"] = "Bridge, Culvert, and Ford structures must use point geometry."
