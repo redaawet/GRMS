@@ -2212,6 +2212,12 @@ class StructureDetailFilterForm(CascadeRoadSectionAssetMixin, forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        road_field = self.fields.get("road")
+        if road_field is not None:
+            road_field.widget = AutocompleteSelect(
+                models.RoadSection._meta.get_field("road"),
+                grms_admin_site,
+            )
         instance = self.instance
         if instance and getattr(instance, "structure_id", None):
             structure = instance.structure

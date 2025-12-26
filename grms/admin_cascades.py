@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Iterable
 
 from django import forms
+from django.contrib.admin.widgets import AutocompleteSelect
 from django.http import JsonResponse
 from django.urls import path
 
