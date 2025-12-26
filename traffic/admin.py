@@ -175,6 +175,8 @@ class TrafficCycleSummaryAdmin(_ReadOnlyAdmin):
     )
     list_filter = ("vehicle_class", "cycle_number")
     search_fields = ("road__road_identifier", "road__road_name_from", "road__road_name_to")
+    _AUTO = ("road",)
+    autocomplete_fields = valid_autocomplete_fields(TrafficCycleSummary, _AUTO)
 
 
 @admin.register(TrafficSurveySummary, site=grms_admin_site)
@@ -192,6 +194,8 @@ class TrafficSurveySummaryAdmin(_ReadOnlyAdmin):
     )
     list_filter = ("vehicle_class", "fiscal_year")
     search_fields = ("road__road_identifier", "road__road_name_from", "road__road_name_to")
+    _AUTO = ("road",)
+    autocomplete_fields = valid_autocomplete_fields(TrafficSurveySummary, _AUTO)
 
 
 @admin.register(TrafficSurveyOverall, site=grms_admin_site)
@@ -203,6 +207,8 @@ class TrafficSurveyOverallAdmin(_ReadOnlyAdmin):
     list_display = ("road", "fiscal_year", "adt_total", "pcu_total", "confidence_score")
     list_filter = ("fiscal_year",)
     search_fields = ("road__road_identifier", "road__road_name_from", "road__road_name_to")
+    _AUTO = ("road",)
+    autocomplete_fields = valid_autocomplete_fields(TrafficSurveyOverall, _AUTO)
 
 @admin.register(TrafficQC, site=grms_admin_site)
 class TrafficQcAdmin(GRMSBaseAdmin):
@@ -215,6 +221,8 @@ class TrafficQcAdmin(GRMSBaseAdmin):
     )
     list_filter = ("resolved",)
     search_fields = ("issue_type", "issue_detail")
+    _AUTO = ("road",)
+    autocomplete_fields = valid_autocomplete_fields(TrafficQC, _AUTO)
 
 
 @admin.register(PcuLookup, site=grms_admin_site)

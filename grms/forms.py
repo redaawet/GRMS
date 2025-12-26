@@ -13,6 +13,65 @@ from . import models
 from .utils import make_point, point_to_lat_lng
 
 
+class RoadSegmentAdminForm(forms.ModelForm):
+    road = forms.ModelChoiceField(
+        queryset=models.Road.objects.all(),
+        required=False,
+        help_text="Type to search and select a Road to filter Sections.",
+    )
+
+    class Meta:
+        model = models.RoadSegment
+        fields = "__all__"
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        road_field = self.fields.get("road")
+        if road_field is not None:
+            from django.contrib.admin.widgets import AutocompleteSelect
+
+            from .admin import grms_admin_site
+
+            road_field.widget = AutocompleteSelect(
+                models.RoadSection._meta.get_field("road"),
+                grms_admin_site,
+            )
+            road_field.widget.choices = road_field.choices
+
+        section_field = self.fields.get("section")
+        if section_field is not None:
+            section_field.queryset = models.RoadSection.objects.none()
+
+        road_id = None
+        if self.data.get("road"):
+            road_id = self.data.get("road")
+        elif self.instance and getattr(self.instance, "section_id", None):
+            road_id = (
+                models.RoadSection.objects.filter(pk=self.instance.section_id)
+                .values_list("road_id", flat=True)
+                .first()
+            )
+
+        if road_id and road_id != "None":
+            try:
+                self.fields["road"].initial = int(road_id)
+            except Exception:
+                pass
+            if section_field is not None:
+                section_field.queryset = models.RoadSection.objects.filter(
+                    road_id=road_id
+                ).order_by("sequence_on_road", "id")
+
+    def clean(self):
+        cleaned = super().clean()
+        road = cleaned.get("road")
+        section = cleaned.get("section")
+        if road and section and section.road_id != road.id:
+            self.add_error("section", "Selected section does not belong to the selected road.")
+        return cleaned
+
+
 class RoadBasicForm(forms.ModelForm):
     """First step of the road wizard – capture basic attributes."""
 
