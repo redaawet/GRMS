@@ -100,22 +100,22 @@ class CascadeValidationTests(TestCase):
 
     def test_section_queryset_filters_by_road(self):
         admin_instance = grms_admin_site._registry[models.RoadSegment]
-        request = self.factory.get("/admin/grms/roadsegment/add/", {"road": self.road.id})
+        request = self.factory.get("/admin/grms/roadsegment/add/", {"road_id": self.road.id})
         request.user = self.user
-        Form = admin_instance.get_form(request)
-        form = Form()
-        section_ids = set(
-            form.fields["section"].queryset.values_list("id", flat=True)
+        formfield = admin_instance.formfield_for_foreignkey(
+            models.RoadSegment._meta.get_field("section"), request
         )
+        section_ids = set(formfield.queryset.values_list("id", flat=True))
         self.assertEqual(section_ids, {self.section.id})
 
     def test_section_queryset_none_without_road(self):
         admin_instance = grms_admin_site._registry[models.RoadSegment]
         request = self.factory.get("/admin/grms/roadsegment/add/")
         request.user = self.user
-        Form = admin_instance.get_form(request)
-        form = Form()
-        self.assertFalse(form.fields["section"].queryset.exists())
+        formfield = admin_instance.formfield_for_foreignkey(
+            models.RoadSegment._meta.get_field("section"), request
+        )
+        self.assertFalse(formfield.queryset.exists())
 
     def test_section_queryset_filters_for_structure_inventory(self):
         form = StructureInventoryAdmin.form(data={"road": self.road.id})
@@ -140,30 +140,6 @@ class CascadeValidationTests(TestCase):
     def test_furniture_queryset_none_without_road(self):
         form = FurnitureConditionSurveyForm()
         self.assertFalse(form.fields["furniture"].queryset.exists())
-
-    def test_mismatched_road_and_section_is_rejected(self):
-        admin_instance = grms_admin_site._registry[models.RoadSegment]
-        request = self.factory.post(
-            "/admin/grms/roadsegment/add/",
-            data={
-                "road": self.road.id,
-                "section": self.other_section.id,
-                "station_from_km": "0",
-                "station_to_km": "1",
-                "cross_section": "Flat",
-                "terrain_transverse": "Flat",
-                "terrain_longitudinal": "Flat",
-            },
-        )
-        request.user = self.user
-        Form = admin_instance.get_form(request)
-        form = Form(data=request.POST)
-
-        self.assertFalse(form.is_valid())
-        self.assertEqual(
-            form.errors["section"][0],
-            "Selected section does not belong to the selected road.",
-        )
 
     def test_mismatched_section_and_segment_is_rejected(self):
         form = RoadConditionSurveyForm(

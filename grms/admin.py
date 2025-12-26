@@ -27,12 +27,10 @@ from .admin_cascades import (
     CascadeRoadSectionAssetMixin,
     CascadeRoadSectionMixin,
     RoadSectionCascadeAdminMixin,
-    RoadSectionFilterForm,
     RoadSectionSegmentCascadeAdminMixin,
     RoadSectionSegmentFilterForm,
     RoadSectionStructureCascadeAdminMixin,
 )
-from .validators import validate_section_belongs_to_road
 from . import admin_geojson, admin_reports
 from .services import map_services, mci_intervention, prioritization, workplan_costs
 from .services.planning import road_ranking, workplans
@@ -1777,6 +1775,7 @@ class RoadSectionAdmin(RoadSectionCascadeAdminMixin, SectionScopedAdmin):
 @admin.register(models.RoadSegment, site=grms_admin_site)
 class RoadSegmentAdmin(RoadSectionCascadeAdminMixin, SectionScopedAdmin):
     list_display = (
+        "road",
         "section_label",
         "segment_label",
         "station_from_km",
@@ -1784,23 +1783,23 @@ class RoadSegmentAdmin(RoadSectionCascadeAdminMixin, SectionScopedAdmin):
         "cross_section",
     )
     search_fields = (
-        "section__section_number",
         "section__road__road_identifier",
         "section__road__road_name_from",
         "section__road__road_name_to",
+        "section__section_number",
     )
-    list_filter = ("terrain_longitudinal", "terrain_transverse")
+    list_filter = ("section__road", "section", "terrain_longitudinal", "terrain_transverse")
     autocomplete_fields = ("section",)
     actions = [export_road_segments_to_excel]
     change_form_template = "admin/grms/roadsegment/change_form.html"
     fieldsets = (
-        ("Identification", {"fields": ("road", "section")}),
+        ("Context", {"fields": ("section",)}),
         (
-            "Location & geometry",
+            "Chainage",
             {"fields": (("station_from_km", "station_to_km"), "carriageway_width_m")},
         ),
         (
-            "Classification",
+            "Attributes",
             {
                 "fields": (
                     "cross_section",
@@ -1821,6 +1820,11 @@ class RoadSegmentAdmin(RoadSectionCascadeAdminMixin, SectionScopedAdmin):
         ("Notes", {"fields": ("comment",)}),
     )
 
+    @admin.display(description="Road", ordering="section__road__road_identifier")
+    def road(self, obj):
+        road = getattr(getattr(obj, "section", None), "road", None)
+        return str(road) if road else "—"
+
     def section_label(self, obj):
         sec = obj.section
         return f"{sec.road.road_identifier}-S{sec.sequence_on_road}" if sec else ""
@@ -1833,65 +1837,18 @@ class RoadSegmentAdmin(RoadSectionCascadeAdminMixin, SectionScopedAdmin):
     class Media:
         js = ("grms/js/cascade_autocomplete_hierarchy.js",)
 
-    def get_form(self, request, obj=None, **kwargs):
-        request._roadsegment_obj = obj
-        Form = super().get_form(request, obj, **kwargs)
-
-        class RoadSegmentForm(Form):
-            road = forms.ModelChoiceField(
-                queryset=models.Road.objects.all(),
-                required=False,
-                label="Road",
-            )
-
-            def __init__(self, *args, **kwargs):
-                super().__init__(*args, **kwargs)
-                if obj and not self.is_bound:
-                    self.fields["road"].initial = obj.section.road
-
-            def clean(self):
-                cleaned = super().clean()
-                road = cleaned.get("road")
-                section = cleaned.get("section")
-                validate_section_belongs_to_road(road, section)
-                if road and not section:
-                    raise forms.ValidationError({"section": "Select a section for the chosen road."})
-                return cleaned
-
-        # TEMP: detect list choices early (remove after stable)
-        sample = RoadSegmentForm()
-        assert not isinstance(sample.fields["road"].choices, list), "road choices became list"
-        assert not isinstance(sample.fields["section"].choices, list), "section choices became list"
-        return RoadSegmentForm
-
-    def formfield_for_foreignkey(self, db_field, request, **kwargs):
-        formfield = super().formfield_for_foreignkey(db_field, request, **kwargs)
-        if db_field.name == "section":
-            road_id = (
-                request.POST.get("road")
-                or request.GET.get("road")
-                or request.GET.get("road__id__exact")
-            )
-            if not road_id and hasattr(request, "_roadsegment_obj") and request._roadsegment_obj:
-                road_id = request._roadsegment_obj.section.road_id
-            if road_id and str(road_id).isdigit():
-                formfield.queryset = models.RoadSection.objects.filter(
-                    road_id=int(road_id)
-                ).order_by("sequence_on_road", "id")
-            else:
-                formfield.queryset = models.RoadSection.objects.none()
-        return formfield
-
     def formfield_for_foreignkey(self, db_field, request, **kwargs):
         field = super().formfield_for_foreignkey(db_field, request, **kwargs)
         if db_field.name == "section":
-            road_id = request.GET.get("road") or request.GET.get("road__id__exact")
-            if not road_id and request.method == "POST":
-                road_id = request.POST.get("road")
+            road_id = (
+                request.POST.get("road")
+                or request.GET.get("road_id")
+                or request.GET.get("road__id__exact")
+            )
             if road_id and str(road_id).isdigit():
                 field.queryset = models.RoadSection.objects.filter(
                     road_id=int(road_id)
-                ).order_by("sequence_on_road")
+                ).order_by("sequence_on_road", "id")
             else:
                 field.queryset = models.RoadSection.objects.none()
         return field
