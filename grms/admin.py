@@ -17,7 +17,6 @@ from django.http import HttpResponse, JsonResponse
 from django.shortcuts import redirect
 from django.urls import path, reverse
 from openpyxl import Workbook
-from django.contrib.admin.widgets import AutocompleteSelect
 
 from . import models
 from .menu import build_menu_groups
@@ -1775,34 +1774,8 @@ class RoadSectionAdmin(RoadSectionCascadeAdminMixin, SectionScopedAdmin):
         }
 
 
-class RoadSegmentAdminForm(RoadSectionFilterForm):
-    class Meta:
-        model = models.RoadSegment
-        fields = "__all__"
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        for name in ("road", "section"):
-            field = self.fields.get(name)
-            if field is not None and isinstance(getattr(field, "choices", None), list) and hasattr(field, "queryset"):
-                field.queryset = field.queryset
-        instance = self.instance
-        if instance and getattr(instance, "section_id", None):
-            self.fields["road"].initial = instance.section.road
-
-    def clean(self):
-        cleaned = super().clean()
-        road = cleaned.get("road")
-        section = cleaned.get("section")
-        validate_section_belongs_to_road(road, section)
-        if road and not section:
-            raise forms.ValidationError({"section": "Select a section for the chosen road."})
-        return cleaned
-
-
 @admin.register(models.RoadSegment, site=grms_admin_site)
 class RoadSegmentAdmin(RoadSectionCascadeAdminMixin, SectionScopedAdmin):
-    form = RoadSegmentAdminForm
     list_display = (
         "section_label",
         "segment_label",
@@ -1859,6 +1832,55 @@ class RoadSegmentAdmin(RoadSectionCascadeAdminMixin, SectionScopedAdmin):
 
     class Media:
         js = ("grms/js/cascade_autocomplete_hierarchy.js",)
+
+    def get_form(self, request, obj=None, **kwargs):
+        request._roadsegment_obj = obj
+        Form = super().get_form(request, obj, **kwargs)
+
+        class RoadSegmentForm(Form):
+            road = forms.ModelChoiceField(
+                queryset=models.Road.objects.all(),
+                required=False,
+                label="Road",
+            )
+
+            def __init__(self, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+                if obj and not self.is_bound:
+                    self.fields["road"].initial = obj.section.road
+
+            def clean(self):
+                cleaned = super().clean()
+                road = cleaned.get("road")
+                section = cleaned.get("section")
+                validate_section_belongs_to_road(road, section)
+                if road and not section:
+                    raise forms.ValidationError({"section": "Select a section for the chosen road."})
+                return cleaned
+
+        # TEMP: detect list choices early (remove after stable)
+        sample = RoadSegmentForm()
+        assert not isinstance(sample.fields["road"].choices, list), "road choices became list"
+        assert not isinstance(sample.fields["section"].choices, list), "section choices became list"
+        return RoadSegmentForm
+
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        formfield = super().formfield_for_foreignkey(db_field, request, **kwargs)
+        if db_field.name == "section":
+            road_id = (
+                request.POST.get("road")
+                or request.GET.get("road")
+                or request.GET.get("road__id__exact")
+            )
+            if not road_id and hasattr(request, "_roadsegment_obj") and request._roadsegment_obj:
+                road_id = request._roadsegment_obj.section.road_id
+            if road_id and str(road_id).isdigit():
+                formfield.queryset = models.RoadSection.objects.filter(
+                    road_id=int(road_id)
+                ).order_by("sequence_on_road", "id")
+            else:
+                formfield.queryset = models.RoadSection.objects.none()
+        return formfield
 
     def formfield_for_foreignkey(self, db_field, request, **kwargs):
         field = super().formfield_for_foreignkey(db_field, request, **kwargs)
@@ -2407,12 +2429,6 @@ class FurnitureInventoryAdmin(SectionScopedAdmin):
 
         def __init__(self, *args, **kwargs):
             super().__init__(*args, **kwargs)
-            road_field = self.fields.get("road")
-            if road_field is not None:
-                road_field.widget = AutocompleteSelect(
-                    models.RoadSection._meta.get_field("road"),
-                    grms_admin_site,
-                )
             instance = self.instance
             if instance and getattr(instance, "section_id", None) and not self.is_bound:
                 self.fields["road"].initial = instance.section.road
@@ -2479,12 +2495,6 @@ class StructureConditionSurveyForm(CascadeRoadSectionAssetMixin, forms.ModelForm
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        road_field = self.fields.get("road_filter")
-        if road_field is not None:
-            road_field.widget = AutocompleteSelect(
-                models.RoadSection._meta.get_field("road"),
-                grms_admin_site,
-            )
         instance = self.instance
         if instance and getattr(instance, "structure_id", None) and not self.is_bound:
             structure = instance.structure
@@ -2650,12 +2660,6 @@ class FurnitureConditionSurveyForm(CascadeRoadSectionAssetMixin, forms.ModelForm
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        road_field = self.fields.get("road_filter")
-        if road_field is not None:
-            road_field.widget = AutocompleteSelect(
-                models.RoadSection._meta.get_field("road"),
-                grms_admin_site,
-            )
         instance = self.instance
         if instance and getattr(instance, "furniture_id", None) and not self.is_bound:
             furniture = instance.furniture

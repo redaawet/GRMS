@@ -237,14 +237,6 @@ class RoadSectionFilterForm(CascadeRoadSectionMixin, forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        road_field = self.fields.get("road")
-        if road_field is not None:
-            from .admin import grms_admin_site
-
-            road_field.widget = AutocompleteSelect(
-                models.RoadSection._meta.get_field("road"),
-                grms_admin_site,
-            )
         self._setup_road_section()
 
 

@@ -9,7 +9,6 @@ from grms import models
 from grms.admin import (
     FurnitureConditionSurveyForm,
     RoadConditionSurveyForm,
-    RoadSegmentAdminForm,
     StructureConditionSurveyForm,
     StructureInventoryAdmin,
 )
@@ -100,12 +99,22 @@ class CascadeValidationTests(TestCase):
         )
 
     def test_section_queryset_filters_by_road(self):
-        form = RoadSegmentAdminForm(data={"road": self.road.id})
-        section_ids = set(form.fields["section"].queryset.values_list("id", flat=True))
+        admin_instance = grms_admin_site._registry[models.RoadSegment]
+        request = self.factory.get("/admin/grms/roadsegment/add/", {"road": self.road.id})
+        request.user = self.user
+        Form = admin_instance.get_form(request)
+        form = Form()
+        section_ids = set(
+            form.fields["section"].queryset.values_list("id", flat=True)
+        )
         self.assertEqual(section_ids, {self.section.id})
 
     def test_section_queryset_none_without_road(self):
-        form = RoadSegmentAdminForm()
+        admin_instance = grms_admin_site._registry[models.RoadSegment]
+        request = self.factory.get("/admin/grms/roadsegment/add/")
+        request.user = self.user
+        Form = admin_instance.get_form(request)
+        form = Form()
         self.assertFalse(form.fields["section"].queryset.exists())
 
     def test_section_queryset_filters_for_structure_inventory(self):
@@ -133,7 +142,9 @@ class CascadeValidationTests(TestCase):
         self.assertFalse(form.fields["furniture"].queryset.exists())
 
     def test_mismatched_road_and_section_is_rejected(self):
-        form = RoadSegmentAdminForm(
+        admin_instance = grms_admin_site._registry[models.RoadSegment]
+        request = self.factory.post(
+            "/admin/grms/roadsegment/add/",
             data={
                 "road": self.road.id,
                 "section": self.other_section.id,
@@ -142,8 +153,11 @@ class CascadeValidationTests(TestCase):
                 "cross_section": "Flat",
                 "terrain_transverse": "Flat",
                 "terrain_longitudinal": "Flat",
-            }
+            },
         )
+        request.user = self.user
+        Form = admin_instance.get_form(request)
+        form = Form(data=request.POST)
 
         self.assertFalse(form.is_valid())
         self.assertEqual(
