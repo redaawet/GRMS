@@ -1600,7 +1600,11 @@ class RoadSectionAdmin(RoadSectionCascadeAutocompleteMixin, RoadSectionCascadeAd
     def get_search_results(self, request, queryset, search_term):
         queryset, use_distinct = super().get_search_results(request, queryset, search_term)
         if request.path.endswith("/admin/autocomplete/") and request.GET.get("field_name") == "section":
-            road_id = request.GET.get("road")
+            road_id = (
+                request.GET.get("road")
+                or request.GET.get("road_id")
+                or request.GET.get("road__id__exact")
+            )
             if road_id and road_id.isdigit():
                 queryset = queryset.filter(road_id=int(road_id))
             else:
@@ -1720,7 +1724,7 @@ class RoadSegmentAdmin(RoadSectionCascadeAdminMixin, SectionScopedAdmin):
         return queryset, use_distinct
 
 @admin.register(models.StructureInventory, site=grms_admin_site)
-class StructureInventoryAdmin(RoadSectionCascadeAdminMixin, SectionScopedAdmin):
+class StructureInventoryAdmin(RoadSectionCascadeAutocompleteMixin, GRMSBaseAdmin):
     class StructureInventoryAdminForm(CascadeFKModelFormMixin, CascadeRoadSectionMixin, forms.ModelForm):
         class Meta:
             model = models.StructureInventory
@@ -1779,11 +1783,6 @@ class StructureInventoryAdmin(RoadSectionCascadeAdminMixin, SectionScopedAdmin):
     readonly_fields = ("created_date", "modified_date", "derived_lat_lng")
     form = StructureInventoryAdminForm
     autocomplete_fields = ("road", "section")
-    cascade_autocomplete = {
-        "section": lambda qs, req: qs.filter(road_id=int(req.GET.get("road")))
-        if (req.GET.get("road") or "").isdigit()
-        else qs.none(),
-    }
     actions = [export_structures_to_excel]
     formfield_overrides = {
         PointField: {"widget": geometry_widget},
@@ -1836,6 +1835,9 @@ class StructureInventoryAdmin(RoadSectionCascadeAdminMixin, SectionScopedAdmin):
         ("Documentation", {"fields": ("comments", "attachments")}),
         ("Timestamps", {"fields": ("created_date", "modified_date")}),
     )
+
+    class Media:
+        js = ("grms/admin/cascade_autocomplete.js",)
 
     class Media:
         js = (
