@@ -23,7 +23,7 @@ from .menu import build_menu_groups
 from .admin_base import GRMSBaseAdmin
 from .admin_forms import CascadeFKModelFormMixin
 from .admin_utils import valid_autocomplete_fields, valid_list_display
-from .admin_mixins import CascadeAutocompleteAdminMixin
+from .admin_mixins import CascadeAutocompleteAdminMixin, RoadSectionCascadeAutocompleteMixin
 from traffic.models import TrafficSurveyOverall, TrafficSurveySummary
 from .gis_fields import LineStringField, PointField
 from .admin_cascades import (
@@ -1486,6 +1486,8 @@ class SegmentMCIResultAdmin(SectionScopedAdmin):
     list_display = ("road_segment", "survey_date", "mci_value", "rating")
     list_filter = ("survey_date", "rating")
     readonly_fields = ("computed_at",)
+    _AUTO = ("road_segment",)
+    autocomplete_fields = valid_autocomplete_fields(models.SegmentMCIResult, _AUTO)
 
 
 @admin.register(models.SegmentInterventionRecommendation, site=grms_admin_site)
@@ -1527,7 +1529,7 @@ class StructureInterventionRecommendationAdmin(GRMSBaseAdmin):
         return f"{wi.work_code} - {wi.description}"
 
 @admin.register(models.RoadSection, site=grms_admin_site)
-class RoadSectionAdmin(RoadSectionCascadeAdminMixin, SectionScopedAdmin):
+class RoadSectionAdmin(RoadSectionCascadeAutocompleteMixin, RoadSectionCascadeAdminMixin, SectionScopedAdmin):
     form = RoadSectionAdminForm
     list_display = (
         "road",
@@ -1602,6 +1604,8 @@ class RoadSectionAdmin(RoadSectionCascadeAdminMixin, SectionScopedAdmin):
 
     def get_search_results(self, request, queryset, search_term):
         queryset, use_distinct = super().get_search_results(request, queryset, search_term)
+        if request.path.endswith("/admin/autocomplete/"):
+            return queryset, use_distinct
         road_id = request.GET.get("road_id")
         if road_id and road_id.isdigit():
             queryset = queryset.filter(road_id=int(road_id))
@@ -2255,6 +2259,8 @@ class FurnitureInventoryAdmin(SectionScopedAdmin):
     list_filter = ("furniture_type",)
     search_fields = ("section__road__road_identifier", "furniture_type")
     readonly_fields = ("created_at", "modified_at")
+    _AUTO = ("section",)
+    autocomplete_fields = valid_autocomplete_fields(models.FurnitureInventory, _AUTO)
     fieldsets = (
         ("Furniture Info", {"fields": ("road", "section", "furniture_type")}),
         ("Point Furniture", {"fields": ("chainage_km",)}),
@@ -2887,6 +2893,8 @@ class BenefitFactorAdmin(GRMSBaseAdmin):
             },
         ),
     )
+    _AUTO = ("road",)
+    autocomplete_fields = valid_autocomplete_fields(models.BenefitFactor, _AUTO)
 
     def has_add_permission(self, request):
         return False
@@ -2908,6 +2916,8 @@ class RoadRankingResultAdmin(GRMSBaseAdmin):
     list_filter = ("fiscal_year", "road_class_or_surface_group")
     ordering = ("rank",)
     search_fields = ("road__road_identifier", "road__road_name_from", "road__road_name_to")
+    _AUTO = ("road",)
+    autocomplete_fields = valid_autocomplete_fields(models.RoadRankingResult, _AUTO)
     readonly_fields = (
         "road",
         "fiscal_year",
