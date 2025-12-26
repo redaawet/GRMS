@@ -2,6 +2,7 @@ from django.contrib import admin
 from django.urls import reverse
 
 from grms.admin import grms_admin_site, _road_map_context_url
+from grms.admin_base import GRMSBaseAdmin
 from grms.admin_utils import valid_autocomplete_fields
 from grms.models import Road
 from grms.services import map_services
@@ -21,15 +22,14 @@ from .models import (
 
 
 @admin.register(TrafficSurvey, site=grms_admin_site)
-class TrafficSurveyAdmin(admin.ModelAdmin):
-    autocomplete_fields = ("road",)
+class TrafficSurveyAdmin(GRMSBaseAdmin):
+    _AUTO = ("road",)
+    autocomplete_fields = valid_autocomplete_fields(TrafficSurvey, _AUTO)
     change_form_template = "admin/traffic/trafficsurvey/change_form.html"
     form = TrafficSurveyAdminForm
     list_display = ("road", "survey_year", "cycle_number", "method", "qa_status")
     list_filter = ("survey_year", "cycle_number", "method", "qa_status")
     search_fields = ("road__road_identifier", "road__road_name_from", "road__road_name_to", "observer")
-    autocomplete_fields = ("road",)
-    change_list_template = "admin/grms/change_list_with_road_filter.html"
 
     fieldsets = (
         (
@@ -106,7 +106,7 @@ class TrafficSurveyAdmin(admin.ModelAdmin):
 
 
 @admin.register(TrafficCountRecord, site=grms_admin_site)
-class TrafficCountRecordAdmin(admin.ModelAdmin):
+class TrafficCountRecordAdmin(GRMSBaseAdmin):
     fieldsets = (
         (
             "Time block",
@@ -145,7 +145,7 @@ class TrafficCountRecordAdmin(admin.ModelAdmin):
         css = {"all": ["traffic/admin.css"]}
 
 
-class _ReadOnlyAdmin(admin.ModelAdmin):
+class _ReadOnlyAdmin(GRMSBaseAdmin):
     def has_add_permission(self, request, obj=None):  # pragma: no cover - admin hook
         return False
 
@@ -205,7 +205,7 @@ class TrafficSurveyOverallAdmin(_ReadOnlyAdmin):
     search_fields = ("road__road_identifier", "road__road_name_from", "road__road_name_to")
 
 @admin.register(TrafficQC, site=grms_admin_site)
-class TrafficQcAdmin(admin.ModelAdmin):
+class TrafficQcAdmin(GRMSBaseAdmin):
     list_display = (
         "traffic_survey",
         "road",
@@ -218,7 +218,7 @@ class TrafficQcAdmin(admin.ModelAdmin):
 
 
 @admin.register(PcuLookup, site=grms_admin_site)
-class PcuLookupAdmin(admin.ModelAdmin):
+class PcuLookupAdmin(GRMSBaseAdmin):
     add_form = PcuBulkAddForm
     list_display = ("vehicle_class", "pcu_factor", "effective_date", "region")
     list_filter = ("vehicle_class", "region")
@@ -269,6 +269,6 @@ class PcuLookupAdmin(admin.ModelAdmin):
 
 
 @admin.register(NightAdjustmentLookup, site=grms_admin_site)
-class NightAdjustmentLookupAdmin(admin.ModelAdmin):
+class NightAdjustmentLookupAdmin(GRMSBaseAdmin):
     list_display = ("hours_counted", "adjustment_factor", "effective_date")
     list_filter = ("hours_counted",)
