@@ -1801,7 +1801,7 @@ class StructureInventoryAdmin(RoadSectionCascadeAdminMixin, SectionScopedAdmin):
     list_select_related = ("road", "section")
     readonly_fields = ("created_date", "modified_date", "derived_lat_lng")
     form = StructureInventoryAdminForm
-    autocomplete_fields = ("road", "section", "structure_category")
+    autocomplete_fields = ("road", "section")
     cascade_autocomplete = {
         "section": lambda qs, req: qs.filter(road_id=int(req.GET.get("road")))
         if (req.GET.get("road") or "").isdigit()
