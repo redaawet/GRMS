@@ -2,9 +2,8 @@
   const $ = (window.django && django.jQuery) ? django.jQuery : null;
   if (!$) return;
 
-  function patchSelect2Ajax(selectEl, getParams) {
-    const $sel = $(selectEl);
-    const select2 = $sel.data("select2");
+  function patchSelect2Ajax($el, getParams) {
+    const select2 = $el.data("select2");
     if (!select2 || !select2.options?.options?.ajax) return;
 
     const ajax = select2.options.options.ajax;
@@ -14,24 +13,38 @@
       const base = (typeof oldUrl === "function") ? oldUrl(params) : oldUrl;
       const u = new URL(base, window.location.origin);
       const extra = getParams() || {};
-      for (const k in extra) {
+      Object.keys(extra).forEach((k) => {
         const v = extra[k];
         if (v) u.searchParams.set(k, v);
         else u.searchParams.delete(k);
-      }
+      });
       return u.toString();
     };
   }
 
-  document.addEventListener("DOMContentLoaded", () => {
+  function wire() {
     const roadEl = document.getElementById("id_road");
     const sectionEl = document.getElementById("id_section");
     if (!roadEl || !sectionEl) return;
 
-    patchSelect2Ajax(sectionEl, () => ({ road: roadEl.value }));
+    const $section = $(sectionEl);
+
+    patchSelect2Ajax($section, () => ({ road: roadEl.value }));
 
     roadEl.addEventListener("change", () => {
-      $(sectionEl).val(null).trigger("change");
+      $section.val(null).trigger("change");
     });
+  }
+
+  document.addEventListener("DOMContentLoaded", () => {
+    wire();
+    setTimeout(wire, 0);
+    setTimeout(wire, 250);
+    setTimeout(wire, 800);
+  });
+
+  document.addEventListener("formset:added", () => {
+    setTimeout(wire, 0);
+    setTimeout(wire, 250);
   });
 })();
