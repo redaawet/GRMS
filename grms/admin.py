@@ -22,6 +22,7 @@ from . import models
 from .menu import build_menu_groups
 from .admin_base import GRMSBaseAdmin
 from .admin_forms import CascadeFKModelFormMixin
+from .forms import RoadSegmentAdminForm
 from .admin_utils import valid_autocomplete_fields, valid_list_display
 from .admin_mixins import CascadeAutocompleteAdminMixin, RoadSectionCascadeAutocompleteMixin
 from traffic.models import TrafficSurveyOverall, TrafficSurveySummary
@@ -1539,13 +1540,7 @@ class RoadSectionAdmin(RoadSectionCascadeAutocompleteMixin, RoadSectionCascadeAd
         "surface_type",
     )
     list_filter = ("admin_zone_override", "admin_woreda_override", "surface_type")
-    search_fields = (
-        "section_number",
-        "name",
-        "road__road_identifier",
-        "road__road_name_from",
-        "road__road_name_to",
-    )
+    search_fields = ("section_number", "name", "road__road_identifier")
     autocomplete_fields = ("road", "admin_zone_override", "admin_woreda_override")
     readonly_fields = ("section_number", "sequence_on_road", "length_km")
     fieldsets = (
@@ -1604,7 +1599,12 @@ class RoadSectionAdmin(RoadSectionCascadeAutocompleteMixin, RoadSectionCascadeAd
 
     def get_search_results(self, request, queryset, search_term):
         queryset, use_distinct = super().get_search_results(request, queryset, search_term)
-        if request.path.endswith("/admin/autocomplete/"):
+        if request.path.endswith("/admin/autocomplete/") and request.GET.get("field_name") == "section":
+            road_id = request.GET.get("road")
+            if road_id and road_id.isdigit():
+                queryset = queryset.filter(road_id=int(road_id))
+            else:
+                queryset = queryset.none()
             return queryset, use_distinct
         road_id = request.GET.get("road_id")
         if road_id and road_id.isdigit():
@@ -1613,39 +1613,6 @@ class RoadSectionAdmin(RoadSectionCascadeAutocompleteMixin, RoadSectionCascadeAd
 
     def get_urls(self):
         return super().get_urls()
-
-
-class RoadSegmentAdminForm(CascadeFKModelFormMixin, CascadeRoadSectionMixin, forms.ModelForm):
-    road = forms.ModelChoiceField(
-        queryset=models.Road.objects.all(),
-        required=False,
-        label="Road",
-    )
-
-    class Meta:
-        model = models.RoadSegment
-        fields = "__all__"
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        road_field = self.fields.get("road")
-        if road_field is not None:
-            road_field.widget = AutocompleteSelect(
-                models.RoadSection._meta.get_field("road"),
-                grms_admin_site,
-            )
-        instance = self.instance
-        if instance and getattr(instance, "section_id", None) and not self.is_bound:
-            self.fields["road"].initial = instance.section.road
-        self._setup_road_section()
-
-    def clean(self):
-        cleaned = super().clean()
-        road = cleaned.get("road")
-        section = cleaned.get("section")
-        if road and section and section.road_id != road.id:
-            raise forms.ValidationError({"section": "Selected section does not belong to the chosen road."})
-        return cleaned
 
 
 @admin.register(models.RoadSegment, site=grms_admin_site)
@@ -1669,7 +1636,13 @@ class RoadSegmentAdmin(RoadSectionCascadeAdminMixin, SectionScopedAdmin):
     autocomplete_fields = ("section",)
     actions = [export_road_segments_to_excel]
     fieldsets = (
-        ("Context", {"fields": ("road", "section"), "description": "Select the road first to filter sections."}),
+        (
+            "Context",
+            {
+                "fields": ("road", "section"),
+                "description": "Select Road first (type-to-search) to filter Sections. Then select Section (type-to-search).",
+            },
+        ),
         (
             "Chainage",
             {
@@ -1714,7 +1687,7 @@ class RoadSegmentAdmin(RoadSectionCascadeAdminMixin, SectionScopedAdmin):
         return obj.segment_identifier or obj.segment_label
 
     class Media:
-        js = ("grms/admin/cascade_autocomplete.js",)
+        js = ("grms/admin/roadsegment_cascade.js",)
 
     def formfield_for_foreignkey(self, db_field, request, **kwargs):
         field = super().formfield_for_foreignkey(db_field, request, **kwargs)
