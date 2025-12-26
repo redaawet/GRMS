@@ -9,8 +9,8 @@ from decimal import Decimal, ROUND_HALF_UP
 
 from django import forms
 from django.contrib import admin, messages
-from django.contrib.admin.sites import NotRegistered
 from django.contrib.admin import AdminSite
+from django.contrib.admin.widgets import AutocompleteSelect
 from django.db.models import Max, Min, Sum, Q
 from django.template.response import TemplateResponse
 from django.http import HttpResponse, JsonResponse
@@ -20,6 +20,8 @@ from openpyxl import Workbook
 
 from . import models
 from .menu import build_menu_groups
+from .admin_base import GRMSBaseAdmin
+from .admin_forms import CascadeFKModelFormMixin
 from .admin_utils import valid_autocomplete_fields, valid_list_display
 from .admin_mixins import CascadeAutocompleteAdminMixin
 from traffic.models import TrafficSurveyOverall, TrafficSurveySummary
@@ -902,7 +904,7 @@ class RoadAdminForm(forms.ModelForm):
         return instance
 
 
-class SectionScopedAdmin(admin.ModelAdmin):
+class SectionScopedAdmin(GRMSBaseAdmin):
     def formfield_for_foreignkey(self, db_field, request, **kwargs):
         if db_field.name == "section":
             road_id = request.POST.get("road") or request.GET.get("road")
@@ -1007,7 +1009,7 @@ class RoadAdmin(SectionScopedAdmin):
         return super().changeform_view(request, object_id, form_url, extra_context)
 
 
-class RoadSectionAdminForm(forms.ModelForm):
+class RoadSectionAdminForm(CascadeFKModelFormMixin, forms.ModelForm):
     class Meta:
         model = models.RoadSection
         exclude = (
@@ -1024,7 +1026,7 @@ grms_admin_site.register(models.Road, RoadAdmin)
 
 
 @admin.register(models.RoadGlobalCostReport, site=grms_admin_site)
-class RoadGlobalCostReportAdmin(admin.ModelAdmin):
+class RoadGlobalCostReportAdmin(GRMSBaseAdmin):
     change_list_template = "admin/reports/global_costs.html"
     ordering = ("road_identifier",)
 
@@ -1106,7 +1108,7 @@ class RoadGlobalCostReportAdmin(admin.ModelAdmin):
 
 
 @admin.register(models.SectionWorkplanReport, site=grms_admin_site)
-class SectionWorkplanReportAdmin(admin.ModelAdmin):
+class SectionWorkplanReportAdmin(GRMSBaseAdmin):
     change_list_template = "admin/grms/reports/section_workplan.html"
 
     def has_add_permission(self, request):  # pragma: no cover - report only
@@ -1215,7 +1217,7 @@ class SectionWorkplanReportAdmin(admin.ModelAdmin):
 
 
 @admin.register(models.AnnualWorkplanReport, site=grms_admin_site)
-class AnnualWorkplanReportAdmin(admin.ModelAdmin):
+class AnnualWorkplanReportAdmin(GRMSBaseAdmin):
     change_list_template = "admin/grms/reports/annual_workplan.html"
 
     def has_add_permission(self, request):  # pragma: no cover - report only
@@ -1323,7 +1325,7 @@ class AnnualWorkplanReportAdmin(admin.ModelAdmin):
 
 
 @admin.register(models.RoadLinkTypeLookup, site=grms_admin_site)
-class RoadLinkTypeLookupAdmin(admin.ModelAdmin):
+class RoadLinkTypeLookupAdmin(GRMSBaseAdmin):
     list_display = ("name", "code", "score")
     search_fields = ("name", "code")
     fieldsets = (
@@ -1333,23 +1335,23 @@ class RoadLinkTypeLookupAdmin(admin.ModelAdmin):
 
 
 @admin.register(models.QAStatus, site=grms_admin_site)
-class QAStatusAdmin(admin.ModelAdmin):
+class QAStatusAdmin(GRMSBaseAdmin):
     list_display = ("status",)
     search_fields = ("status",)
 
 
 @admin.register(models.ActivityLookup, site=grms_admin_site)
-class ActivityLookupAdmin(admin.ModelAdmin):
+class ActivityLookupAdmin(GRMSBaseAdmin):
     list_display = ("activity_code", "activity_name", "default_unit", "is_resource_based")
     search_fields = ("activity_code", "activity_name", "notes")
 
 
-class InterventionLookupAdmin(admin.ModelAdmin):
+class InterventionLookupAdmin(GRMSBaseAdmin):
     list_display = ("intervention_code", "name", "category", "unit_measure")
     search_fields = ("intervention_code", "name", "description")
 
 
-class AnnualWorkPlanAdmin(admin.ModelAdmin):
+class AnnualWorkPlanAdmin(GRMSBaseAdmin):
     list_display = ("fiscal_year", "road", "region", "woreda", "status")
     list_filter = ("fiscal_year", "status", "region")
     search_fields = ("road__road_identifier", "region", "woreda")
@@ -1357,20 +1359,20 @@ class AnnualWorkPlanAdmin(admin.ModelAdmin):
 
 
 @admin.register(models.DistressType, site=grms_admin_site)
-class DistressTypeAdmin(admin.ModelAdmin):
+class DistressTypeAdmin(GRMSBaseAdmin):
     list_display = ("distress_code", "distress_name", "category")
     list_filter = ("category",)
     search_fields = ("distress_code", "distress_name", "notes")
 
 
 @admin.register(models.DistressCondition, site=grms_admin_site)
-class DistressConditionAdmin(admin.ModelAdmin):
+class DistressConditionAdmin(GRMSBaseAdmin):
     list_display = ("distress", "severity_code", "extent_code")
     search_fields = ("distress__distress_code", "distress__distress_name", "condition_notes")
     autocomplete_fields = ("distress",)
 
 
-class DistressActivityAdmin(admin.ModelAdmin):
+class DistressActivityAdmin(GRMSBaseAdmin):
     _AUTO = ("condition", "activity")
     _LD = ("condition", "activity", "scale_basis")
     list_display = valid_list_display(models.DistressActivity, admin.ModelAdmin, _LD)
@@ -1395,7 +1397,7 @@ for model, admin_class in (
 
 
 @admin.register(models.UnitCost, site=grms_admin_site)
-class UnitCostAdmin(admin.ModelAdmin):
+class UnitCostAdmin(GRMSBaseAdmin):
     list_display = ("intervention", "region", "unit_cost", "effective_date", "expiry_date")
     search_fields = ("intervention__intervention_code", "intervention__name", "region", "notes")
     _AUTO = ("intervention",)
@@ -1403,51 +1405,28 @@ class UnitCostAdmin(admin.ModelAdmin):
 
 
 @admin.register(models.AdminZone, site=grms_admin_site)
-class AdminZoneAdmin(admin.ModelAdmin):
+class AdminZoneAdmin(GRMSBaseAdmin):
     list_display = ("name", "region")
     search_fields = ("name", "region")
     fieldsets = (("Administrative zone", {"fields": ("name", "region")}),)
 
 
 @admin.register(models.AdminWoreda, site=grms_admin_site)
-class AdminWoredaAdmin(admin.ModelAdmin):
+class AdminWoredaAdmin(GRMSBaseAdmin):
     list_display = ("name", "zone")
     list_filter = ("zone",)
     search_fields = ("name", "zone__name")
     fieldsets = (("Woreda", {"fields": ("name", "zone")}),)
 
 
-class QAStatusAdmin(admin.ModelAdmin):
-    list_display = ("status",)
-    search_fields = ("status",)
-
-
-class ActivityLookupAdmin(admin.ModelAdmin):
-    list_display = ("activity_code", "activity_name", "default_unit", "is_resource_based")
-    list_filter = ("default_unit", "is_resource_based")
-    search_fields = ("activity_code", "activity_name")
-
-
-class DistressTypeAdmin(admin.ModelAdmin):
-    list_display = ("distress_code", "distress_name", "category")
-    list_filter = ("category",)
-    search_fields = ("distress_code", "distress_name")
-
-
-class DistressConditionAdmin(admin.ModelAdmin):
-    list_display = ("distress", "severity_code", "extent_code")
-    list_filter = ("severity_code", "extent_code")
-    search_fields = ("distress__distress_code", "distress__distress_name")
-
-
 @admin.register(models.InterventionCategory, site=grms_admin_site)
-class InterventionCategoryAdmin(admin.ModelAdmin):
+class InterventionCategoryAdmin(GRMSBaseAdmin):
     list_display = ("name",)
     search_fields = ("name",)
     fieldsets = (("Intervention category", {"fields": ("name",)}),)
 
 @admin.register(models.InterventionWorkItem, site=grms_admin_site)
-class InterventionWorkItemAdmin(admin.ModelAdmin):
+class InterventionWorkItemAdmin(GRMSBaseAdmin):
     list_display = ("work_code", "description", "category", "unit", "unit_cost")
     list_filter = ("category",)
     search_fields = ("work_code", "description", "category__name")
@@ -1459,21 +1438,21 @@ class InterventionWorkItemAdmin(admin.ModelAdmin):
 
 
 @admin.register(models.ConditionFactorLookup, site=grms_admin_site)
-class ConditionFactorLookupAdmin(admin.ModelAdmin):
+class ConditionFactorLookupAdmin(GRMSBaseAdmin):
     list_display = ("factor_type", "rating", "factor_value", "description")
     list_filter = ("factor_type", "rating")
     search_fields = ("description", "factor_type")
 
 
 @admin.register(models.MCIWeightConfig, site=grms_admin_site)
-class MCIWeightConfigAdmin(admin.ModelAdmin):
+class MCIWeightConfigAdmin(GRMSBaseAdmin):
     list_display = ("name", "effective_from", "effective_to", "is_active")
     list_filter = ("is_active",)
     search_fields = ("name",)
 
 
 @admin.register(models.MCICategoryLookup, site=grms_admin_site)
-class MCICategoryLookupAdmin(admin.ModelAdmin):
+class MCICategoryLookupAdmin(GRMSBaseAdmin):
     list_display = (
         "rating",
         "mci_min",
@@ -1487,7 +1466,7 @@ class MCICategoryLookupAdmin(admin.ModelAdmin):
 
 
 @admin.register(models.MCIRoadMaintenanceRule, site=grms_admin_site)
-class MCIRoadMaintenanceRuleAdmin(admin.ModelAdmin):
+class MCIRoadMaintenanceRuleAdmin(GRMSBaseAdmin):
     list_display = (
         "mci_min",
         "mci_max",
@@ -1531,7 +1510,7 @@ class SegmentInterventionRecommendationAdmin(SectionScopedAdmin):
 
 
 @admin.register(models.StructureInterventionRecommendation, site=grms_admin_site)
-class StructureInterventionRecommendationAdmin(admin.ModelAdmin):
+class StructureInterventionRecommendationAdmin(GRMSBaseAdmin):
     list_display = ("structure_desc", "condition_code", "recommended_item_display")
     search_fields = ("structure__road__road_identifier", "structure__structure_category")
     list_select_related = ("structure", "structure__road", "structure__section", "recommended_item")
@@ -1567,16 +1546,18 @@ class RoadSectionAdmin(RoadSectionCascadeAdminMixin, SectionScopedAdmin):
     )
     autocomplete_fields = ("road", "admin_zone_override", "admin_woreda_override")
     readonly_fields = ("section_number", "sequence_on_road", "length_km")
-    change_form_template = "admin/roadsection_change_form.html"
     fieldsets = (
-        ("Parent road", {"fields": ("road",)}),
+        ("Parent road", {"fields": ("road",), "description": "Select the road this section belongs to."}),
         (
             "Section identification",
             {"fields": (("section_number", "sequence_on_road"), "name")},
         ),
         (
             "Chainage and length",
-            {"fields": (("start_chainage_km", "end_chainage_km"), "length_km")},
+            {
+                "fields": (("start_chainage_km", "end_chainage_km"), "length_km"),
+                "description": "Chainages must not overlap other sections on this road.",
+            },
         ),
         (
             "Physical characteristics",
@@ -1627,168 +1608,45 @@ class RoadSectionAdmin(RoadSectionCascadeAdminMixin, SectionScopedAdmin):
         return queryset, use_distinct
 
     def get_urls(self):
-        urls = super().get_urls()
-        custom = [
-            path(
-                "<int:pk>/get_geometry/",
-                self.admin_site.admin_view(self.get_geometry),
-                name="roadsection-get-geometry",
+        return super().get_urls()
+
+
+class RoadSegmentAdminForm(CascadeFKModelFormMixin, CascadeRoadSectionMixin, forms.ModelForm):
+    road = forms.ModelChoiceField(
+        queryset=models.Road.objects.all(),
+        required=False,
+        label="Road",
+    )
+
+    class Meta:
+        model = models.RoadSegment
+        fields = "__all__"
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        road_field = self.fields.get("road")
+        if road_field is not None:
+            road_field.widget = AutocompleteSelect(
+                models.RoadSection._meta.get_field("road"),
+                grms_admin_site,
             )
-        ]
-        return custom + urls
+        instance = self.instance
+        if instance and getattr(instance, "section_id", None) and not self.is_bound:
+            self.fields["road"].initial = instance.section.road
+        self._setup_road_section()
 
-    def get_geometry(self, request, pk):
-        section = models.RoadSection.objects.get(pk=pk)
-        geometry = _serialize_geometry(getattr(section, "geometry", None))
-        start_point = point_to_lat_lng(getattr(section, "section_start_coordinates", None))
-        end_point = point_to_lat_lng(getattr(section, "section_end_coordinates", None))
-        length_km = float(section.length_km) if section.length_km is not None else None
-        return JsonResponse(
-            {
-                "geometry": geometry,
-                "start_point": start_point,
-                "end_point": end_point,
-                "length_km": length_km,
-            }
-        )
-
-    def changeform_view(self, request, object_id=None, form_url="", extra_context=None):
-        extra_context = extra_context or {}
-        instance = self.get_object(request, object_id)
-        road_id = instance.road_id if instance else request.GET.get("road")
-        section_id = instance.id if instance else None
-        extra_context["overlay_map_config"] = _overlay_map_config(
-            road_id=road_id,
-            section_id=section_id,
-            current_id=section_id,
-        )
-        return super().changeform_view(request, object_id, form_url, extra_context)
-
-
-    def _build_map_config(self, section, request=None):
-        road = getattr(section, "road", None)
-        if not road and request:
-            road_id = request.GET.get("road") or request.GET.get("road__id__exact")
-            if road_id and road_id.isdigit():
-                road = models.Road.objects.filter(pk=int(road_id)).first()
-
-        if not road:
-            map_context_url = reverse("road_map_context_default")
-        else:
-            map_context_url = _road_map_context_url(road.id)
-
-        start_point = self._section_point(section) if section else None
-        end_point = self._section_point(section, end=True) if section else None
-        road_start = point_to_lat_lng(getattr(road, "road_start_coordinates", None)) if road else None
-        road_end = point_to_lat_lng(getattr(road, "road_end_coordinates", None)) if road else None
-        road_geometry = _serialize_geometry(getattr(road, "geometry", None)) if road else None
-        section_geometry = _serialize_geometry(getattr(section, "geometry", None)) if section else None
-
-        return {
-            "scope": "section",
-            "api": {
-                "map_context": map_context_url,
-                "route": reverse("route_preview"),
-            },
-            "default_travel_mode": "DRIVING",
-            "travel_modes": sorted(map_services.TRAVEL_MODES),
-            "road": {
-                "id": getattr(road, "id", None),
-                "length_km": _to_float(getattr(road, "total_length_km", None)),
-                "start": road_start,
-                "end": road_end,
-                "geometry": road_geometry,
-            },
-            "section": {
-                "id": getattr(section, "id", None),
-                "name": getattr(section, "name", None),
-                "start_chainage_km": _to_float(getattr(section, "start_chainage_km", None)),
-                "end_chainage_km": _to_float(getattr(section, "end_chainage_km", None)),
-                "length_km": _to_float(getattr(section, "length_km", None)),
-                "zone_override_id": getattr(section, "admin_zone_override_id", None),
-                "woreda_override_id": getattr(section, "admin_woreda_override_id", None),
-                "geometry": section_geometry,
-                "geometry_url": (
-                    reverse("admin:roadsection-get-geometry", args=[section.id]) if section else ""
-                ),
-                "has_parent_geometry": bool(road_geometry),
-                "points": {
-                    "start": start_point,
-                    "end": end_point,
-                },
-            },
-            "admin_fields": {
-                "zone_override": "id_admin_zone_override",
-                "woreda_override": "id_admin_woreda_override",
-            },
-            "default_admin_selection": {
-                "zone_id": (
-                    getattr(section, "admin_zone_override_id", None)
-                    or getattr(road, "admin_zone_id", None)
-                ),
-                "woreda_id": (
-                    getattr(section, "admin_woreda_override_id", None)
-                    or getattr(road, "admin_woreda_id", None)
-                ),
-            },
-        }
-
-    @staticmethod
-    def _section_point(section, end: bool = False):
-        if not section:
-            return None
-
-        source = section.section_end_coordinates if end else section.section_start_coordinates
-        if not source:
-            chainage = section.end_chainage_km if end else section.start_chainage_km
-            return RoadSectionAdmin._interpolated_point(section, chainage)
-
-        point = point_to_lat_lng(source)
-        if not point:
-            return None
-
-        try:
-            easting, northing = wgs84_to_utm(point["lat"], point["lng"], zone=37)
-        except ImportError:
-            easting = northing = None
-
-        point["easting"] = easting
-        point["northing"] = northing
-        return point
-
-    @staticmethod
-    def _interpolated_point(section, chainage):
-        if chainage is None:
-            return None
-
-        road = section.road
-        road_length = road.total_length_km
-        start = point_to_lat_lng(getattr(road, "road_start_coordinates", None))
-        end = point_to_lat_lng(getattr(road, "road_end_coordinates", None))
-
-        if not road_length or road_length <= 0 or not start or not end:
-            return None
-
-        fraction = float(chainage) / float(road_length)
-        fraction = max(0.0, min(1.0, fraction))
-        lat = start["lat"] + (end["lat"] - start["lat"]) * fraction
-        lng = start["lng"] + (end["lng"] - start["lng"]) * fraction
-
-        try:
-            easting, northing = wgs84_to_utm(lat, lng, zone=37)
-        except ImportError:
-            easting = northing = None
-
-        return {
-            "lat": lat,
-            "lng": lng,
-            "easting": easting,
-            "northing": northing,
-        }
+    def clean(self):
+        cleaned = super().clean()
+        road = cleaned.get("road")
+        section = cleaned.get("section")
+        if road and section and section.road_id != road.id:
+            raise forms.ValidationError({"section": "Selected section does not belong to the chosen road."})
+        return cleaned
 
 
 @admin.register(models.RoadSegment, site=grms_admin_site)
 class RoadSegmentAdmin(RoadSectionCascadeAdminMixin, SectionScopedAdmin):
+    form = RoadSegmentAdminForm
     list_display = (
         "road",
         "section_label",
@@ -1806,12 +1664,14 @@ class RoadSegmentAdmin(RoadSectionCascadeAdminMixin, SectionScopedAdmin):
     list_filter = ("section__road", "section", "terrain_longitudinal", "terrain_transverse")
     autocomplete_fields = ("section",)
     actions = [export_road_segments_to_excel]
-    change_form_template = "admin/grms/roadsegment/change_form.html"
     fieldsets = (
-        ("Context", {"fields": ("section",)}),
+        ("Context", {"fields": ("road", "section"), "description": "Select the road first to filter sections."}),
         (
             "Chainage",
-            {"fields": (("station_from_km", "station_to_km"), "carriageway_width_m")},
+            {
+                "fields": (("station_from_km", "station_to_km"), "carriageway_width_m"),
+                "description": "Segment chainages cannot overlap other segments in this section.",
+            },
         ),
         (
             "Attributes",
@@ -1868,24 +1728,6 @@ class RoadSegmentAdmin(RoadSectionCascadeAdminMixin, SectionScopedAdmin):
                 field.queryset = models.RoadSection.objects.none()
         return field
 
-    def changeform_view(self, request, object_id=None, form_url="", extra_context=None):
-        extra_context = extra_context or {}
-        instance = self.get_object(request, object_id)
-        if instance:
-            road_id = instance.section.road_id
-            section_id = instance.section_id
-            current_id = instance.id
-        else:
-            road_id = request.GET.get("road")
-            section_id = request.GET.get("section")
-            current_id = None
-        extra_context["overlay_map_config"] = _overlay_map_config(
-            road_id=road_id,
-            section_id=section_id,
-            current_id=current_id,
-        )
-        return super().changeform_view(request, object_id, form_url, extra_context)
-
     def get_queryset(self, request):
         qs = super().get_queryset(request)
         road_id = request.GET.get("road__id__exact")
@@ -1900,48 +1742,9 @@ class RoadSegmentAdmin(RoadSectionCascadeAdminMixin, SectionScopedAdmin):
             queryset = queryset.filter(section_id=int(section_id))
         return queryset, use_distinct
 
-    def _build_map_config(self, segment):
-        if not segment:
-            return None
-
-        section = segment.section
-        road = section.road
-        return {
-            "scope": "segment",
-            "api": {"map_context": _road_map_context_url(road.id)},
-            "road": {
-                "id": road.id,
-                "length_km": _to_float(road.total_length_km),
-                "start": point_to_lat_lng(getattr(road, "road_start_coordinates", None)),
-                "end": point_to_lat_lng(getattr(road, "road_end_coordinates", None)),
-                "geometry": _serialize_geometry(getattr(road, "geometry", None)),
-            },
-            "section": {
-                "name": section.name,
-                "start_chainage_km": _to_float(section.start_chainage_km),
-                "end_chainage_km": _to_float(section.end_chainage_km),
-                "length_km": _to_float(section.length_km),
-                "zone_override_id": section.admin_zone_override_id,
-                "woreda_override_id": section.admin_woreda_override_id,
-                "geometry": _serialize_geometry(getattr(section, "geometry", None)),
-                "has_parent_geometry": bool(getattr(section, "geometry", None)),
-            },
-            "segment": {
-                "station_from_km": _to_float(segment.station_from_km),
-                "station_to_km": _to_float(segment.station_to_km),
-            },
-            "default_admin_selection": {
-                "zone_id": section.admin_zone_override_id or road.admin_zone_id,
-                "woreda_id": section.admin_woreda_override_id or road.admin_woreda_id,
-            },
-        }
-
-
 @admin.register(models.StructureInventory, site=grms_admin_site)
-class StructureInventoryAdmin(
-    CascadeAutocompleteAdminMixin, RoadSectionCascadeAdminMixin, SectionScopedAdmin
-):
-    class StructureInventoryAdminForm(CascadeRoadSectionMixin, forms.ModelForm):
+class StructureInventoryAdmin(RoadSectionCascadeAdminMixin, SectionScopedAdmin):
+    class StructureInventoryAdminForm(CascadeFKModelFormMixin, CascadeRoadSectionMixin, forms.ModelForm):
         class Meta:
             model = models.StructureInventory
             fields = "__all__"
@@ -2031,6 +1834,7 @@ class StructureInventoryAdmin(
                     "location_point",
                     "derived_lat_lng",
                 ),
+                "description": "Enter UTM Easting/Northing or click the map to populate coordinates.",
             },
         ),
         (
@@ -2197,6 +2001,12 @@ class StructureDetailFilterForm(CascadeRoadSectionAssetMixin, forms.ModelForm):
                 models.RoadSection._meta.get_field("road"),
                 grms_admin_site,
             )
+        section_field = self.fields.get("section")
+        if section_field is not None:
+            section_field.widget = AutocompleteSelect(
+                models.StructureInventory._meta.get_field("section"),
+                grms_admin_site,
+            )
         instance = self.instance
         if instance and getattr(instance, "structure_id", None):
             structure = instance.structure
@@ -2204,6 +2014,12 @@ class StructureDetailFilterForm(CascadeRoadSectionAssetMixin, forms.ModelForm):
             self.fields["section"].initial = structure.section
         self._setup_road_section()
         self._setup_asset()
+
+    def _asset_queryset(self, road_id: str | None, section_id: str | None):
+        qs = super()._asset_queryset(road_id, section_id)
+        if self.structure_category:
+            qs = qs.filter(structure_category=self.structure_category)
+        return qs
 
     def clean(self):
         cleaned = super().clean()
@@ -2223,12 +2039,7 @@ class BridgeDetailForm(StructureDetailFilterForm):
 
 
 @admin.register(models.BridgeDetail, site=grms_admin_site)
-class BridgeDetailAdmin(
-    CascadeAutocompleteAdminMixin,
-    StructureDetailOverlayMixin,
-    RoadSectionStructureCascadeAdminMixin,
-    admin.ModelAdmin,
-):
+class BridgeDetailAdmin(StructureDetailOverlayMixin, RoadSectionStructureCascadeAdminMixin, GRMSBaseAdmin):
     form = BridgeDetailForm
     structure_category_codes = ("Bridge",)
     list_display = ("structure", "bridge_type", "span_count", "has_head_walls")
@@ -2298,12 +2109,7 @@ class CulvertDetailForm(StructureDetailFilterForm):
 
 
 @admin.register(models.CulvertDetail, site=grms_admin_site)
-class CulvertDetailAdmin(
-    CascadeAutocompleteAdminMixin,
-    StructureDetailOverlayMixin,
-    RoadSectionStructureCascadeAdminMixin,
-    admin.ModelAdmin,
-):
+class CulvertDetailAdmin(StructureDetailOverlayMixin, RoadSectionStructureCascadeAdminMixin, GRMSBaseAdmin):
     form = CulvertDetailForm
     structure_category_codes = ("Culvert",)
     autocomplete_fields = ("structure",)
@@ -2347,12 +2153,7 @@ class FordDetailForm(StructureDetailFilterForm):
 
 
 @admin.register(models.FordDetail, site=grms_admin_site)
-class FordDetailAdmin(
-    CascadeAutocompleteAdminMixin,
-    StructureDetailOverlayMixin,
-    RoadSectionStructureCascadeAdminMixin,
-    admin.ModelAdmin,
-):
+class FordDetailAdmin(StructureDetailOverlayMixin, RoadSectionStructureCascadeAdminMixin, GRMSBaseAdmin):
     form = FordDetailForm
     structure_category_codes = ("Ford",)
     autocomplete_fields = ("structure",)
@@ -2377,12 +2178,7 @@ class RetainingWallDetailForm(StructureDetailFilterForm):
 
 
 @admin.register(models.RetainingWallDetail, site=grms_admin_site)
-class RetainingWallDetailAdmin(
-    CascadeAutocompleteAdminMixin,
-    StructureDetailOverlayMixin,
-    RoadSectionStructureCascadeAdminMixin,
-    admin.ModelAdmin,
-):
+class RetainingWallDetailAdmin(StructureDetailOverlayMixin, RoadSectionStructureCascadeAdminMixin, GRMSBaseAdmin):
     form = RetainingWallDetailForm
     structure_category_codes = ("Retaining Wall",)
     autocomplete_fields = ("structure",)
@@ -2407,12 +2203,7 @@ class GabionWallDetailForm(StructureDetailFilterForm):
 
 
 @admin.register(models.GabionWallDetail, site=grms_admin_site)
-class GabionWallDetailAdmin(
-    CascadeAutocompleteAdminMixin,
-    StructureDetailOverlayMixin,
-    RoadSectionStructureCascadeAdminMixin,
-    admin.ModelAdmin,
-):
+class GabionWallDetailAdmin(StructureDetailOverlayMixin, RoadSectionStructureCascadeAdminMixin, GRMSBaseAdmin):
     form = GabionWallDetailForm
     structure_category_codes = ("Gabion Wall",)
     autocomplete_fields = ("structure",)
@@ -2430,7 +2221,7 @@ class GabionWallDetailAdmin(
 
 @admin.register(models.FurnitureInventory, site=grms_admin_site)
 class FurnitureInventoryAdmin(SectionScopedAdmin):
-    class FurnitureInventoryForm(CascadeRoadSectionMixin, forms.ModelForm):
+    class FurnitureInventoryForm(CascadeFKModelFormMixin, CascadeRoadSectionMixin, forms.ModelForm):
         road = forms.ModelChoiceField(
             queryset=models.Road.objects.all(),
             required=False,
@@ -2484,7 +2275,7 @@ class FurnitureInventoryAdmin(SectionScopedAdmin):
         return queryset, use_distinct
 
 
-class StructureConditionSurveyForm(CascadeRoadSectionAssetMixin, forms.ModelForm):
+class StructureConditionSurveyForm(CascadeFKModelFormMixin, CascadeRoadSectionAssetMixin, forms.ModelForm):
     road_filter = forms.ModelChoiceField(
         queryset=models.Road.objects.all(),
         required=False,
@@ -2509,6 +2300,18 @@ class StructureConditionSurveyForm(CascadeRoadSectionAssetMixin, forms.ModelForm
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        road_field = self.fields.get("road_filter")
+        if road_field is not None:
+            road_field.widget = AutocompleteSelect(
+                models.RoadSection._meta.get_field("road"),
+                grms_admin_site,
+            )
+        section_field = self.fields.get("section_filter")
+        if section_field is not None:
+            section_field.widget = AutocompleteSelect(
+                models.StructureInventory._meta.get_field("section"),
+                grms_admin_site,
+            )
         instance = self.instance
         if instance and getattr(instance, "structure_id", None) and not self.is_bound:
             structure = instance.structure
@@ -2519,7 +2322,7 @@ class StructureConditionSurveyForm(CascadeRoadSectionAssetMixin, forms.ModelForm
 
 
 @admin.register(models.StructureConditionSurvey, site=grms_admin_site)
-class StructureConditionSurveyAdmin(admin.ModelAdmin):
+class StructureConditionSurveyAdmin(GRMSBaseAdmin):
     form = StructureConditionSurveyForm
     autocomplete_fields = ("structure", "qa_status")
     list_display = ("structure_desc", "survey_year", "condition_code", "condition_rating", "qa_status")
@@ -2555,27 +2358,39 @@ class StructureConditionSurveyAdmin(admin.ModelAdmin):
 
 
 @admin.register(models.StructureConditionLookup, site=grms_admin_site)
-class StructureConditionLookupAdmin(admin.ModelAdmin):
+class StructureConditionLookupAdmin(GRMSBaseAdmin):
     list_display = ("code", "name", "description")
     ordering = ("code",)
     search_fields = ("code", "name", "description")
 
 
 @admin.register(models.StructureConditionInterventionRule, site=grms_admin_site)
-class StructureConditionInterventionRuleAdmin(admin.ModelAdmin):
+class StructureConditionInterventionRuleAdmin(GRMSBaseAdmin):
     list_display = ("structure_type", "condition", "intervention_item", "is_active")
     list_filter = ("structure_type", "is_active")
     ordering = ("structure_type", "condition__code")
     autocomplete_fields = ("condition", "intervention_item")
 
 
-class RoadConditionSurveyForm(RoadSectionSegmentFilterForm):
+class RoadConditionSurveyForm(CascadeFKModelFormMixin, RoadSectionSegmentFilterForm):
     class Meta:
         model = models.RoadConditionSurvey
         fields = "__all__"
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        road_field = self.fields.get("road")
+        if road_field is not None:
+            road_field.widget = AutocompleteSelect(
+                models.RoadSection._meta.get_field("road"),
+                grms_admin_site,
+            )
+        section_field = self.fields.get("section")
+        if section_field is not None:
+            section_field.widget = AutocompleteSelect(
+                models.RoadSegment._meta.get_field("section"),
+                grms_admin_site,
+            )
         instance = self.instance
         if instance and getattr(instance, "road_segment_id", None):
             segment = instance.road_segment
@@ -2629,7 +2444,8 @@ class RoadConditionSurveyAdmin(
                 "section",
                 "road_segment",
                 ("inspection_date", "inspected_by"),
-            )
+            ),
+            "description": "Pick the road, then section, then segment to scope the survey.",
         }),
         ("Drainage", {
             "fields": (
@@ -2656,7 +2472,7 @@ class RoadConditionSurveyAdmin(
     )
 
 
-class FurnitureConditionSurveyForm(CascadeRoadSectionAssetMixin, forms.ModelForm):
+class FurnitureConditionSurveyForm(CascadeFKModelFormMixin, CascadeRoadSectionAssetMixin, forms.ModelForm):
     road_filter = forms.ModelChoiceField(
         queryset=models.Road.objects.all(),
         required=False,
@@ -2681,6 +2497,18 @@ class FurnitureConditionSurveyForm(CascadeRoadSectionAssetMixin, forms.ModelForm
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        road_field = self.fields.get("road_filter")
+        if road_field is not None:
+            road_field.widget = AutocompleteSelect(
+                models.RoadSection._meta.get_field("road"),
+                grms_admin_site,
+            )
+        section_field = self.fields.get("section_filter")
+        if section_field is not None:
+            section_field.widget = AutocompleteSelect(
+                models.StructureInventory._meta.get_field("section"),
+                grms_admin_site,
+            )
         instance = self.instance
         if instance and getattr(instance, "furniture_id", None) and not self.is_bound:
             furniture = instance.furniture
@@ -2691,7 +2519,7 @@ class FurnitureConditionSurveyForm(CascadeRoadSectionAssetMixin, forms.ModelForm
 
 
 @admin.register(models.FurnitureConditionSurvey, site=grms_admin_site)
-class FurnitureConditionSurveyAdmin(admin.ModelAdmin):
+class FurnitureConditionSurveyAdmin(GRMSBaseAdmin):
     form = FurnitureConditionSurveyForm
     autocomplete_fields = ("furniture", "qa_status")
     list_display = ("furniture", "survey_year", "condition_rating")
@@ -2718,13 +2546,25 @@ class FurnitureConditionSurveyAdmin(admin.ModelAdmin):
     )
 
 
-class RoadConditionDetailedSurveyForm(RoadSectionSegmentFilterForm):
+class RoadConditionDetailedSurveyForm(CascadeFKModelFormMixin, RoadSectionSegmentFilterForm):
     class Meta:
         model = models.RoadConditionDetailedSurvey
         fields = "__all__"
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        road_field = self.fields.get("road")
+        if road_field is not None:
+            road_field.widget = AutocompleteSelect(
+                models.RoadSection._meta.get_field("road"),
+                grms_admin_site,
+            )
+        section_field = self.fields.get("section")
+        if section_field is not None:
+            section_field.widget = AutocompleteSelect(
+                models.RoadSegment._meta.get_field("section"),
+                grms_admin_site,
+            )
         instance = self.instance
         if instance and getattr(instance, "road_segment_id", None):
             segment = instance.road_segment
@@ -2821,7 +2661,7 @@ class RoadConditionDetailedSurveyAdmin(CascadeAutocompleteAdminMixin, SectionSco
 
 
 @admin.register(models.StructureConditionDetailedSurvey, site=grms_admin_site)
-class StructureConditionDetailedSurveyAdmin(admin.ModelAdmin):
+class StructureConditionDetailedSurveyAdmin(GRMSBaseAdmin):
     autocomplete_fields = ("awp", "structure", "distress", "distress_condition", "activity", "qa_status")
     list_display = ("structure", "distress", "survey_level", "inspection_date")
     list_filter = ("survey_level", "inspection_date")
@@ -2879,7 +2719,7 @@ class StructureConditionDetailedSurveyAdmin(admin.ModelAdmin):
 
 
 @admin.register(models.FurnitureConditionDetailedSurvey, site=grms_admin_site)
-class FurnitureConditionDetailedSurveyAdmin(admin.ModelAdmin):
+class FurnitureConditionDetailedSurveyAdmin(GRMSBaseAdmin):
     autocomplete_fields = ("awp", "furniture", "distress", "distress_condition", "activity", "qa_status")
     list_display = ("furniture", "distress", "survey_level", "inspection_date")
     list_filter = ("survey_level", "inspection_date")
@@ -2931,7 +2771,7 @@ class RoadSocioEconomicForm(forms.ModelForm):
 
 
 @admin.register(models.RoadSocioEconomic, site=grms_admin_site)
-class RoadSocioEconomicAdmin(admin.ModelAdmin):
+class RoadSocioEconomicAdmin(GRMSBaseAdmin):
     form = RoadSocioEconomicForm
     list_display = (
         "road",
@@ -2980,37 +2820,8 @@ class RoadSocioEconomicAdmin(admin.ModelAdmin):
     )
 
 
-class DistressActivityAdmin(admin.ModelAdmin):
-    autocomplete_fields = ("condition", "activity")
-    list_display = ("condition", "activity", "quantity_value", "scale_basis")
-    list_filter = ("scale_basis",)
-    search_fields = ("condition__distress__distress_code", "activity__activity_code")
-
-
-class UnitCostAdmin(admin.ModelAdmin):
-    autocomplete_fields = ("intervention",)
-    list_display = ("intervention", "region", "unit_cost", "effective_date", "expiry_date")
-    list_filter = ("region", "effective_date", "expiry_date")
-    search_fields = ("intervention__intervention_code", "intervention__name", "region")
-
-
-for model, admin_class in [
-    (models.QAStatus, QAStatusAdmin),
-    (models.ActivityLookup, ActivityLookupAdmin),
-    (models.DistressType, DistressTypeAdmin),
-    (models.DistressCondition, DistressConditionAdmin),
-    (models.DistressActivity, DistressActivityAdmin),
-    (models.UnitCost, UnitCostAdmin),
-]:
-    try:
-        grms_admin_site.unregister(model)
-    except NotRegistered:
-        pass
-    grms_admin_site.register(model, admin_class)
-
-
 @admin.register(models.BenefitCategory, site=grms_admin_site)
-class BenefitCategoryAdmin(admin.ModelAdmin):
+class BenefitCategoryAdmin(GRMSBaseAdmin):
     list_display = ("code", "name", "weight_display")
     search_fields = ("code", "name")
 
@@ -3022,14 +2833,14 @@ class BenefitCategoryAdmin(admin.ModelAdmin):
 
 
 @admin.register(models.BenefitCriterion, site=grms_admin_site)
-class BenefitCriterionAdmin(admin.ModelAdmin):
+class BenefitCriterionAdmin(GRMSBaseAdmin):
     list_display = ("code", "name", "category", "weight", "scoring_method")
     list_filter = ("category", "scoring_method")
     search_fields = ("code", "name")
 
 
 @admin.register(models.BenefitCriterionScale, site=grms_admin_site)
-class BenefitCriterionScaleAdmin(admin.ModelAdmin):
+class BenefitCriterionScaleAdmin(GRMSBaseAdmin):
     list_display = (
         "criterion",
         "min_value",
@@ -3042,7 +2853,7 @@ class BenefitCriterionScaleAdmin(admin.ModelAdmin):
 
 
 @admin.register(models.BenefitFactor, site=grms_admin_site)
-class BenefitFactorAdmin(admin.ModelAdmin):
+class BenefitFactorAdmin(GRMSBaseAdmin):
     list_display = (
         "road",
         "fiscal_year",
@@ -3084,7 +2895,7 @@ class BenefitFactorAdmin(admin.ModelAdmin):
         return False if obj else super().has_change_permission(request, obj)
 
 @admin.register(models.RoadRankingResult, site=grms_admin_site)
-class RoadRankingResultAdmin(admin.ModelAdmin):
+class RoadRankingResultAdmin(GRMSBaseAdmin):
     list_display = (
         "rank",
         "road",
@@ -3113,19 +2924,3 @@ class RoadRankingResultAdmin(admin.ModelAdmin):
 
     def has_change_permission(self, request, obj=None):
         return False if obj else super().has_change_permission(request, obj)
-
-
-
-
-# Register supporting models without custom admins
-for model in [
-    # ConditionRating REMOVED – replaced by ConditionFactorLookup
-    models.FordDetail,
-    models.RetainingWallDetail,
-    models.GabionWallDetail,
-]:
-    if not grms_admin_site.is_registered(model):
-        grms_admin_site.register(model)
-
-if not grms_admin_site.is_registered(models.DistressActivity):
-    grms_admin_site.register(models.DistressActivity, DistressActivityAdmin)

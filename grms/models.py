@@ -715,6 +715,14 @@ class RoadSection(models.Model):
                             errors["start_chainage_km"] = "First section must start at 0 km (±20 m)."
                     if previous_end is not None:
                         gap = start - previous_end
+                        if gap < -tolerance:
+                            overlap_with = sections[idx - 1]
+                            if section is self or overlap_with is self:
+                                other = overlap_with if section is self else section
+                                errors["start_chainage_km"] = (
+                                    f"Overlaps with section {section_id(other)}: "
+                                    f"{other.start_chainage_km}–{other.end_chainage_km} km."
+                                )
                         if gap > tolerance and section is self:
                             errors["start_chainage_km"] = (
                                 f"Gap detected before this section; expected start at {previous_end} km."
@@ -900,6 +908,29 @@ class RoadSegment(models.Model):
                 errors["station_to_km"] = "Segment end exceeds the parent section length."
             if self.station_from_km is not None and self.station_from_km > section_length:
                 errors["station_from_km"] = "Segment start exceeds the parent section length."
+
+        if (
+            self.section_id
+            and self.station_from_km is not None
+            and self.station_to_km is not None
+        ):
+            siblings = list(
+                RoadSegment.objects.filter(section_id=self.section_id)
+                .exclude(pk=self.pk)
+                .order_by("station_from_km", "station_to_km")
+            )
+            for other in siblings:
+                other_start = other.station_from_km or Decimal("0")
+                other_end = other.station_to_km or Decimal("0")
+                overlap = not (
+                    self.station_to_km <= other_start or self.station_from_km >= other_end
+                )
+                if overlap:
+                    errors["station_from_km"] = (
+                        f"Overlaps with segment {other.segment_label}: "
+                        f"{other_start}–{other_end} km."
+                    )
+                    break
 
         if errors:
             raise ValidationError(errors)
