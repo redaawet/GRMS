@@ -19,5 +19,8 @@ class GRMSBaseAdmin(admin.ModelAdmin):
         return HelpTextForm
 
     def get_autocomplete_fields(self, request):
-        fields = super().get_autocomplete_fields(request)
+        fields = list(super().get_autocomplete_fields(request))
+        for name in ("road", "section", "road_segment"):
+            if name not in fields:
+                fields.append(name)
         return valid_autocomplete_fields(self.model, fields)
