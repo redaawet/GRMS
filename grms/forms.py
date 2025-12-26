@@ -38,10 +38,12 @@ class RoadSegmentAdminForm(forms.ModelForm):
                 grms_admin_site,
             )
             road_field.widget.choices = road_field.choices
+            road_field.widget.attrs["id"] = "id_road"
 
         section_field = self.fields.get("section")
         if section_field is not None:
             section_field.queryset = models.RoadSection.objects.none()
+            section_field.widget.attrs["id"] = "id_section"
 
         road_id = None
         if self.data.get("road"):

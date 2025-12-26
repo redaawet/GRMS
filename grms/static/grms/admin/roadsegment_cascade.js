@@ -1,24 +1,18 @@
 (function () {
   const $ = (window.django && django.jQuery) ? django.jQuery : null;
-  if (!$) return;
+  if (!$.fn || !$.fn.select2) return;
 
-  function patchSelect2Ajax($el, getParams) {
-    const select2 = $el.data("select2");
-    if (!select2 || !select2.options?.options?.ajax) return;
+  function patch($el, getExtra) {
+    const s2 = $el.data("select2");
+    if (!s2 || !s2.options?.options?.ajax) return;
 
-    const ajax = select2.options.options.ajax;
-    const oldUrl = ajax.url;
+    const ajax = s2.options.options.ajax;
+    const oldData = ajax.data;
 
-    ajax.url = function (params) {
-      const base = (typeof oldUrl === "function") ? oldUrl(params) : oldUrl;
-      const u = new URL(base, window.location.origin);
-      const extra = getParams() || {};
-      Object.keys(extra).forEach((k) => {
-        const v = extra[k];
-        if (v) u.searchParams.set(k, v);
-        else u.searchParams.delete(k);
-      });
-      return u.toString();
+    ajax.data = function (params) {
+      const base = oldData ? oldData(params) : params;
+      const extra = getExtra ? (getExtra() || {}) : {};
+      return Object.assign({}, base, extra);
     };
   }
 
@@ -29,7 +23,10 @@
 
     const $section = $(sectionEl);
 
-    patchSelect2Ajax($section, () => ({ road: roadEl.value }));
+    patch($section, () => {
+      const v = roadEl.value;
+      return { road: v, road_id: v, "road__id__exact": v };
+    });
 
     roadEl.addEventListener("change", () => {
       $section.val(null).trigger("change");
@@ -39,12 +36,12 @@
   document.addEventListener("DOMContentLoaded", () => {
     wire();
     setTimeout(wire, 0);
-    setTimeout(wire, 250);
-    setTimeout(wire, 800);
+    setTimeout(wire, 300);
+    setTimeout(wire, 900);
   });
 
   document.addEventListener("formset:added", () => {
     setTimeout(wire, 0);
-    setTimeout(wire, 250);
+    setTimeout(wire, 300);
   });
 })();

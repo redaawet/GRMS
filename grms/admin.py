@@ -25,6 +25,7 @@ from .admin_forms import CascadeFKModelFormMixin
 from .forms import RoadSegmentAdminForm
 from .admin_utils import valid_autocomplete_fields, valid_list_display
 from .admin_mixins import CascadeAutocompleteAdminMixin, RoadSectionCascadeAutocompleteMixin
+from django.db.models import Q
 from traffic.models import TrafficSurveyOverall, TrafficSurveySummary
 from .gis_fields import LineStringField, PointField
 from .admin_cascades import (
@@ -1606,9 +1607,16 @@ class RoadSectionAdmin(RoadSectionCascadeAutocompleteMixin, RoadSectionCascadeAd
                 or request.GET.get("road__id__exact")
             )
             if road_id and road_id.isdigit():
-                queryset = queryset.filter(road_id=int(road_id))
+                queryset = models.RoadSection.objects.filter(road_id=int(road_id)).order_by("id")
             else:
-                queryset = queryset.none()
+                return models.RoadSection.objects.none(), use_distinct
+            term = (request.GET.get("term") or "").strip()
+            if term:
+                queryset = queryset.filter(
+                    Q(section_number__icontains=term)
+                    | Q(name__icontains=term)
+                    | Q(road__road_identifier__icontains=term)
+                )
             return queryset, use_distinct
         road_id = request.GET.get("road_id")
         if road_id and road_id.isdigit():
