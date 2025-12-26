@@ -37,6 +37,7 @@ class RoadSegmentAdminForm(forms.ModelForm):
                 models.RoadSection._meta.get_field("road"),
                 grms_admin_site,
             )
+            road_field.widget.choices = road_field.choices
 
         section_field = self.fields.get("section")
         if section_field is not None:
