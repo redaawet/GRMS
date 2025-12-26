@@ -23,6 +23,7 @@ from .menu import build_menu_groups
 from .admin_base import GRMSBaseAdmin
 from .admin_forms import CascadeFKModelFormMixin
 from .admin_utils import valid_autocomplete_fields, valid_list_display
+from .admin_mixins import CascadeAutocompleteAdminMixin
 from traffic.models import TrafficSurveyOverall, TrafficSurveySummary
 from .gis_fields import LineStringField, PointField
 from .admin_cascades import (
@@ -86,6 +87,20 @@ def _reverse_or_empty(name: str, object_id):
     if not object_id:
         return ""
     return reverse(name, args=[object_id])
+
+
+def _filter_structure_qs(qs, request):
+    road = request.GET.get("road")
+    section = request.GET.get("section")
+    structure_type = request.GET.get("structure_type")
+
+    if road and road.isdigit():
+        qs = qs.filter(road_id=int(road))
+    if section and section.isdigit():
+        qs = qs.filter(section_id=int(section))
+    if structure_type and structure_type.isdigit():
+        qs = qs.filter(structure_category_id=int(structure_type))
+    return qs
 
 
 def _workbook_response(filename: str, workbook: Workbook) -> HttpResponse:
@@ -1695,7 +1710,7 @@ class RoadSegmentAdmin(RoadSectionCascadeAdminMixin, SectionScopedAdmin):
         return obj.segment_identifier or obj.segment_label
 
     class Media:
-        js = ("grms/js/cascade_autocomplete_hierarchy.js",)
+        js = ("grms/admin/cascade_autocomplete.js",)
 
     def formfield_for_foreignkey(self, db_field, request, **kwargs):
         field = super().formfield_for_foreignkey(db_field, request, **kwargs)
@@ -1786,7 +1801,12 @@ class StructureInventoryAdmin(RoadSectionCascadeAdminMixin, SectionScopedAdmin):
     list_select_related = ("road", "section")
     readonly_fields = ("created_date", "modified_date", "derived_lat_lng")
     form = StructureInventoryAdminForm
-    autocomplete_fields = ("road", "section")
+    autocomplete_fields = ("road", "section", "structure_category")
+    cascade_autocomplete = {
+        "section": lambda qs, req: qs.filter(road_id=int(req.GET.get("road")))
+        if (req.GET.get("road") or "").isdigit()
+        else qs.none(),
+    }
     actions = [export_structures_to_excel]
     formfield_overrides = {
         PointField: {"widget": geometry_widget},
@@ -1843,7 +1863,7 @@ class StructureInventoryAdmin(RoadSectionCascadeAdminMixin, SectionScopedAdmin):
     class Media:
         js = (
             "grms/js/structure-inventory-admin.js",
-            "grms/js/cascade_autocomplete_hierarchy.js",
+            "grms/admin/cascade_autocomplete.js",
         )
 
     def derived_lat_lng(self, obj):
@@ -2024,11 +2044,13 @@ class BridgeDetailAdmin(StructureDetailOverlayMixin, RoadSectionStructureCascade
     structure_category_codes = ("Bridge",)
     list_display = ("structure", "bridge_type", "span_count", "has_head_walls")
     autocomplete_fields = ("structure",)
+    cascade_autocomplete = {
+        "structure": lambda qs, req: _filter_structure_qs(qs, req),
+    }
     change_form_template = "admin/grms/structure_detail/change_form.html"
     class Media:
         js = (
-            "grms/js/cascade_autocomplete_hierarchy.js",
-            "grms/js/cascade_static_hierarchy.js",
+            "grms/admin/cascade_autocomplete.js",
         )
     fieldsets = (
         ("Structure", {"fields": ("road", "section", "structure")}),
@@ -2091,6 +2113,9 @@ class CulvertDetailAdmin(StructureDetailOverlayMixin, RoadSectionStructureCascad
     form = CulvertDetailForm
     structure_category_codes = ("Culvert",)
     autocomplete_fields = ("structure",)
+    cascade_autocomplete = {
+        "structure": lambda qs, req: _filter_structure_qs(qs, req),
+    }
     change_form_template = "admin/grms/structure_detail/change_form.html"
     list_display = (
         "structure",
@@ -2114,8 +2139,7 @@ class CulvertDetailAdmin(StructureDetailOverlayMixin, RoadSectionStructureCascad
     )
     class Media:
         js = (
-            "grms/js/cascade_autocomplete_hierarchy.js",
-            "grms/js/cascade_static_hierarchy.js",
+            "grms/admin/cascade_autocomplete.js",
             "grms/js/culvert-detail-admin.js",
         )
 
@@ -2133,13 +2157,15 @@ class FordDetailAdmin(StructureDetailOverlayMixin, RoadSectionStructureCascadeAd
     form = FordDetailForm
     structure_category_codes = ("Ford",)
     autocomplete_fields = ("structure",)
+    cascade_autocomplete = {
+        "structure": lambda qs, req: _filter_structure_qs(qs, req),
+    }
     change_form_template = "admin/grms/structure_detail/change_form.html"
     list_display = ("structure",)
     fieldsets = (("Structure", {"fields": ("road", "section", "structure")}),)
     class Media:
         js = (
-            "grms/js/cascade_autocomplete_hierarchy.js",
-            "grms/js/cascade_static_hierarchy.js",
+            "grms/admin/cascade_autocomplete.js",
         )
 
 
@@ -2156,13 +2182,15 @@ class RetainingWallDetailAdmin(StructureDetailOverlayMixin, RoadSectionStructure
     form = RetainingWallDetailForm
     structure_category_codes = ("Retaining Wall",)
     autocomplete_fields = ("structure",)
+    cascade_autocomplete = {
+        "structure": lambda qs, req: _filter_structure_qs(qs, req),
+    }
     change_form_template = "admin/grms/structure_detail/change_form.html"
     list_display = ("structure",)
     fieldsets = (("Structure", {"fields": ("road", "section", "structure")}),)
     class Media:
         js = (
-            "grms/js/cascade_autocomplete_hierarchy.js",
-            "grms/js/cascade_static_hierarchy.js",
+            "grms/admin/cascade_autocomplete.js",
         )
 
 
@@ -2179,13 +2207,15 @@ class GabionWallDetailAdmin(StructureDetailOverlayMixin, RoadSectionStructureCas
     form = GabionWallDetailForm
     structure_category_codes = ("Gabion Wall",)
     autocomplete_fields = ("structure",)
+    cascade_autocomplete = {
+        "structure": lambda qs, req: _filter_structure_qs(qs, req),
+    }
     change_form_template = "admin/grms/structure_detail/change_form.html"
     list_display = ("structure",)
     fieldsets = (("Structure", {"fields": ("road", "section", "structure")}),)
     class Media:
         js = (
-            "grms/js/cascade_autocomplete_hierarchy.js",
-            "grms/js/cascade_static_hierarchy.js",
+            "grms/admin/cascade_autocomplete.js",
         )
 
 
@@ -2369,7 +2399,9 @@ class RoadConditionSurveyForm(CascadeFKModelFormMixin, RoadSectionSegmentFilterF
 
 
 @admin.register(models.RoadConditionSurvey, site=grms_admin_site)
-class RoadConditionSurveyAdmin(RoadSectionSegmentCascadeAdminMixin, SectionScopedAdmin):
+class RoadConditionSurveyAdmin(
+    CascadeAutocompleteAdminMixin, RoadSectionSegmentCascadeAdminMixin, SectionScopedAdmin
+):
     form = RoadConditionSurveyForm
     list_display = ("road_segment", "inspection_date", "is_there_bottleneck")
     list_filter = ("inspection_date", "is_there_bottleneck")
@@ -2382,11 +2414,16 @@ class RoadConditionSurveyAdmin(RoadSectionSegmentCascadeAdminMixin, SectionScope
         "shoulder_right",
         "surface_condition",
     )
+    cascade_autocomplete = {
+        "road_segment": lambda qs, req: qs.filter(section_id=int(req.GET.get("section")))
+        if (req.GET.get("section") or "").isdigit()
+        else qs.none(),
+    }
     actions = [export_condition_surveys_to_excel]
 
     class Media:
         js = (
-            "grms/js/cascade_autocomplete_hierarchy.js",
+            "grms/admin/cascade_autocomplete.js",
             "grms/js/cascade_static_hierarchy.js",
         )
 
@@ -2536,7 +2573,7 @@ class RoadConditionDetailedSurveyForm(CascadeFKModelFormMixin, RoadSectionSegmen
 
 
 @admin.register(models.RoadConditionDetailedSurvey, site=grms_admin_site)
-class RoadConditionDetailedSurveyAdmin(SectionScopedAdmin):
+class RoadConditionDetailedSurveyAdmin(CascadeAutocompleteAdminMixin, SectionScopedAdmin):
     form = RoadConditionDetailedSurveyForm
     autocomplete_fields = ("awp", "road_segment", "distress", "distress_condition", "activity", "qa_status")
     list_display = ("road_segment", "distress", "survey_level", "inspection_date")
@@ -2544,10 +2581,15 @@ class RoadConditionDetailedSurveyAdmin(SectionScopedAdmin):
     search_fields = ("road_segment__section__road__road_identifier", "distress__name")
     _AUTO = ("road_segment", "distress", "distress_condition", "activity", "qa_status", "awp")
     autocomplete_fields = valid_autocomplete_fields(models.RoadConditionDetailedSurvey, _AUTO)
+    cascade_autocomplete = {
+        "road_segment": lambda qs, req: qs.filter(section_id=int(req.GET.get("section")))
+        if (req.GET.get("section") or "").isdigit()
+        else qs.none(),
+    }
 
     class Media:
         js = (
-            "grms/js/cascade_autocomplete_hierarchy.js",
+            "grms/admin/cascade_autocomplete.js",
             "grms/js/cascade_static_hierarchy.js",
         )
 
