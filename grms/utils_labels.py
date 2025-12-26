@@ -51,3 +51,18 @@ def structure_label(structure):
     if ch0 is not None and ch1 is not None:
         return f"{cat} from {fmt_km(ch0)}–{fmt_km(ch1)} km on {rid}"
     return f"{cat} on {rid}"
+
+
+def furniture_label(furniture):
+    section = getattr(furniture, "section", None)
+    base = section_id(section) if section else "Section ?"
+    furniture_type = getattr(furniture, "furniture_type", "Furniture")
+    chainage = getattr(furniture, "chainage_km", None)
+    chainage_from = getattr(furniture, "chainage_from_km", None)
+    chainage_to = getattr(furniture, "chainage_to_km", None)
+
+    if chainage is not None:
+        return f"{furniture_type} at {fmt_km(chainage)} km on {base}"
+    if chainage_from is not None and chainage_to is not None:
+        return f"{furniture_type} from {fmt_km(chainage_from)}–{fmt_km(chainage_to)} km on {base}"
+    return f"{furniture_type} on {base}"
