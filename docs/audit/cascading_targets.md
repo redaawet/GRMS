@@ -6,7 +6,7 @@ Inventory of ModelAdmins/ModelForms containing FK fields named `road`, `section`
 | Model | Admin/Form | Fields present | Widget mode |
 | --- | --- | --- | --- |
 | `RoadSection` | `RoadSectionAdmin` | `road` | `road` (autocomplete_fields) |
-| `RoadSegment` | `RoadSegmentAdmin` | `road`, `section` | `road` (static select2), `section` (autocomplete_fields) |
+| `RoadSegment` | `RoadSegmentAdmin` | `section` | `section` (autocomplete_fields) |
 | `StructureInventory` | `StructureInventoryAdmin` / `StructureInventoryAdminForm` | `road`, `section` | `road` + `section` (autocomplete_fields) |
 | `BridgeDetail` | `BridgeDetailAdmin` / `StructureDetailFilterForm` | `road`, `section`, `structure` | `road` (static select2), `section` (static select2), `structure` (autocomplete_fields) |
 | `CulvertDetail` | `CulvertDetailAdmin` / `StructureDetailFilterForm` | `road`, `section`, `structure` | `road` (static select2), `section` (static select2), `structure` (autocomplete_fields) |

@@ -27,12 +27,10 @@ from .admin_cascades import (
     CascadeRoadSectionAssetMixin,
     CascadeRoadSectionMixin,
     RoadSectionCascadeAdminMixin,
-    RoadSectionFilterForm,
     RoadSectionSegmentCascadeAdminMixin,
     RoadSectionSegmentFilterForm,
     RoadSectionStructureCascadeAdminMixin,
 )
-from .validators import validate_section_belongs_to_road
 from . import admin_geojson, admin_reports
 from .services import map_services, mci_intervention, prioritization, workplan_costs
 from .services.planning import road_ranking, workplans
@@ -1774,30 +1772,10 @@ class RoadSectionAdmin(RoadSectionCascadeAdminMixin, SectionScopedAdmin):
         }
 
 
-class RoadSegmentAdminForm(RoadSectionFilterForm):
-    class Meta:
-        model = models.RoadSegment
-        fields = "__all__"
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        instance = self.instance
-        if instance and getattr(instance, "section_id", None):
-            self.fields["road"].initial = instance.section.road
-
-    def clean(self):
-        cleaned = super().clean()
-        road = cleaned.get("road")
-        section = cleaned.get("section")
-        if road and not section:
-            raise forms.ValidationError({"section": "Select a section for the chosen road."})
-        return cleaned
-
-
 @admin.register(models.RoadSegment, site=grms_admin_site)
 class RoadSegmentAdmin(RoadSectionCascadeAdminMixin, SectionScopedAdmin):
-    form = RoadSegmentAdminForm
     list_display = (
+        "road",
         "section_label",
         "segment_label",
         "station_from_km",
@@ -1805,23 +1783,23 @@ class RoadSegmentAdmin(RoadSectionCascadeAdminMixin, SectionScopedAdmin):
         "cross_section",
     )
     search_fields = (
-        "section__section_number",
         "section__road__road_identifier",
         "section__road__road_name_from",
         "section__road__road_name_to",
+        "section__section_number",
     )
-    list_filter = ("terrain_longitudinal", "terrain_transverse")
+    list_filter = ("section__road", "section", "terrain_longitudinal", "terrain_transverse")
     autocomplete_fields = ("section",)
     actions = [export_road_segments_to_excel]
     change_form_template = "admin/grms/roadsegment/change_form.html"
     fieldsets = (
-        ("Identification", {"fields": ("road", "section")}),
+        ("Context", {"fields": ("section",)}),
         (
-            "Location & geometry",
+            "Chainage",
             {"fields": (("station_from_km", "station_to_km"), "carriageway_width_m")},
         ),
         (
-            "Classification",
+            "Attributes",
             {
                 "fields": (
                     "cross_section",
@@ -1842,6 +1820,11 @@ class RoadSegmentAdmin(RoadSectionCascadeAdminMixin, SectionScopedAdmin):
         ("Notes", {"fields": ("comment",)}),
     )
 
+    @admin.display(description="Road", ordering="section__road__road_identifier")
+    def road(self, obj):
+        road = getattr(getattr(obj, "section", None), "road", None)
+        return str(road) if road else "—"
+
     def section_label(self, obj):
         sec = obj.section
         return f"{sec.road.road_identifier}-S{sec.sequence_on_road}" if sec else ""
@@ -1859,7 +1842,7 @@ class RoadSegmentAdmin(RoadSectionCascadeAdminMixin, SectionScopedAdmin):
         if db_field.name == "section":
             road_id = (
                 request.POST.get("road")
-                or request.GET.get("road")
+                or request.GET.get("road_id")
                 or request.GET.get("road__id__exact")
             )
             if road_id and str(road_id).isdigit():
