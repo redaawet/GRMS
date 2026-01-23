@@ -24,7 +24,11 @@ from .admin_base import GRMSBaseAdmin
 from .admin_forms import CascadeFKModelFormMixin
 from .forms import RoadSegmentAdminForm
 from .admin_utils import valid_autocomplete_fields, valid_list_display
-from .admin_mixins import CascadeAutocompleteAdminMixin, RoadSectionCascadeAutocompleteMixin
+from .admin_mixins import (
+    CascadeAutocompleteAdminMixin,
+    DependentAutocompleteMediaMixin,
+    RoadSectionCascadeAutocompleteMixin,
+)
 from django.db.models import Q
 from traffic.models import TrafficSurveyOverall, TrafficSurveySummary
 from .gis_fields import LineStringField, PointField
@@ -906,7 +910,7 @@ class RoadAdminForm(forms.ModelForm):
         return instance
 
 
-class SectionScopedAdmin(GRMSBaseAdmin):
+class SectionScopedAdmin(DependentAutocompleteMediaMixin, GRMSBaseAdmin):
     def formfield_for_foreignkey(self, db_field, request, **kwargs):
         if db_field.name == "section":
             road_id = request.POST.get("road") or request.GET.get("road")
@@ -937,13 +941,8 @@ class RoadAdmin(SectionScopedAdmin):
         "managing_authority",
         "design_standard",
     )
-    search_fields = (
-        "road_identifier",
-        "road_name_from",
-        "road_name_to",
-        "admin_woreda__name",
-        "admin_zone__name",
-    )
+    search_fields = ("road_identifier", "road_name_from", "road_name_to")
+    ordering = ("road_identifier",)
     autocomplete_fields = ("admin_zone", "admin_woreda")
     change_form_template = "admin/grms/road/change_form.html"
     fieldsets = (
@@ -1540,15 +1539,9 @@ class RoadSectionAdmin(RoadSectionCascadeAutocompleteMixin, RoadSectionCascadeAd
         "length_km",
         "surface_type",
     )
-    ordering = ("road__road_identifier", "sequence_on_road", "section_number", "id")
+    ordering = ("section_number", "id")
     list_filter = ("admin_zone_override", "admin_woreda_override", "surface_type")
-    search_fields = (
-        "name",
-        "section_number",
-        "road__road_identifier",
-        "road__road_name_from",
-        "road__road_name_to",
-    )
+    search_fields = ("section_number", "name")
     autocomplete_fields = ("road", "admin_zone_override", "admin_woreda_override")
     readonly_fields = ("section_number", "sequence_on_road", "length_km")
     fieldsets = (
@@ -1607,7 +1600,7 @@ class RoadSectionAdmin(RoadSectionCascadeAutocompleteMixin, RoadSectionCascadeAd
 
     def get_search_results(self, request, queryset, search_term):
         queryset, use_distinct = super().get_search_results(request, queryset, search_term)
-        road_id = request.GET.get("forward[road]") or request.GET.get("road")
+        road_id = request.GET.get("road_id") or request.GET.get("road") or request.GET.get("forward[road]")
         if road_id and road_id.isdigit():
             queryset = queryset.filter(road_id=int(road_id))
         return queryset, use_distinct
@@ -1627,12 +1620,8 @@ class RoadSegmentAdmin(RoadSectionCascadeAdminMixin, SectionScopedAdmin):
         "station_to_km",
         "cross_section",
     )
-    search_fields = (
-        "section__road__road_identifier",
-        "section__road__road_name_from",
-        "section__road__road_name_to",
-        "section__section_number",
-    )
+    search_fields = ("segment_identifier", "section__road__road_identifier", "section__section_number")
+    ordering = ("segment_identifier", "id")
     list_filter = ("section__road", "section", "terrain_longitudinal", "terrain_transverse")
     autocomplete_fields = ("section",)
     actions = [export_road_segments_to_excel]
@@ -1687,9 +1676,6 @@ class RoadSegmentAdmin(RoadSectionCascadeAdminMixin, SectionScopedAdmin):
     def segment_label(self, obj):
         return obj.segment_identifier or obj.segment_label
 
-    class Media:
-        js = ("grms/js/roadsegment_cascade.js",)
-
     def formfield_for_foreignkey(self, db_field, request, **kwargs):
         field = super().formfield_for_foreignkey(db_field, request, **kwargs)
         if db_field.name == "section":
@@ -1715,13 +1701,13 @@ class RoadSegmentAdmin(RoadSectionCascadeAdminMixin, SectionScopedAdmin):
 
     def get_search_results(self, request, queryset, search_term):
         queryset, use_distinct = super().get_search_results(request, queryset, search_term)
-        section_id = request.GET.get("section_id")
+        section_id = request.GET.get("section_id") or request.GET.get("section")
         if section_id and section_id.isdigit():
             queryset = queryset.filter(section_id=int(section_id))
         return queryset, use_distinct
 
 @admin.register(models.StructureInventory, site=grms_admin_site)
-class StructureInventoryAdmin(RoadSectionCascadeAutocompleteMixin, GRMSBaseAdmin):
+class StructureInventoryAdmin(DependentAutocompleteMediaMixin, RoadSectionCascadeAutocompleteMixin, GRMSBaseAdmin):
     class StructureInventoryAdminForm(CascadeFKModelFormMixin, CascadeRoadSectionMixin, forms.ModelForm):
         class Meta:
             model = models.StructureInventory
@@ -1742,12 +1728,17 @@ class StructureInventoryAdmin(RoadSectionCascadeAutocompleteMixin, GRMSBaseAdmin
 
         def clean(self):
             cleaned = super().clean()
+            road = cleaned.get("road")
+            section = cleaned.get("section")
             easting = cleaned.get("easting_m")
             northing = cleaned.get("northing_m")
             station_km = cleaned.get("station_km")
             geometry_type = cleaned.get("geometry_type") or getattr(
                 self.instance, "geometry_type", models.StructureInventory.POINT
             )
+
+            if road and section and section.road_id != road.id:
+                raise forms.ValidationError("Selected section does not belong to the selected road.")
 
             if (easting is None) ^ (northing is None):
                 missing = "northing_m" if easting is not None else "easting_m"
