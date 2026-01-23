@@ -1540,6 +1540,7 @@ class RoadSectionAdmin(RoadSectionCascadeAutocompleteMixin, RoadSectionCascadeAd
         "length_km",
         "surface_type",
     )
+    ordering = ("road__road_identifier", "id")
     list_filter = ("admin_zone_override", "admin_woreda_override", "surface_type")
     search_fields = ("section_number", "name", "road__road_identifier")
     autocomplete_fields = ("road", "admin_zone_override", "admin_woreda_override")
@@ -1601,7 +1602,10 @@ class RoadSectionAdmin(RoadSectionCascadeAutocompleteMixin, RoadSectionCascadeAd
     def get_search_results(self, request, queryset, search_term):
         queryset, use_distinct = super().get_search_results(request, queryset, search_term)
         road_id = (
-            request.GET.get("road")
+            request.GET.get("forward[road]")
+            or request.GET.get("forward[road_id]")
+            or request.GET.get("forward[road__id__exact]")
+            or request.GET.get("road")
             or request.GET.get("road_id")
             or request.GET.get("road__id__exact")
         )
