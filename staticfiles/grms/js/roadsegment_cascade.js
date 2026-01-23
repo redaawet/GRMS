@@ -42,7 +42,10 @@
         if (!roadId) {
           return base;
         }
-        return Object.assign({}, base, { road: roadId });
+        return Object.assign({}, base, {
+          road: roadId,
+          "forward[road]": roadId,
+        });
       };
       wrapped._roadsegmentWrapped = true;
 
