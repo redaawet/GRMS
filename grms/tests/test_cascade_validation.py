@@ -49,12 +49,14 @@ class CascadeValidationTests(TestCase):
         )
         self.section = models.RoadSection.objects.create(
             road=self.road,
+            name="Section Alpha",
             start_chainage_km=Decimal("0"),
             end_chainage_km=Decimal("5"),
             surface_type="Earth",
         )
         self.other_section = models.RoadSection.objects.create(
             road=self.other_road,
+            name="Other Section",
             start_chainage_km=Decimal("0"),
             end_chainage_km=Decimal("5"),
             surface_type="Earth",
@@ -232,6 +234,26 @@ class CascadeValidationTests(TestCase):
     def test_section_autocomplete_filters_by_road(self):
         admin_instance = grms_admin_site._registry[models.RoadSection]
         request = self.factory.get("/admin/grms/roadsection/autocomplete/", {"road_id": self.road.id})
+        request.user = self.user
+        qs, _ = admin_instance.get_search_results(request, models.RoadSection.objects.all(), "")
+        self.assertEqual(set(qs), {self.section})
+
+    def test_section_autocomplete_filters_by_road_and_term(self):
+        admin_instance = grms_admin_site._registry[models.RoadSection]
+        request = self.factory.get(
+            "/admin/grms/roadsection/autocomplete/",
+            {"road_id": self.road.id, "term": "Alpha"},
+        )
+        request.user = self.user
+        qs, _ = admin_instance.get_search_results(request, models.RoadSection.objects.all(), "Alpha")
+        self.assertEqual(set(qs), {self.section})
+
+    def test_section_autocomplete_filters_by_forwarded_road(self):
+        admin_instance = grms_admin_site._registry[models.RoadSection]
+        request = self.factory.get(
+            "/admin/grms/roadsection/autocomplete/",
+            {"forward[road]": self.road.id},
+        )
         request.user = self.user
         qs, _ = admin_instance.get_search_results(request, models.RoadSection.objects.all(), "")
         self.assertEqual(set(qs), {self.section})
