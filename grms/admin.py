@@ -1540,9 +1540,15 @@ class RoadSectionAdmin(RoadSectionCascadeAutocompleteMixin, RoadSectionCascadeAd
         "length_km",
         "surface_type",
     )
-    ordering = ("road__road_identifier", "id")
+    ordering = ("road__road_identifier", "sequence_on_road", "section_number", "id")
     list_filter = ("admin_zone_override", "admin_woreda_override", "surface_type")
-    search_fields = ("section_number", "name", "road__road_identifier")
+    search_fields = (
+        "name",
+        "section_number",
+        "road__road_identifier",
+        "road__road_name_from",
+        "road__road_name_to",
+    )
     autocomplete_fields = ("road", "admin_zone_override", "admin_woreda_override")
     readonly_fields = ("section_number", "sequence_on_road", "length_km")
     fieldsets = (
