@@ -1600,25 +1600,11 @@ class RoadSectionAdmin(RoadSectionCascadeAutocompleteMixin, RoadSectionCascadeAd
 
     def get_search_results(self, request, queryset, search_term):
         queryset, use_distinct = super().get_search_results(request, queryset, search_term)
-        if request.path.endswith("/admin/autocomplete/") and request.GET.get("field_name") == "section":
-            road_id = (
-                request.GET.get("road")
-                or request.GET.get("road_id")
-                or request.GET.get("road__id__exact")
-            )
-            if road_id and road_id.isdigit():
-                queryset = models.RoadSection.objects.filter(road_id=int(road_id)).order_by("id")
-            else:
-                return models.RoadSection.objects.none(), use_distinct
-            term = (request.GET.get("term") or "").strip()
-            if term:
-                queryset = queryset.filter(
-                    Q(section_number__icontains=term)
-                    | Q(name__icontains=term)
-                    | Q(road__road_identifier__icontains=term)
-                )
-            return queryset, use_distinct
-        road_id = request.GET.get("road_id")
+        road_id = (
+            request.GET.get("road")
+            or request.GET.get("road_id")
+            or request.GET.get("road__id__exact")
+        )
         if road_id and road_id.isdigit():
             queryset = queryset.filter(road_id=int(road_id))
         return queryset, use_distinct
@@ -1699,7 +1685,7 @@ class RoadSegmentAdmin(RoadSectionCascadeAdminMixin, SectionScopedAdmin):
         return obj.segment_identifier or obj.segment_label
 
     class Media:
-        js = ("grms/admin/roadsegment_cascade.js",)
+        js = ("grms/js/roadsegment_cascade.js",)
 
     def formfield_for_foreignkey(self, db_field, request, **kwargs):
         field = super().formfield_for_foreignkey(db_field, request, **kwargs)
