@@ -1601,14 +1601,7 @@ class RoadSectionAdmin(RoadSectionCascadeAutocompleteMixin, RoadSectionCascadeAd
 
     def get_search_results(self, request, queryset, search_term):
         queryset, use_distinct = super().get_search_results(request, queryset, search_term)
-        road_id = (
-            request.GET.get("forward[road]")
-            or request.GET.get("forward[road_id]")
-            or request.GET.get("forward[road__id__exact]")
-            or request.GET.get("road")
-            or request.GET.get("road_id")
-            or request.GET.get("road__id__exact")
-        )
+        road_id = request.GET.get("forward[road]") or request.GET.get("road")
         if road_id and road_id.isdigit():
             queryset = queryset.filter(road_id=int(road_id))
         return queryset, use_distinct
