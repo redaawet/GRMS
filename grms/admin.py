@@ -1968,12 +1968,14 @@ class StructureDetailFilterForm(CascadeRoadSectionAssetMixin, forms.ModelForm):
                 models.RoadSection._meta.get_field("road"),
                 grms_admin_site,
             )
+            road_field.widget.choices = road_field.choices
         section_field = self.fields.get("section")
         if section_field is not None:
             section_field.widget = AutocompleteSelect(
                 models.StructureInventory._meta.get_field("section"),
                 grms_admin_site,
             )
+            section_field.widget.choices = section_field.choices
         instance = self.instance
         if instance and getattr(instance, "structure_id", None):
             structure = instance.structure
@@ -2275,12 +2277,14 @@ class StructureConditionSurveyForm(CascadeFKModelFormMixin, CascadeRoadSectionAs
                 models.RoadSection._meta.get_field("road"),
                 grms_admin_site,
             )
+            road_field.widget.choices = road_field.choices
         section_field = self.fields.get("section_filter")
         if section_field is not None:
             section_field.widget = AutocompleteSelect(
                 models.StructureInventory._meta.get_field("section"),
                 grms_admin_site,
             )
+            section_field.widget.choices = section_field.choices
         instance = self.instance
         if instance and getattr(instance, "structure_id", None) and not self.is_bound:
             structure = instance.structure
@@ -2354,12 +2358,14 @@ class RoadConditionSurveyForm(CascadeFKModelFormMixin, RoadSectionSegmentFilterF
                 models.RoadSection._meta.get_field("road"),
                 grms_admin_site,
             )
+            road_field.widget.choices = road_field.choices
         section_field = self.fields.get("section")
         if section_field is not None:
             section_field.widget = AutocompleteSelect(
                 models.RoadSegment._meta.get_field("section"),
                 grms_admin_site,
             )
+            section_field.widget.choices = section_field.choices
         instance = self.instance
         if instance and getattr(instance, "road_segment_id", None):
             segment = instance.road_segment
@@ -2472,12 +2478,14 @@ class FurnitureConditionSurveyForm(CascadeFKModelFormMixin, CascadeRoadSectionAs
                 models.RoadSection._meta.get_field("road"),
                 grms_admin_site,
             )
+            road_field.widget.choices = road_field.choices
         section_field = self.fields.get("section_filter")
         if section_field is not None:
             section_field.widget = AutocompleteSelect(
                 models.StructureInventory._meta.get_field("section"),
                 grms_admin_site,
             )
+            section_field.widget.choices = section_field.choices
         instance = self.instance
         if instance and getattr(instance, "furniture_id", None) and not self.is_bound:
             furniture = instance.furniture
@@ -2528,12 +2536,14 @@ class RoadConditionDetailedSurveyForm(CascadeFKModelFormMixin, RoadSectionSegmen
                 models.RoadSection._meta.get_field("road"),
                 grms_admin_site,
             )
+            road_field.widget.choices = road_field.choices
         section_field = self.fields.get("section")
         if section_field is not None:
             section_field.widget = AutocompleteSelect(
                 models.RoadSegment._meta.get_field("section"),
                 grms_admin_site,
             )
+            section_field.widget.choices = section_field.choices
         instance = self.instance
         if instance and getattr(instance, "road_segment_id", None):
             segment = instance.road_segment
