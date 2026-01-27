@@ -288,6 +288,12 @@ class Command(BaseCommand):
                 TrafficSurveyOverall.objects.filter(road_id__in=road_ids).delete()
 
             sections_by_key: dict[tuple[int, int], RoadSection] = {}
+            existing_sections = {
+                (section.road_id, section.section_number): section
+                for section in RoadSection.objects.filter(road_id__in=road_ids)
+            }
+            new_sections: list[RoadSection] = []
+            sections_to_validate: set[int] = set()
             for row in section_rows:
                 road_key = _road_key_from_csv(
                     row.get("road_name_norm", ""),
@@ -302,29 +308,43 @@ class Command(BaseCommand):
                 section_no = int(float(row.get("section_no") or 0))
                 start_chainage = _parse_decimal(row.get("start_chainage_km")) or Decimal("0")
                 end_chainage = _parse_decimal(row.get("end_chainage_km")) or Decimal("0")
+                surface_type = road.surface_type or ROAD_FIELDS["surface_type"]
+                existing_section = existing_sections.get((road.id, section_no))
+                surface_thickness_cm = None
+                if existing_section and existing_section.surface_thickness_cm is not None:
+                    surface_thickness_cm = existing_section.surface_thickness_cm
+                elif surface_type in {"Gravel", "DBST", "Asphalt", "Sealed"}:
+                    surface_thickness_cm = SECTION_SURFACE_THICKNESS_CM
 
                 section_defaults = {
                     "sequence_on_road": section_no,
                     "section_number": section_no,
                     "start_chainage_km": start_chainage,
                     "end_chainage_km": end_chainage,
-                    "surface_type": road.surface_type or ROAD_FIELDS["surface_type"],
+                    "surface_type": surface_type,
+                    "surface_thickness_cm": surface_thickness_cm,
                 }
 
-                section, created = RoadSection.objects.update_or_create(
-                    road=road,
-                    section_number=section_no,
-                    defaults=section_defaults,
-                )
-                _ensure_section_surface(section)
-                section.save()
-
-                if created:
-                    summary.record_created("RoadSection")
-                else:
+                if existing_section:
+                    RoadSection.objects.filter(pk=existing_section.pk).update(**section_defaults)
                     summary.record_updated("RoadSection")
+                    sections_by_key[(road.id, section_no)] = existing_section
+                    sections_to_validate.add(existing_section.pk)
+                else:
+                    section = RoadSection(road=road, **section_defaults)
+                    _ensure_section_surface(section)
+                    new_sections.append(section)
+                    summary.record_created("RoadSection")
 
-                sections_by_key[(road.id, section_no)] = section
+            if new_sections:
+                created_sections = RoadSection.objects.bulk_create(new_sections)
+                for section in created_sections:
+                    sections_by_key[(section.road_id, section.section_number)] = section
+                    sections_to_validate.add(section.pk)
+
+            if sections_to_validate:
+                for section in RoadSection.objects.filter(pk__in=sections_to_validate):
+                    section.save()
 
             for road_id in road_ids:
                 section_count = RoadSection.objects.filter(road_id=road_id).count()
