@@ -1,0 +1,2 @@
+road_identifier,road_name_from,road_name_to,fiscal_year,adt_total,bus,car,heavy_goods,light_goods,medium_goods,mini_bus,motorcycle,tractor
+RTR-1,Alpha,Beta,2024,100,10,20,30,5,15,8,12,0

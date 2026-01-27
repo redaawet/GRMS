@@ -1,0 +1,2 @@
+road_identifier,road_name_from,road_name_to,section_number,station_km,start_chainage_km,end_chainage_km,structure_category,structure_name,easting_m,northing_m,comment
+,Alpha,Beta,1,0.300,,,Culvert,Test Culvert,500000,1000000,Sample structure
