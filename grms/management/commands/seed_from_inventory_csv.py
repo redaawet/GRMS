@@ -8,7 +8,7 @@ from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
-from django.core.ment.base import BaseCommand, CommandError
+from django.core.management.base import BaseCommand, CommandError
 from django.db import IntegrityError, transaction
 
 from django.utils import timezone
