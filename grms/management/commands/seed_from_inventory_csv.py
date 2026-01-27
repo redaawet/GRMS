@@ -20,12 +20,12 @@ from grms.models import (
 from traffic import models as traffic_models
 
 
-ROAD_FILE = "roads_seed.csv"
-SECTION_FILE = "road_sections_seed.csv"
-SEGMENT_FILE = "road_segments_seed.csv"
-STRUCTURE_FILE = "structures_seed.csv"
-TRAFFIC_FILE = "traffic_seed.csv"
-SOCIO_FILE = "road_socioeconomic_seed.csv"
+ROAD_FILE = "Datas/roads_seed.csv"
+SECTION_FILE = "Datas/road_sections_seed.csv"
+SEGMENT_FILE = "Datas/road_segments_seed.csv"
+STRUCTURE_FILE = "Datas/structures_seed.csv"
+TRAFFIC_FILE = "Datas/traffic_seed.csv"
+SOCIO_FILE = "Datas/road_socioeconomic_seed.csv"
 
 
 def _normalize_name(value: str) -> str:
@@ -148,7 +148,7 @@ class Command(BaseCommand):
             self._seed_traffic(file_paths[TRAFFIC_FILE], road_map, summary, warnings)
         self._seed_socio(file_paths[SOCIO_FILE], road_map, summary, warnings)
 
-            if dry_run:
+        if dry_run:
                 transaction.set_rollback(True)
 
         self.stdout.write(self.style.SUCCESS("Seed summary:"))
