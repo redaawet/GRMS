@@ -547,6 +547,21 @@ class Road(models.Model):
         super().save(*args, **kwargs)
 
 
+class RoadNameAlias(models.Model):
+    road = models.ForeignKey(Road, on_delete=models.CASCADE, related_name="name_aliases")
+    name_from = models.CharField(max_length=150)
+    name_to = models.CharField(max_length=150)
+    normalized_key = models.CharField(max_length=200, unique=True, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Road name alias"
+        verbose_name_plural = "Road name aliases"
+
+    def __str__(self) -> str:  # pragma: no cover - simple formatting
+        return f"{self.name_from} → {self.name_to} ({self.road})"
+
+
 class RoadGlobalCostReport(Road):
     class Meta:
         proxy = True

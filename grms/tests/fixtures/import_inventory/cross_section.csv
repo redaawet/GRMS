@@ -1,0 +1,2 @@
+road_identifier,road_name_from,road_name_to,section_number,station_from_km,station_to_km,cross_section,terrain_transverse,terrain_longitudinal,ditch_left_present,ditch_right_present,shoulder_left_present,shoulder_right_present,carriageway_width_m,comment
+,Alpha,Beta,1,0.000,0.500,Flat,Flat,Rolling,True,False,True,False,6.0,Segment 1
