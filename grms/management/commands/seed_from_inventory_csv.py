@@ -8,11 +8,19 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from decimal import Decimal
 from pathlib import Path
+<<<<<<< HEAD
 from typing import Any, Dict
 
 from django.contrib.gis.geos import LineString
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
+=======
+from typing import Any
+
+from django.contrib.gis.geos import LineString
+from django.core.management.base import BaseCommand, CommandError
+from django.db import IntegrityError, transaction
+>>>>>>> fe3ccd9c27b066cd10716052890c747e9167ae9e
 from django.utils import timezone
 
 from grms.models import (
@@ -133,6 +141,7 @@ def _next_road_identifier() -> tuple[int, int]:
     return max_seq + 1, max_seq
 
 
+<<<<<<< HEAD
 def _fallback_geometry(length_km: Decimal, *, srid: int = 4326) -> LineString:
     """Create a placeholder LineString when coordinate data is missing."""
     safe_length = length_km if length_km > 0 else Decimal("0.001")
@@ -157,6 +166,32 @@ def _warn_missing_proj_env(stdout) -> None:
         "OSGeo4W/QGIS share data directories to avoid PROJ/GDAL warnings. Mixed "
         "installations (e.g., PostGIS proj.db) can cause version conflicts."
     )
+=======
+def _geometry_srid() -> int:
+    return Road._meta.get_field("geometry").srid or 4326
+
+
+def _fallback_geometry(length_km: Decimal) -> LineString:
+    safe_length = length_km if length_km > 0 else Decimal("0.001")
+    end_x = float(safe_length * Decimal("1000"))
+    return LineString((0.0, 0.0), (end_x, 0.0), srid=_geometry_srid())
+
+
+def _build_geometry(
+    start_easting: Decimal | None,
+    start_northing: Decimal | None,
+    end_easting: Decimal | None,
+    end_northing: Decimal | None,
+    length_km: Decimal,
+) -> LineString:
+    if all(value is not None for value in (start_easting, start_northing, end_easting, end_northing)):
+        return LineString(
+            (float(start_easting), float(start_northing)),
+            (float(end_easting), float(end_northing)),
+            srid=_geometry_srid(),
+        )
+    return _fallback_geometry(length_km)
+>>>>>>> fe3ccd9c27b066cd10716052890c747e9167ae9e
 
 
 def _ensure_section_surface(section: RoadSection) -> None:
@@ -238,6 +273,9 @@ class Command(BaseCommand):
 
         roads_by_key: dict[str, Road] = {}
         road_ids: set[int] = set()
+        missing_coords: list[str] = []
+        missing_lengths: list[str] = []
+        geometry_by_road_id: dict[int, LineString] = {}
 
         with transaction.atomic():
             for row in road_rows:
@@ -258,14 +296,19 @@ class Command(BaseCommand):
                 length_km = (
                     _parse_decimal(row.get("length_km_preferred"))
                     or _parse_decimal(row.get("length_km_cs"))
-                    or _parse_decimal(row.get("length_km_traffic"))
-                    or Decimal("0")
                 )
+                if length_km is None:
+                    missing_lengths.append(road_key or f"{road_from}-{road_to}")
+                    length_km = Decimal("0")
 
                 start_easting = _parse_decimal(row.get("start_e"))
                 start_northing = _parse_decimal(row.get("start_n"))
                 end_easting = _parse_decimal(row.get("end_e"))
                 end_northing = _parse_decimal(row.get("end_n"))
+                if not all(value is not None for value in (start_easting, start_northing, end_easting, end_northing)):
+                    missing_coords.append(road_key or f"{road_from}-{road_to}")
+
+                geometry = _build_geometry(start_easting, start_northing, end_easting, end_northing, length_km)
 
                 road = road_map.get(road_key)
                 created = False
@@ -275,18 +318,19 @@ class Command(BaseCommand):
                     road = Road(road_identifier=road_identifier)
                     created = True
 
-                road.road_name_from = road_from
-                road.road_name_to = road_to
-                road.design_standard = ROAD_FIELDS["design_standard"]
-                road.surface_type = ROAD_FIELDS["surface_type"]
-                road.managing_authority = ROAD_FIELDS["managing_authority"]
-                road.admin_zone = admin_zone
-                road.total_length_km = length_km
-                road.start_easting = start_easting
-                road.start_northing = start_northing
-                road.end_easting = end_easting
-                road.end_northing = end_northing
+                if created:
+                    road.road_name_from = road_from
+                    road.road_name_to = road_to
+                    road.design_standard = ROAD_FIELDS["design_standard"]
+                    road.surface_type = ROAD_FIELDS["surface_type"]
+                    road.managing_authority = ROAD_FIELDS["managing_authority"]
+                    road.admin_zone = admin_zone
+                    road.total_length_km = length_km
+                    road.save()
+                else:
+                    Road.objects.filter(pk=road.pk).update(geometry=None)
 
+<<<<<<< HEAD
                 if not (start_easting and start_northing and end_easting and end_northing):
                     geometry = _fallback_geometry(length_km)
                     if not isinstance(geometry, LineString):
@@ -298,6 +342,23 @@ class Command(BaseCommand):
                     road.geometry = geometry
 
                 road.save()
+=======
+                Road.objects.filter(pk=road.pk).update(
+                    road_name_from=road_from,
+                    road_name_to=road_to,
+                    design_standard=ROAD_FIELDS["design_standard"],
+                    surface_type=ROAD_FIELDS["surface_type"],
+                    managing_authority=ROAD_FIELDS["managing_authority"],
+                    admin_zone=admin_zone,
+                    total_length_km=length_km,
+                    start_easting=start_easting,
+                    start_northing=start_northing,
+                    end_easting=end_easting,
+                    end_northing=end_northing,
+                    geometry=None,
+                )
+                road.refresh_from_db()
+>>>>>>> fe3ccd9c27b066cd10716052890c747e9167ae9e
 
                 if created:
                     summary.bump("created", "Road")
@@ -306,6 +367,7 @@ class Command(BaseCommand):
 
                 roads_by_key[road_key] = road
                 road_ids.add(road.id)
+                geometry_by_road_id[road.id] = geometry
 
             if wipe and road_ids:
                 RoadSegment.objects.filter(section__road_id__in=road_ids).delete()
@@ -442,13 +504,37 @@ class Command(BaseCommand):
                 sections_by_key[(road.id, section.section_number)] = section
 
             for road_id in road_ids:
+                road = Road.objects.get(id=road_id)
                 section_count = RoadSection.objects.filter(road_id=road_id).count()
+                if section_count == 0:
+                    road_length = Decimal(str(road.total_length_km or 0))
+                    third_length = (road_length / Decimal("3")).quantize(Decimal("0.001"))
+                    second_end = (third_length * 2).quantize(Decimal("0.001"))
+                    chainages = [
+                        (Decimal("0"), third_length),
+                        (third_length, second_end),
+                        (second_end, road_length),
+                    ]
+                    for idx, (start_km, end_km) in enumerate(chainages, start=1):
+                        RoadSection.objects.create(
+                            road=road,
+                            section_number=idx,
+                            sequence_on_road=idx,
+                            start_chainage_km=start_km,
+                            end_chainage_km=end_km,
+                            surface_type=road.surface_type or ROAD_FIELDS["surface_type"],
+                        )
+                    section_count = 3
+
                 if section_count != 3:
                     self.stdout.write(
                         self.style.WARNING(
                             f"Road {road_id} has {section_count} sections (expected 3)."
                         )
                     )
+
+            for road_id, geometry in geometry_by_road_id.items():
+                Road.objects.filter(pk=road_id).update(geometry=geometry)
 
             segments_by_section: dict[int, list[dict[str, str]]] = defaultdict(list)
             for row in segment_rows:
@@ -678,6 +764,19 @@ class Command(BaseCommand):
             self.stdout.write(f"{label}:")
             for model, count in sorted(bucket.items()):
                 self.stdout.write(f"  - {model}: {count}")
+
+        if missing_coords:
+            self.stdout.write(
+                self.style.WARNING(
+                    "Roads missing coordinates: " + ", ".join(sorted(set(missing_coords)))
+                )
+            )
+        if missing_lengths:
+            self.stdout.write(
+                self.style.WARNING(
+                    "Roads missing length: " + ", ".join(sorted(set(missing_lengths)))
+                )
+            )
 
         if dry_run:
             self.stdout.write(self.style.WARNING("Dry run complete; no changes were saved."))
