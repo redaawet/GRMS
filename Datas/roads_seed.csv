@@ -1,31 +1,39 @@
-road_name_norm,road_from,road_to,length_km_cs,start_e,start_n,end_e,end_n,zone,length_km_traffic,adt,length_km_preferred
-Maichew-Neqsege,Maichew,Neqsege,32.5,557079.0,1409646.0,537006.0,1410895.0,Southern and South Eastern Zone,34.5,45.0,32.5
-Alaje-Bora,Alaje,Bora,23.2,552773.0,1428544.0,536980.0,1425611.0,Southern and South Eastern Zone,24.0,28.0,23.2
-Hdmo-Debub,Hdmo,Debub,27.4,555809.0,1461363.0,569442.0,1461363.0,Southern and South Eastern Zone,28.0,65.0,27.4
-Adigudom-Dengolat,Adigudom,Dengolat,26.0,555912.0,1469105.0,536615.0,1471670.0,Southern and South Eastern Zone,26.0,42.0,26.0
-Dengolat-Gjet,Dengolat,Gjet,25.1,534829.0,1470579.0,518860.0,1473300.0,Southern and South Eastern Zone,27.0,94.0,25.1
-Wukro-Tsgereda,Wukro,Tsgereda,29.9,553738.0,1496250.0,537675.0,1522351.0,,,,29.9
-Hykmeshal-Atsbi,Hykmeshal,Atsbi,17.0,576519.0,1521308.0,580016.0,1534389.0,,,,17.0
-Brki-Hykmeshal,Brki,Hykmeshal,13.0,569713.0,1515082.0,576519.0,1521308.0,,,,13.0
-Edagahamus-Sewne,Edagahamus,Sewne,27.27,561460.0,1568267.0,577371.0,1579734.0,Eastern Zone,28.0,82.0,27.27
-Mugulat-Azeba,Mugulat,Azeba,20.4,541172.0,1573120.0,537291.0,1565209.0,Eastern Zone,20.56,20.0,20.4
-Atsbi-Edagahamus,Atsbi,Edagahamus,51.9,580160.0,1534779.0,561449.0,1568266.0,Eastern Zone,54.0,43.0,51.9
-Birki-Hykimeshal,Birki,Hykimeshal,,,,,,Eastern Zone,13.0,130.0,13.0
-Wukro-Tsigereda,Wukro,Tsigereda,,,,,,Eastern Zone,32.0,78.0,32.0
-Haykmesahl-Atsibi,Haykmesahl,Atsibi,,,,,,Eastern Zone,17.0,46.0,17.0
-Entcho-Nebelet,Entcho,Nebelet,,,,,,Central Zone,39.0,33.0,39.0
-Yeha-Gendebta,Yeha,Gendebta,,,,,,Central Zone,5.0,16.0,5.0
-Gendebta-Feresmay,Gendebta,Feresmay,,,,,,Central Zone,15.0,32.0,15.0
-Mariamshewito-Ahesea,Mariamshewito,Ahesea,,,,,,Central Zone,19.0,34.0,19.0
-Axum-Darohafash,Axum,Darohafash,,,,,,Central Zone,26.0,30.0,26.0
-Axum-Adet,Axum,Adet,,,,,,Central Zone,37.0,42.0,37.0
-Wukromaray-Chila,Wukromaray,Chila,,,,,,Central Zone,23.0,46.0,23.0
-Axum-Welel-Chila,Axum,Chila,,,,,,Central Zone,32.0,40.0,32.0
-Selekleka-Zana,Selekleka,Zana,,,,,,Central Zone,22.0,32.0,22.0
-Beles-Kelakel,Beles,Kelakel,,,,,,North Western Zone,8.65,15.0,8.65
-Endabaguna-Edagahbret,Endabaguna,Edagahbret,,,,,,North Western Zone,42.0,90.0,42.0
-Dedebit-Sheraro,Dedebit,Sheraro,,,,,,North Western Zone,33.0,23.0,33.0
-Edagahbret-Mili,Edagahbret,Mili,,,,,,North Western Zone,28.0,51.0,28.0
-Maykuhili-Atsirega,Maykuhili,Atsirega,,,,,,North Western Zone,24.0,12.0,24.0
-Adidaero-Zelazl,Adidaero,Zelazl,,,,,,North Western Zone,38.95,35.0,38.95
-Mayhanse-Adimahamiday,Mayhanse,Adimahamiday,,,,,,North Western Zone,16.9,52.0,16.9
+road_name_norm,road_from,road_to,zone,length_km_preferred,length_km_cs,length_km_traffic,start_e,start_n,end_e,end_n
+dengolatgijet,Dengolat,Gijet,South Eastern Zone,25.96,25.96,25.96,534829.00,1470579.00,518860.00,1473300.00
+maichewneqsege,Maichew,Neqsege,Southern and South Eastern Zone,34.45,34.45,34.45,557079.00,1409646.00,537006.00,1410895.00
+adigudomdengolat,Adigudom,Dengolat,Southern and South Eastern Zone,362.34,362.34,362.34,555912.00,1469105.00,536615.00,1471670.00
+hdmodebub,Hdmo,Debub,Southern and South Eastern Zone,12.82,12.82,12.82,555809.00,1461363.00,569442.00,1461363.00
+alajebora,Alaje,Bora,Southern and South Eastern Zone,0.00,0.00,0.00,552773.00,1428544.00,536980.00,1425611.00
+dengolatgjet,Dengolat,Gjet,Southern and South Eastern Zone,25.96,25.96,25.96,534829.00,1470579.00,518860.00,1473300.00
+brkihykmeshal,Brki,Hykmeshal,Unknown,11.54,11.54,11.54,569713.00,1515082.00,576519.00,1521308.00
+wukrotsgereda,Wukro,Tsgereda,Unknown,0.00,0.00,0.00,553738.00,1496250.00,537675.00,1522351.00
+hykmeshalatsbi,Hykmeshal,Atsbi,Unknown,18.07,18.07,18.07,576519.00,1521308.00,580016.00,1534389.00
+edagahamussewne,Edagahamus,Sewne,Eastern Zone,28.41,28.41,28.41,561460.00,1568267.00,577371.00,1579734.00
+atsbiedagahamus,Atsbi,Edagahamus,Eastern Zone,0.00,0.00,0.00,580160.00,1534779.00,561449.00,1568266.00
+birkihykimeshal,Birki,Hykimeshal,Eastern Zone,13.00,13.00,13.00,,,,
+wukrotsigereda,Wukro,Tsigereda,Eastern Zone,32.00,32.00,32.00,,,,
+haykmesahlatsibi,Haykmesahl,Atsibi,Eastern Zone,17.00,17.00,17.00,,,,
+mugulatazeba,Mugulat,Azeba,Eastern Zone,21.19,21.19,21.19,541172.00,1573120.00,537291.00,1565209.00
+axumchila,Axum,Chila,Central Zone,32.00,32.00,32.00,,,,
+entchonebelet,Entcho,Nebelet,Central Zone,39.00,39.00,39.00,,,,
+yehagendebta,Yeha,Gendebta,Central Zone,5.00,5.00,5.00,,,,
+gendebtaferesmay,Gendebta,Feresmay,Central Zone,15.00,15.00,15.00,,,,
+mariamshewitoahesea,Mariamshewito,Ahesea,Central Zone,19.00,19.00,19.00,,,,
+axumdarohafash,Axum,Darohafash,Central Zone,26.00,26.00,26.00,,,,
+axumadet,Axum,Adet,Central Zone,37.00,37.00,37.00,,,,
+wukromaraychila,Wukromaray,Chila,Central Zone,23.00,23.00,23.00,,,,
+axumchila,Axum,Chila,Central Zone,32.00,32.00,32.00,,,,
+seleklekazana,Selekleka,Zana,Central Zone,22.00,22.00,22.00,,,,
+axumchila,Axum,Chila,Central Zone,32.00,32.00,32.00,,,,
+axumchila,Axum,Chila,Central Zone,32.00,32.00,32.00,,,,
+axumchila,Axum,Chila,Central Zone,32.00,32.00,32.00,,,,
+axumchila,Axum,Chila,Central Zone,32.00,32.00,32.00,,,,
+axumchila,Axum,Chila,Central Zone,32.00,32.00,32.00,,,,
+axumchila,Axum,Chila,Central Zone,32.00,32.00,32.00,,,,
+beleskelakel,Beles,Kelakel,North Western Zone,8.65,8.65,8.65,,,,
+endabagunaedagahbret,Endabaguna,Edagahbret,North Western Zone,42.00,42.00,42.00,,,,
+dedebitsheraro,Dedebit,Sheraro,North Western Zone,33.00,33.00,33.00,,,,
+edagahbretmili,Edagahbret,Mili,North Western Zone,28.00,28.00,28.00,,,,
+maykuhiliatsirega,Maykuhili,Atsirega,North Western Zone,24.00,24.00,24.00,,,,
+adidaerozelazl,Adidaero,Zelazl,North Western Zone,38.95,38.95,38.95,,,,
+mayhanseadimahamiday,Mayhanse,Adimahamiday,North Western Zone,16.90,16.90,16.90,,,,

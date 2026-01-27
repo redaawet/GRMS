@@ -1,16 +1,16 @@
 from __future__ import annotations
 
 import csv
+import os
 import re
+import sys
 from collections import defaultdict
 from dataclasses import dataclass, field
 from decimal import Decimal
 from pathlib import Path
-from typing import Any
+from typing import Any, Dict
 
-from django.core.management.base import BaseCommand, CommandError
-from django.db import IntegrityError, transaction
-
+from django.contrib.gis.geos import LineString
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 from django.utils import timezone
@@ -133,15 +133,30 @@ def _next_road_identifier() -> tuple[int, int]:
     return max_seq + 1, max_seq
 
 
-def _fallback_geometry(length_km: Decimal) -> dict[str, Any]:
-    if length_km <= 0:
-        length_km = Decimal("0.001")
-    lat_delta = float(length_km) / 111.0
-    return {
-        "type": "LineString",
-        "coordinates": [[0.0, 0.0], [0.0, lat_delta]],
-        "srid": 4326,
-    }
+def _fallback_geometry(length_km: Decimal, *, srid: int = 4326) -> LineString:
+    """Create a placeholder LineString when coordinate data is missing."""
+    safe_length = length_km if length_km > 0 else Decimal("0.001")
+    degrees = float(safe_length) / 111.32
+    return LineString((0.0, 0.0), (degrees, 0.0), srid=srid)
+
+
+_proj_env_warning_shown = False
+
+
+def _warn_missing_proj_env(stdout) -> None:
+    global _proj_env_warning_shown
+    if _proj_env_warning_shown:
+        return
+    if not sys.platform.startswith("win"):
+        return
+    if os.environ.get("PROJ_LIB") and os.environ.get("GDAL_DATA"):
+        return
+    _proj_env_warning_shown = True
+    stdout.write(
+        "WARNING: PROJ_LIB or GDAL_DATA is not set. On Windows, set these to your "
+        "OSGeo4W/QGIS share data directories to avoid PROJ/GDAL warnings. Mixed "
+        "installations (e.g., PostGIS proj.db) can cause version conflicts."
+    )
 
 
 def _ensure_section_surface(section: RoadSection) -> None:
@@ -176,6 +191,8 @@ class Command(BaseCommand):
         wipe = options["wipe_road_data"]
 
         summary = ImportSummary(created={}, updated={}, skipped={})
+
+        _warn_missing_proj_env(self.stdout)
 
         roads_path = base_path / "roads_seed.csv"
         sections_path = base_path / "road_sections_seed.csv"
@@ -271,7 +288,14 @@ class Command(BaseCommand):
                 road.end_northing = end_northing
 
                 if not (start_easting and start_northing and end_easting and end_northing):
-                    road.geometry = _fallback_geometry(length_km)
+                    geometry = _fallback_geometry(length_km)
+                    if not isinstance(geometry, LineString):
+                        self.stdout.write(
+                            self.style.WARNING(
+                                "Fallback geometry is not a LineString; verify geospatial config."
+                            )
+                        )
+                    road.geometry = geometry
 
                 road.save()
 
@@ -289,44 +313,133 @@ class Command(BaseCommand):
                 TrafficSurveySummary.objects.filter(road_id__in=road_ids).delete()
                 TrafficSurveyOverall.objects.filter(road_id__in=road_ids).delete()
 
-            sections_by_key: dict[tuple[int, int], RoadSection] = {}
-            for row in section_rows:
-                road_key = _road_key_from_csv(
-                    row.get("road_name_norm", ""),
-                    row.get("road_from", ""),
-                    row.get("road_to", ""),
-                )
-                road = roads_by_key.get(road_key) or road_map.get(road_key)
-                if road is None:
-                    summary.bump("skipped", "RoadSection")
-                    continue
+        sections_by_key: dict[tuple[int, int], RoadSection] = {}
+        sections_by_road: dict[int, dict[str, Any]] = {}
+        for row in section_rows:
+            road_key = _road_key_from_csv(
+                row.get("road_name_norm", ""),
+                row.get("road_from", ""),
+                row.get("road_to", ""),
+            )
+            road = roads_by_key.get(road_key) or road_map.get(road_key)
+            if road is None:
+                summary.bump("skipped", "RoadSection")
+                continue
+            entry = sections_by_road.setdefault(road.id, {"road": road, "rows": []})
+            entry["rows"].append(row)
 
+        for payload in sections_by_road.values():
+            road = payload["road"]
+            rows = payload["rows"]
+
+            road_length_km: Decimal | None = None
+            if road.geometry:
+                road_length_km = road.compute_length_km_from_geom()
+            elif road.total_length_km is not None:
+                road_length_km = Decimal(str(road.total_length_km))
+
+            parsed_rows: list[dict[str, Any]] = []
+            for row in rows:
                 section_no = int(float(row.get("section_no") or 0))
                 start_chainage = _parse_decimal(row.get("start_chainage_km")) or Decimal("0")
                 end_chainage = _parse_decimal(row.get("end_chainage_km")) or Decimal("0")
-
-                section_defaults = {
-                    "sequence_on_road": section_no,
-                    "section_number": section_no,
-                    "start_chainage_km": start_chainage,
-                    "end_chainage_km": end_chainage,
-                    "surface_type": road.surface_type or ROAD_FIELDS["surface_type"],
-                }
-
-                section, created = RoadSection.objects.update_or_create(
-                    road=road,
-                    section_number=section_no,
-                    defaults=section_defaults,
+                parsed_rows.append(
+                    {
+                        "row": row,
+                        "section_no": section_no,
+                        "start_chainage": start_chainage,
+                        "end_chainage": end_chainage,
+                    }
                 )
-                _ensure_section_surface(section)
-                section.save()
 
-                if created:
+            if not parsed_rows:
+                continue
+
+            tolerance = Decimal("0.02")
+            min_start = min(item["start_chainage"] for item in parsed_rows)
+            if min_start > tolerance:
+                shift = min_start
+                self.stdout.write(
+                    self.style.WARNING(
+                        f"Road {road.id} sections start at {min_start} km; "
+                        "shifting chainages to start at 0 km."
+                    )
+                )
+                for item in parsed_rows:
+                    item["start_chainage"] = max(Decimal("0"), item["start_chainage"] - shift)
+                    item["end_chainage"] = max(Decimal("0"), item["end_chainage"] - shift)
+            elif min_start > 0:
+                for item in parsed_rows:
+                    if item["start_chainage"] == min_start:
+                        item["start_chainage"] = Decimal("0")
+
+            max_end = max(item["end_chainage"] for item in parsed_rows)
+            last_candidates = [item for item in parsed_rows if item["end_chainage"] == max_end]
+            last_item = max(
+                last_candidates, key=lambda item: item["section_no"]
+            )
+
+            if road_length_km:
+                last_item["end_chainage"] = road_length_km
+                for item in parsed_rows:
+                    if item["end_chainage"] > road_length_km:
+                        item["end_chainage"] = road_length_km
+                    if item["start_chainage"] > road_length_km:
+                        item["start_chainage"] = road_length_km
+
+            first_item = min(parsed_rows, key=lambda item: item["start_chainage"])
+            ordered_rows = sorted(
+                parsed_rows, key=lambda item: (item["start_chainage"], item["end_chainage"])
+            )
+
+            existing_sections = {
+                section.section_number: section
+                for section in RoadSection.objects.filter(road=road)
+            }
+            to_create: list[RoadSection] = []
+            to_save: list[RoadSection] = []
+
+            for item in ordered_rows:
+                section_no = item["section_no"]
+                start_chainage = item["start_chainage"]
+                end_chainage = item["end_chainage"]
+
+                if end_chainage <= start_chainage:
+                    summary.bump("skipped", "RoadSection")
+                    continue
+
+                section = existing_sections.get(section_no)
+                if section is None:
+                    length_km = (end_chainage - start_chainage).quantize(Decimal("0.001"))
+                    section = RoadSection(
+                        road=road,
+                        sequence_on_road=section_no,
+                        section_number=section_no,
+                        start_chainage_km=start_chainage,
+                        end_chainage_km=end_chainage,
+                        length_km=length_km,
+                        surface_type=road.surface_type or ROAD_FIELDS["surface_type"],
+                    )
+                    to_create.append(section)
                     summary.bump("created", "RoadSection")
                 else:
+                    section.length_km = (end_chainage - start_chainage).quantize(Decimal("0.001"))
+                    section.sequence_on_road = section_no
+                    section.section_number = section_no
+                    section.start_chainage_km = start_chainage
+                    section.end_chainage_km = end_chainage
+                    section.surface_type = road.surface_type or ROAD_FIELDS["surface_type"]
+                    to_save.append(section)
                     summary.bump("updated", "RoadSection")
 
-                sections_by_key[(road.id, section_no)] = section
+            if to_create:
+                RoadSection.objects.bulk_create(to_create)
+                to_save.extend(to_create)
+
+            for section in to_save:
+                _ensure_section_surface(section)
+                section.save()
+                sections_by_key[(road.id, section.section_number)] = section
 
             for road_id in road_ids:
                 section_count = RoadSection.objects.filter(road_id=road_id).count()
@@ -366,10 +479,18 @@ class Command(BaseCommand):
                         float(item.get("station_to_km") or 0),
                     ),
                 )
+                max_sequence = 0
+                previous_end: Decimal | None = None
                 for index, row in enumerate(sorted_rows, start=1):
+                    max_sequence = index
                     station_from = _parse_decimal(row.get("station_from_km")) or Decimal("0")
                     station_to = _parse_decimal(row.get("station_to_km")) or Decimal("0")
+                    station_from = station_from.quantize(Decimal("0.001"))
+                    station_to = station_to.quantize(Decimal("0.001"))
                     if section.length_km and station_to > section.length_km:
+                        summary.bump("skipped", "RoadSegment")
+                        continue
+                    if previous_end is not None and station_from < previous_end:
                         summary.bump("skipped", "RoadSegment")
                         continue
 
@@ -392,8 +513,7 @@ class Command(BaseCommand):
 
                     segment, created = RoadSegment.objects.update_or_create(
                         section=section,
-                        station_from_km=station_from,
-                        station_to_km=station_to,
+                        sequence_on_section=index,
                         defaults=defaults,
                     )
 
@@ -401,6 +521,10 @@ class Command(BaseCommand):
                         summary.bump("created", "RoadSegment")
                     else:
                         summary.bump("updated", "RoadSegment")
+                    previous_end = station_to
+
+                if max_sequence:
+                    RoadSegment.objects.filter(section=section, sequence_on_section__gt=max_sequence).delete()
 
             for row in structure_rows:
                 road_key = _road_key_from_csv(
@@ -425,6 +549,12 @@ class Command(BaseCommand):
                 station_km = None
                 if station_in_section is not None:
                     station_km = (section.start_chainage_km or Decimal("0")) + station_in_section
+                    station_km = station_km.quantize(Decimal("0.001"))
+                    section_start = section.start_chainage_km or Decimal("0")
+                    section_end = section.end_chainage_km or section_start
+                    if station_km < section_start or station_km > section_end:
+                        summary.bump("skipped", "StructureInventory")
+                        continue
 
                 defaults = {
                     "road": road,
