@@ -30,3 +30,16 @@ Use these CSVs as inputs to a Django management command:
 - create Structure records from structures_seed.csv
 - create TrafficCount/AADT records from traffic_seed.csv
 - create RoadSocioEconomic defaults from road_socioeconomic_seed.csv
+How to seed the data
+
+Make sure the seed files exist in the folder you’ll point to (default expects: roads_seed.csv, road_sections_seed.csv, road_segments_seed.csv, structures_seed.csv, traffic_seed.csv, road_socioeconomic_seed.csv).
+
+From the project root, run the importer (use a full path if your Datas folder lives elsewhere):
+python manage.py seed_from_inventory_csv --path Datas
+
+Optional flags:
+
+--dry-run to validate without saving changes.
+
+--wipe-road-data to clear segments/structures/traffic for roads in the CSVs before importing.
+These are supported by the command flags.
