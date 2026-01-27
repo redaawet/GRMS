@@ -3,14 +3,13 @@ from __future__ import annotations
 import csv
 import re
 from collections import defaultdict
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from decimal import Decimal
 from pathlib import Path
-from typing import Any
+from typing import Any, Dict
 
-from django.core.ment.base import BaseCommand, CommandError
-from django.db import IntegrityError, transaction
-
+from django.core.management.base import BaseCommand, CommandError
+from django.db import transaction
 from django.utils import timezone
 
 from grms.models import (
@@ -24,12 +23,15 @@ from grms.models import (
 from traffic.models import TrafficSurveyOverall, TrafficSurveySummary
 
 
-ROAD_FILE = "roads_seed.csv"
-SECTION_FILE = "road_sections_seed.csv"
-SEGMENT_FILE = "road_segments_seed.csv"
-STRUCTURE_FILE = "structures_seed.csv"
-TRAFFIC_FILE = "traffic_seed.csv"
-SOCIO_FILE = "road_socioeconomic_seed.csv"
+@dataclass
+class ImportSummary:
+    created: Dict[str, int] = field(default_factory=dict)
+    updated: Dict[str, int] = field(default_factory=dict)
+    skipped: Dict[str, int] = field(default_factory=dict)
+
+    def bump(self, bucket: str, model: str, amount: int = 1) -> None:
+        target = getattr(self, bucket)
+        target[model] = target.get(model, 0) + amount
 
 
 ROAD_FIELDS = {
@@ -225,7 +227,7 @@ class Command(BaseCommand):
                     row.get("road_to", ""),
                 )
                 if not road_key:
-                    summary.record_skipped("Road")
+                    summary.bump("skipped", "Road")
                     continue
 
                 road_from = (row.get("road_from") or "").strip()
@@ -271,9 +273,9 @@ class Command(BaseCommand):
                 road.save()
 
                 if created:
-                    summary.record_created("Road")
+                    summary.bump("created", "Road")
                 else:
-                    summary.record_updated("Road")
+                    summary.bump("updated", "Road")
 
                 roads_by_key[road_key] = road
                 road_ids.add(road.id)
@@ -293,7 +295,7 @@ class Command(BaseCommand):
                 )
                 road = roads_by_key.get(road_key) or road_map.get(road_key)
                 if road is None:
-                    summary.record_skipped("RoadSection")
+                    summary.bump("skipped", "RoadSection")
                     continue
 
                 section_no = int(float(row.get("section_no") or 0))
@@ -317,9 +319,9 @@ class Command(BaseCommand):
                 section.save()
 
                 if created:
-                    summary.record_created("RoadSection")
+                    summary.bump("created", "RoadSection")
                 else:
-                    summary.record_updated("RoadSection")
+                    summary.bump("updated", "RoadSection")
 
                 sections_by_key[(road.id, section_no)] = section
 
@@ -341,13 +343,13 @@ class Command(BaseCommand):
                 )
                 road = roads_by_key.get(road_key) or road_map.get(road_key)
                 if road is None:
-                    summary.record_skipped("RoadSegment")
+                    summary.bump("skipped", "RoadSegment")
                     continue
 
                 section_no = int(float(row.get("section_no") or 0))
                 section = sections_by_key.get((road.id, section_no))
                 if section is None:
-                    summary.record_skipped("RoadSegment")
+                    summary.bump("skipped", "RoadSegment")
                     continue
 
                 segments_by_section[section.id].append(row)
@@ -365,7 +367,7 @@ class Command(BaseCommand):
                     station_from = _parse_decimal(row.get("station_from_km")) or Decimal("0")
                     station_to = _parse_decimal(row.get("station_to_km")) or Decimal("0")
                     if section.length_km and station_to > section.length_km:
-                        summary.record_skipped("RoadSegment")
+                        summary.bump("skipped", "RoadSegment")
                         continue
 
                     cross_section_raw = (row.get("cross_section_raw") or "").strip().upper()
@@ -393,9 +395,9 @@ class Command(BaseCommand):
                     )
 
                     if created:
-                        summary.record_created("RoadSegment")
+                        summary.bump("created", "RoadSegment")
                     else:
-                        summary.record_updated("RoadSegment")
+                        summary.bump("updated", "RoadSegment")
 
             for row in structure_rows:
                 road_key = _road_key_from_csv(
@@ -405,13 +407,13 @@ class Command(BaseCommand):
                 )
                 road = roads_by_key.get(road_key) or road_map.get(road_key)
                 if road is None:
-                    summary.record_skipped("StructureInventory")
+                    summary.bump("skipped", "StructureInventory")
                     continue
 
                 section_no = int(float(row.get("section_no") or 0))
                 section = sections_by_key.get((road.id, section_no))
                 if section is None:
-                    summary.record_skipped("StructureInventory")
+                    summary.bump("skipped", "StructureInventory")
                     continue
 
                 asset = (row.get("asset") or "").strip().lower()
@@ -440,9 +442,9 @@ class Command(BaseCommand):
                 )
 
                 if created:
-                    summary.record_created("StructureInventory")
+                    summary.bump("created", "StructureInventory")
                 else:
-                    summary.record_updated("StructureInventory")
+                    summary.bump("updated", "StructureInventory")
 
             current_year = timezone.now().year
             for row in traffic_rows:
@@ -453,7 +455,7 @@ class Command(BaseCommand):
                 )
                 road = roads_by_key.get(road_key) or road_map.get(road_key)
                 if road is None:
-                    summary.record_skipped("TrafficSurveySummary")
+                    summary.bump("skipped", "TrafficSurveySummary")
                     continue
 
                 adt = _parse_decimal(row.get("adt")) or Decimal("0")
@@ -469,9 +471,9 @@ class Command(BaseCommand):
                     defaults=overall_defaults,
                 )
                 if created:
-                    summary.record_created("TrafficSurveyOverall")
+                    summary.bump("created", "TrafficSurveyOverall")
                 else:
-                    summary.record_updated("TrafficSurveyOverall")
+                    summary.bump("updated", "TrafficSurveyOverall")
 
                 for column, vehicle_class in TRAFFIC_COLUMN_MAP.items():
                     value = _parse_decimal(row.get(column))
@@ -496,9 +498,9 @@ class Command(BaseCommand):
                     )
 
                     if created:
-                        summary.record_created("TrafficSurveySummary")
+                        summary.bump("created", "TrafficSurveySummary")
                     else:
-                        summary.record_updated("TrafficSurveySummary")
+                        summary.bump("updated", "TrafficSurveySummary")
 
             for row in socioeconomic_rows:
                 road_key = _road_key_from_csv(
@@ -508,7 +510,7 @@ class Command(BaseCommand):
                 )
                 road = roads_by_key.get(road_key) or road_map.get(road_key)
                 if road is None:
-                    summary.record_skipped("RoadSocioEconomic")
+                    summary.bump("skipped", "RoadSocioEconomic")
                     continue
 
                 population = _parse_decimal(row.get("population_served"))
@@ -525,9 +527,9 @@ class Command(BaseCommand):
                 )
 
                 if created:
-                    summary.record_created("RoadSocioEconomic")
+                    summary.bump("created", "RoadSocioEconomic")
                 else:
-                    summary.record_updated("RoadSocioEconomic")
+                    summary.bump("updated", "RoadSocioEconomic")
 
             if dry_run:
                 transaction.set_rollback(True)
