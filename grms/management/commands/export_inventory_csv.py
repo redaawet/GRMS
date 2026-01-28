@@ -39,6 +39,24 @@ def _as_str(value: Decimal | None) -> str:
 
 class Command(BaseCommand):
     help = "Export inventory data to CSV files compatible with seed_from_inventory_csv."
+    export_models = (
+        Road,
+        RoadSection,
+        RoadSegment,
+        StructureInventory,
+        TrafficSurveyOverall,
+        TrafficSurveySummary,
+        RoadSocioEconomic,
+    )
+    export_files = {
+        Road: "roads_seed.csv",
+        RoadSection: "road_sections_seed.csv",
+        RoadSegment: "road_segments_seed.csv",
+        StructureInventory: "structures_seed.csv",
+        TrafficSurveyOverall: "traffic_seed.csv",
+        TrafficSurveySummary: "traffic_seed.csv",
+        RoadSocioEconomic: "road_socioeconomic_seed.csv",
+    }
 
     def add_arguments(self, parser):
         parser.add_argument(
@@ -67,6 +85,7 @@ class Command(BaseCommand):
         self._write_structures(base_path / "structures_seed.csv", roads, road_key_map, warnings)
         self._write_traffic(base_path / "traffic_seed.csv", roads, road_key_map, warnings)
         self._write_socio(base_path / "road_socioeconomic_seed.csv", roads, road_key_map)
+        self._write_import_order(base_path)
 
         if warnings:
             self.stdout.write(self.style.WARNING("Warnings:"))
@@ -74,6 +93,72 @@ class Command(BaseCommand):
                 self.stdout.write(f"- {warning}")
 
         self.stdout.write(self.style.SUCCESS("CSV export complete."))
+
+    def _write_import_order(self, base_path: Path) -> None:
+        ordered = self._topological_order(self.export_models)
+        lines = [
+            "Import order (topological sort by FK dependencies among exported models):",
+        ]
+        for index, model in enumerate(ordered, start=1):
+            dependencies = self._model_fk_dependencies(model)
+            dependency_names = ", ".join(sorted(dep.__name__ for dep in dependencies)) if dependencies else "None"
+            filename = self.export_files.get(model, "N/A")
+            lines.append(
+                f"{index}. {model.__name__} ({filename}) - depends on: {dependency_names}"
+            )
+
+        lines.append("")
+        lines.append("Notes:")
+        lines.append("- traffic_seed.csv populates both TrafficSurveyOverall and TrafficSurveySummary.")
+        lines.append("- Import roads, then sections, then segments before dependent models.")
+
+        (base_path / "IMPORT_ORDER.txt").write_text("\n".join(lines), encoding="utf-8")
+
+    def _model_fk_dependencies(self, model) -> set[type]:
+        dependencies: set[type] = set()
+        model_set = set(self.export_models)
+        for field in model._meta.get_fields():
+            if not getattr(field, "is_relation", False):
+                continue
+            if not getattr(field, "many_to_one", False):
+                continue
+            related = getattr(field, "related_model", None)
+            if related in model_set and related is not model:
+                dependencies.add(related)
+        return dependencies
+
+    def _topological_order(self, models: Iterable[type]) -> list[type]:
+        models_list = list(models)
+        model_set = set(models_list)
+        order_hint = {model: index for index, model in enumerate(models_list)}
+        dependencies = {model: set() for model in models_list}
+        dependents: dict[type, set[type]] = defaultdict(set)
+
+        for model in models_list:
+            deps = self._model_fk_dependencies(model)
+            dependencies[model] = set(deps)
+            for dep in deps:
+                if dep in model_set:
+                    dependents[dep].add(model)
+
+        ready = [model for model in models_list if not dependencies[model]]
+        ordered: list[type] = []
+
+        while ready:
+            ready.sort(key=lambda item: order_hint[item])
+            model = ready.pop(0)
+            ordered.append(model)
+            for dependent in sorted(dependents.get(model, set()), key=lambda item: order_hint[item]):
+                dependencies[dependent].discard(model)
+                if not dependencies[dependent]:
+                    if dependent not in ready and dependent not in ordered:
+                        ready.append(dependent)
+
+        remaining = [model for model in models_list if model not in ordered]
+        if remaining:
+            ordered.extend(sorted(remaining, key=lambda item: order_hint[item]))
+
+        return ordered
 
     def _write_roads(self, path: Path, roads: Iterable[Road], road_key_map: dict[int, str]) -> None:
         fieldnames = [
