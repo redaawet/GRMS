@@ -7,22 +7,22 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.RemoveModel(
+        migrations.DeleteModel(
             name="TrafficCountRecord",
         ),
-        migrations.RemoveModel(
+        migrations.DeleteModel(
             name="TrafficCycleSummary",
         ),
-        migrations.RemoveModel(
+        migrations.DeleteModel(
             name="TrafficSurveySummary",
         ),
-        migrations.RemoveModel(
+        migrations.DeleteModel(
             name="TrafficQC",
         ),
-        migrations.RemoveModel(
+        migrations.DeleteModel(
             name="TrafficForPrioritization",
         ),
-        migrations.RemoveModel(
+        migrations.DeleteModel(
             name="TrafficSurvey",
         ),
     ]
