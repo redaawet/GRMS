@@ -2411,165 +2411,6 @@ class FurnitureConditionDetailedSurvey(models.Model):
         return f"Furniture detailed survey {self.id} ({self.furniture_id})"
 
 
-# ---------------------------------------------------------------------------
-# Traffic monitoring models
-# ---------------------------------------------------------------------------
-
-
-class TrafficSurvey(models.Model):
-    road_segment = models.ForeignKey(
-        RoadSegment, on_delete=models.CASCADE, related_name="legacy_traffic_surveys"
-    )
-    survey_year = models.PositiveIntegerField()
-    cycle_number = models.PositiveSmallIntegerField(help_text="Economic season cycle (1,2,3)")
-    count_start_date = models.DateField(null=True, blank=True)
-    count_end_date = models.DateField(null=True, blank=True)
-    count_days_per_cycle = models.PositiveSmallIntegerField(default=7, help_text="# of days counted per cycle")
-    count_hours_per_day = models.PositiveSmallIntegerField(default=12, help_text="Hours counted per day")
-    night_adjustment_factor = models.DecimalField(max_digits=5, decimal_places=3, default=Decimal("1.330"))
-    method = models.CharField(
-        max_length=20,
-        choices=[
-            ("MOC", "Manual (Classified)"),
-            ("MTS", "Manual (Tally Sheet)"),
-            ("Automated", "Automated Counter"),
-            ("Other", "Other"),
-        ],
-        help_text="Traffic counting method",
-    )
-    observer = models.CharField(max_length=150, blank=True, help_text="Observer/team name")
-    location_override = PointField(
-        srid=4326,
-        null=True,
-        blank=True,
-        help_text="Optional GPS point if not exactly at segment center",
-    )
-    weather_notes = models.CharField(max_length=100, blank=True)
-    qa_status = models.CharField(
-        max_length=10,
-        choices=[("Draft", "Draft"), ("In Review", "In Review"), ("Approved", "Approved"), ("Rejected", "Rejected")],
-        default="Draft",
-    )
-    created_at = models.DateTimeField(auto_now_add=True)
-    approved_at = models.DateTimeField(null=True, blank=True)
-
-    class Meta:
-        verbose_name = "Traffic survey"
-        verbose_name_plural = "Traffic surveys"
-
-    def __str__(self) -> str:  # pragma: no cover
-        return f"TrafficSurvey {self.id} (Yr {self.survey_year}, Segment {self.road_segment_id})"
-
-
-class TrafficCountRecord(models.Model):
-    traffic_survey = models.ForeignKey(TrafficSurvey, on_delete=models.CASCADE, related_name="count_records")
-    road_segment = models.ForeignKey(RoadSegment, on_delete=models.CASCADE)
-    count_date = models.DateField()
-    time_block_from = models.TimeField(null=True, blank=True)
-    time_block_to = models.TimeField(null=True, blank=True)
-    vehicle_class = models.CharField(
-        max_length=20,
-        choices=[
-            ("Car", "Car"),
-            ("LightGoods", "LightGoods"),
-            ("MiniBus", "MiniBus"),
-            ("MediumGoods", "MediumGoods"),
-            ("HeavyGoods", "HeavyGoods"),
-            ("Bus", "Bus"),
-            ("Tractor", "Tractor"),
-            ("Motorcycle", "Motorcycle"),
-            ("Bicycle", "Bicycle"),
-            ("Pedestrian", "Pedestrian"),
-        ],
-        help_text="Vehicle classification counted",
-    )
-    count_value = models.PositiveIntegerField(default=0, help_text="Observed count for this class/time")
-    is_market_day = models.BooleanField(default=False, help_text="Market day indicator for this count")
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        verbose_name = "Traffic count record"
-        verbose_name_plural = "Traffic count records"
-
-    def __str__(self) -> str:  # pragma: no cover
-        return f"TrafficCountRecord {self.id} ({self.vehicle_class})"
-
-
-class TrafficCycleSummary(models.Model):
-    traffic_survey = models.ForeignKey(TrafficSurvey, on_delete=models.CASCADE, related_name="cycle_summaries")
-    road_segment = models.ForeignKey(RoadSegment, on_delete=models.CASCADE)
-    vehicle_class = models.CharField(max_length=20, choices=TrafficCountRecord._meta.get_field("vehicle_class").choices)
-    cycle_number = models.PositiveSmallIntegerField()
-    cycle_days_counted = models.PositiveIntegerField(help_text="Days counted in this cycle")
-    cycle_sum_count = models.BigIntegerField(help_text="Total vehicle count in cycle")
-    cycle_daily_avg = models.DecimalField(max_digits=10, decimal_places=3, help_text="Average count/day in cycle")
-    cycle_daily_24hr = models.DecimalField(max_digits=12, decimal_places=3, help_text="Daily count adjusted to 24h")
-    cycle_pcu = models.DecimalField(max_digits=12, decimal_places=3, help_text="Daily PCU for this class")
-    qc_flag = models.TextField(blank=True, help_text="Quality control notes/flags")
-
-    class Meta:
-        verbose_name = "Traffic cycle summary"
-        verbose_name_plural = "Traffic cycle summaries"
-        unique_together = ("traffic_survey", "vehicle_class", "cycle_number")
-
-    def __str__(self) -> str:  # pragma: no cover
-        return f"Cycle summary {self.traffic_survey_id} ({self.vehicle_class})"
-
-
-class TrafficSurveySummary(models.Model):
-    traffic_survey = models.ForeignKey(TrafficSurvey, on_delete=models.CASCADE, related_name="survey_summary")
-    road_segment = models.ForeignKey(RoadSegment, on_delete=models.CASCADE)
-    vehicle_class = models.CharField(max_length=20, choices=TrafficCountRecord._meta.get_field("vehicle_class").choices)
-    avg_daily_count_all_cycles = models.DecimalField(max_digits=12, decimal_places=3)
-    adt_class = models.DecimalField(max_digits=12, decimal_places=3, help_text="Annual daily traffic for this class")
-    pcu_class = models.DecimalField(max_digits=12, decimal_places=3, help_text="ADT * PCU factor (this class)")
-    adt_total = models.DecimalField(max_digits=12, decimal_places=3, help_text="Sum of ADT across classes")
-    pcu_total = models.DecimalField(max_digits=14, decimal_places=3, help_text="Sum of PCU across classes")
-    confidence_score = models.DecimalField(max_digits=5, decimal_places=2, help_text="Data confidence (0–100)")
-    computed_at = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        verbose_name = "Traffic survey summary"
-        verbose_name_plural = "Traffic survey summaries"
-
-    def __str__(self) -> str:  # pragma: no cover
-        return f"Survey summary {self.traffic_survey_id} ({self.vehicle_class})"
-
-
-class TrafficQC(models.Model):
-    traffic_survey = models.ForeignKey(TrafficSurvey, on_delete=models.CASCADE, related_name="qc_issues")
-    road_segment = models.ForeignKey(RoadSegment, on_delete=models.CASCADE)
-    issue_type = models.CharField(max_length=100, help_text="Type of issue (e.g. 'Missing Day', 'Spike')")
-    issue_detail = models.TextField(help_text="Detailed description of the issue")
-    resolved = models.BooleanField(default=False)
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        verbose_name = "Traffic quality check"
-        verbose_name_plural = "Traffic quality checks"
-
-    def __str__(self) -> str:  # pragma: no cover
-        return f"Traffic QC {self.id}: {self.issue_type}"
-
-
-class TrafficForPrioritization(models.Model):
-    road = models.ForeignKey(Road, on_delete=models.CASCADE)
-    road_segment = models.ForeignKey(RoadSegment, on_delete=models.CASCADE, null=True, blank=True)
-    fiscal_year = models.PositiveIntegerField(null=True, blank=True)
-    value_type = models.CharField(max_length=3, choices=[("ADT", "ADT"), ("PCU", "PCU")])
-    value = models.DecimalField(max_digits=14, decimal_places=3, help_text="Numeric ADT or PCU used")
-    source_survey = models.ForeignKey(TrafficSurvey, on_delete=models.SET_NULL, null=True, blank=True)
-    prepared_at = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        verbose_name = "Traffic for prioritization record"
-        verbose_name_plural = "Traffic for prioritization records"
-        unique_together = ("road", "fiscal_year", "value_type", "road_segment")
-
-    def __str__(self) -> str:  # pragma: no cover
-        return f"Traffic {self.road_id} {self.fiscal_year} {self.value_type}"
-
-
 class BenefitCategory(models.Model):
     code = models.CharField(max_length=10, unique=True)
     name = models.CharField(max_length=100, unique=True)
@@ -2590,6 +2431,7 @@ class BenefitCategory(models.Model):
 
     def __str__(self):
         return f"{self.code} ({self.max_score} pts)"
+
 
 class BenefitCriterion(models.Model):
     class ScoringMethod(models.TextChoices):
@@ -2662,6 +2504,8 @@ class BenefitCriterionScale(models.Model):
 
     def __str__(self):
         return f"{self.criterion.code}: {self.description} → {self.score}"
+
+
 class RoadSocioEconomic(models.Model):
     """Manual socio-economic inputs captured once per road."""
 
@@ -2759,10 +2603,10 @@ class RoadSocioEconomic(models.Model):
             if not (Decimal("0") <= self.farmland_percent <= Decimal("100")):
                 errors["farmland_percent"] = "Farmland percent must be between 0 and 100."
 
-        from traffic.models import TrafficSurveySummary  # avoid circular import
+        from .traffic_read import get_traffic_value  # avoid circular import
 
-        latest_summary = TrafficSurveySummary.latest_for(self.road) if self.road_id else None
-        if latest_summary and self.adt_override is not None:
+        latest_adt = get_traffic_value(self.road, fiscal_year=None, value_type="ADT") if self.road_id else None
+        if latest_adt is not None and self.adt_override is not None:
             errors["adt_override"] = "ADT override not allowed when survey data exists."
 
         if errors:

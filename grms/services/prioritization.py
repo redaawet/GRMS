@@ -11,7 +11,7 @@ from django.db.models import Sum
 from django.utils import timezone
 
 from grms import models
-from traffic import models as traffic_models
+from grms.traffic_read import get_traffic_value
 
 
 def _resolve_range_score(criterion: models.BenefitCriterion, value) -> Decimal:
@@ -36,12 +36,12 @@ def _resolve_range_score(criterion: models.BenefitCriterion, value) -> Decimal:
     raise ValidationError({criterion.code: "Value does not match any scoring range."})
 
 
-def get_final_adt(road: models.Road) -> Decimal:
+def get_final_adt(road: models.Road, fiscal_year: int) -> Decimal:
     """Apply the mandatory ADT selection rule."""
 
-    computed = traffic_models.TrafficSurveySummary.latest_for(road)
-    if computed:
-        return Decimal(computed.adt_total)
+    computed = get_traffic_value(road, fiscal_year=fiscal_year, value_type="ADT")
+    if computed is not None:
+        return Decimal(computed)
 
     socioeconomic = models.RoadSocioEconomic.objects.get(road=road)
     if socioeconomic.adt_override:
@@ -50,10 +50,14 @@ def get_final_adt(road: models.Road) -> Decimal:
     raise ValidationError("ADT missing: no survey & no override.")
 
 
-def _criterion_inputs(road: models.Road, socioeconomic: models.RoadSocioEconomic) -> Dict[str, object]:
+def _criterion_inputs(
+    road: models.Road,
+    socioeconomic: models.RoadSocioEconomic,
+    fiscal_year: int,
+) -> Dict[str, object]:
     link_type = socioeconomic.road_link_type
     return {
-        "TRAFFIC": get_final_adt(road),
+        "TRAFFIC": get_final_adt(road, fiscal_year),
         "TRADE_CTR": socioeconomic.trading_centers,
         "VILLAGES": socioeconomic.villages,
         "LINK_TYPE": link_type.score if link_type else None,
@@ -78,7 +82,7 @@ def compute_benefit_factor(road: models.Road, fiscal_year: int) -> Optional[mode
     socioeconomic.full_clean(exclude=["road"])
 
     # Inputs from socio-economic model
-    inputs = _criterion_inputs(road, socioeconomic)
+    inputs = _criterion_inputs(road, socioeconomic, fiscal_year)
 
     # Raw score totals per BF category
     category_scores: Dict[str, Decimal] = {
