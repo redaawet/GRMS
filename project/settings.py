@@ -34,6 +34,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'corsheaders',
     'rest_framework',
+    'core',
     'traffic',
     'grms',
     # Custom admin site needs to load after dependent apps (including `traffic`)
