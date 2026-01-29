@@ -9,6 +9,9 @@ from decimal import Decimal, ROUND_HALF_UP
 
 from django import forms
 from django.contrib import admin, messages
+from django.contrib.auth import get_user_model
+from django.contrib.auth.admin import GroupAdmin, UserAdmin
+from django.contrib.auth.models import Group
 from django.contrib.admin import AdminSite
 from django.contrib.admin.widgets import AutocompleteSelect
 from django.db.models import Max, Min, Sum, Q
@@ -799,6 +802,17 @@ class GRMSAdminSite(AdminSite):
 # (e.g., {% url 'admin:index' %}) routes through the grouped dashboard instead
 # of Django's stock admin. The custom site is mounted via project/urls.py.
 grms_admin_site = GRMSAdminSite(name="admin")
+
+UserModel = get_user_model()
+try:
+    grms_admin_site.register(UserModel, UserAdmin)
+except admin.sites.AlreadyRegistered:
+    pass
+
+try:
+    grms_admin_site.register(Group, GroupAdmin)
+except admin.sites.AlreadyRegistered:
+    pass
 
 
 class RoadAdminForm(forms.ModelForm):
