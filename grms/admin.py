@@ -10,7 +10,6 @@ from decimal import Decimal, ROUND_HALF_UP
 from django import forms
 from django.contrib import admin, messages
 from django.contrib.auth import get_user_model
-from django.contrib.auth.admin import GroupAdmin, UserAdmin
 from django.contrib.auth.models import Group
 from django.contrib.admin import AdminSite
 from django.contrib.admin.widgets import AutocompleteSelect
@@ -32,7 +31,6 @@ from .admin_mixins import (
     DependentAutocompleteMediaMixin,
     RoadSectionCascadeAutocompleteMixin,
 )
-from django.db.models import Q
 from traffic.models import TrafficSurveyOverall, TrafficSurveySummary
 from .gis_fields import LineStringField, PointField
 from .admin_cascades import (
@@ -802,6 +800,9 @@ class GRMSAdminSite(AdminSite):
 # (e.g., {% url 'admin:index' %}) routes through the grouped dashboard instead
 # of Django's stock admin. The custom site is mounted via project/urls.py.
 grms_admin_site = GRMSAdminSite(name="admin")
+
+# Delay auth admin import to avoid default_site loading circularity.
+from django.contrib.auth.admin import GroupAdmin, UserAdmin
 
 UserModel = get_user_model()
 try:
