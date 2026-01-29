@@ -1,0 +1,74 @@
+Import order (topological sort by FK dependencies among exported models):
+1. grms.ActivityLookup (Sheet: grms.ActivityLookup) - depends on: None
+2. grms.AdminZone (Sheet: grms.AdminZone) - depends on: None
+3. grms.AdminWoreda (Sheet: grms.AdminWoreda) - depends on: AdminZone
+4. grms.BenefitCategory (Sheet: grms.BenefitCategory) - depends on: None
+5. grms.BenefitCriterion (Sheet: grms.BenefitCriterion) - depends on: BenefitCategory
+6. grms.BenefitCriterionScale (Sheet: grms.BenefitCriterionScale) - depends on: BenefitCriterion
+7. grms.ConditionFactorLookup (Sheet: grms.ConditionFactorLookup) - depends on: None
+8. grms.DistressType (Sheet: grms.DistressType) - depends on: None
+9. grms.DistressCondition (Sheet: grms.DistressCondition) - depends on: DistressType
+10. grms.DistressActivity (Sheet: grms.DistressActivity) - depends on: ActivityLookup, DistressCondition
+11. grms.InterventionCategory (Sheet: grms.InterventionCategory) - depends on: None
+12. grms.InterventionLookup (Sheet: grms.InterventionLookup) - depends on: None
+13. grms.InterventionWorkItem (Sheet: grms.InterventionWorkItem) - depends on: InterventionCategory
+14. grms.MCICategoryLookup (Sheet: grms.MCICategoryLookup) - depends on: InterventionWorkItem
+15. grms.MCIRoadMaintenanceRule (Sheet: grms.MCIRoadMaintenanceRule) - depends on: None
+16. grms.MCIWeightConfig (Sheet: grms.MCIWeightConfig) - depends on: None
+17. grms.NightAdjustmentLookup (Sheet: grms.NightAdjustmentLookup) - depends on: None
+18. grms.PCULookup (Sheet: grms.PCULookup) - depends on: None
+19. grms.QAStatus (Sheet: grms.QAStatus) - depends on: None
+20. grms.RoadLinkTypeLookup (Sheet: grms.RoadLinkTypeLookup) - depends on: None
+21. grms.StructureConditionLookup (Sheet: grms.StructureConditionLookup) - depends on: None
+22. grms.StructureConditionInterventionRule (Sheet: grms.StructureConditionInterven) - depends on: InterventionWorkItem, StructureConditionLookup
+23. grms.UnitCost (Sheet: grms.UnitCost) - depends on: InterventionLookup
+24. traffic.NightAdjustmentLookup (Sheet: traffic.NightAdjustmentLookup) - depends on: None
+25. traffic.PcuLookup (Sheet: traffic.PcuLookup) - depends on: None
+26. grms.AnnualWorkPlan (Sheet: grms.AnnualWorkPlan) - depends on: Road
+27. grms.AnnualWorkplanReport (Sheet: grms.AnnualWorkplanReport) - depends on: AdminWoreda, AdminZone, RoadSocioEconomic
+28. grms.BenefitFactor (Sheet: grms.BenefitFactor) - depends on: Road
+29. grms.BridgeConditionSurvey (Sheet: grms.BridgeConditionSurvey) - depends on: StructureConditionSurvey
+30. grms.BridgeDetail (Sheet: grms.BridgeDetail) - depends on: StructureInventory
+31. grms.CulvertConditionSurvey (Sheet: grms.CulvertConditionSurvey) - depends on: StructureConditionSurvey
+32. grms.CulvertDetail (Sheet: grms.CulvertDetail) - depends on: StructureInventory
+33. grms.FordDetail (Sheet: grms.FordDetail) - depends on: StructureInventory
+34. grms.FurnitureConditionDetailedSurvey (Sheet: grms.FurnitureConditionDetailed) - depends on: ActivityLookup, AnnualWorkPlan, DistressCondition, DistressType, FurnitureInventory, QAStatus
+35. grms.FurnitureConditionSurvey (Sheet: grms.FurnitureConditionSurvey) - depends on: FurnitureInventory, QAStatus
+36. grms.FurnitureInventory (Sheet: grms.FurnitureInventory) - depends on: RoadSection
+37. grms.GabionWallDetail (Sheet: grms.GabionWallDetail) - depends on: StructureInventory
+38. grms.OtherStructureConditionSurvey (Sheet: grms.OtherStructureConditionSur) - depends on: StructureConditionSurvey
+39. grms.PrioritizationResult (Sheet: grms.PrioritizationResult) - depends on: Road, RoadSection
+40. grms.RetainingWallDetail (Sheet: grms.RetainingWallDetail) - depends on: StructureInventory
+41. grms.Road (Sheet: grms.Road) - depends on: AdminWoreda, AdminZone, RoadSocioEconomic
+42. grms.RoadConditionDetailedSurvey (Sheet: grms.RoadConditionDetailedSurve) - depends on: ActivityLookup, AnnualWorkPlan, DistressCondition, DistressType, QAStatus, RoadSegment
+43. grms.RoadConditionSurvey (Sheet: grms.RoadConditionSurvey) - depends on: ConditionFactorLookup, RoadSegment, SegmentMCIResult
+44. grms.RoadGlobalCostReport (Sheet: grms.RoadGlobalCostReport) - depends on: AdminWoreda, AdminZone, RoadSocioEconomic
+45. grms.RoadNameAlias (Sheet: grms.RoadNameAlias) - depends on: Road
+46. grms.RoadRankingResult (Sheet: grms.RoadRankingResult) - depends on: Road
+47. grms.RoadSection (Sheet: grms.RoadSection) - depends on: AdminWoreda, AdminZone, Road
+48. grms.RoadSectionIntervention (Sheet: grms.RoadSectionIntervention) - depends on: InterventionLookup, RoadSection
+49. grms.RoadSegment (Sheet: grms.RoadSegment) - depends on: RoadSection
+50. grms.RoadSocioEconomic (Sheet: grms.RoadSocioEconomic) - depends on: Road, RoadLinkTypeLookup
+51. grms.SectionWorkplanReport (Sheet: grms.SectionWorkplanReport) - depends on: AdminWoreda, AdminZone, RoadSocioEconomic
+52. grms.SegmentInterventionNeed (Sheet: grms.SegmentInterventionNeed) - depends on: RoadSegment
+53. grms.SegmentInterventionNeedItem (Sheet: grms.SegmentInterventionNeedIte) - depends on: InterventionWorkItem, SegmentInterventionNeed
+54. grms.SegmentInterventionRecommendation (Sheet: grms.SegmentInterventionRecomme) - depends on: InterventionWorkItem, RoadSegment
+55. grms.SegmentMCIResult (Sheet: grms.SegmentMCIResult) - depends on: InterventionWorkItem, MCICategoryLookup, MCIWeightConfig, RoadConditionSurvey, RoadSegment
+56. grms.StructureConditionDetailedSurvey (Sheet: grms.StructureConditionDetailed) - depends on: ActivityLookup, AnnualWorkPlan, DistressCondition, DistressType, QAStatus, StructureInventory
+57. grms.StructureConditionSurvey (Sheet: grms.StructureConditionSurvey) - depends on: BridgeConditionSurvey, CulvertConditionSurvey, OtherStructureConditionSurvey, QAStatus, StructureInventory
+58. grms.StructureIntervention (Sheet: grms.StructureIntervention) - depends on: InterventionLookup, StructureInventory
+59. grms.StructureInterventionNeed (Sheet: grms.StructureInterventionNeed) - depends on: StructureInventory
+60. grms.StructureInterventionNeedItem (Sheet: grms.StructureInterventionNeedI) - depends on: InterventionWorkItem, StructureInterventionNeed
+61. grms.StructureInterventionRecommendation (Sheet: grms.StructureInterventionRecom) - depends on: InterventionWorkItem, StructureInventory
+62. grms.StructureInventory (Sheet: grms.StructureInventory) - depends on: BridgeDetail, CulvertDetail, FordDetail, GabionWallDetail, RetainingWallDetail, Road, RoadSection
+63. traffic.TrafficCountRecord (Sheet: traffic.TrafficCountRecord) - depends on: TrafficSurvey
+64. traffic.TrafficCycleSummary (Sheet: traffic.TrafficCycleSummary) - depends on: Road, TrafficSurvey
+65. traffic.TrafficForPrioritization (Sheet: traffic.TrafficForPrioritizatio) - depends on: Road, TrafficSurvey
+66. traffic.TrafficQC (Sheet: traffic.TrafficQC) - depends on: Road, TrafficSurvey
+67. traffic.TrafficSurvey (Sheet: traffic.TrafficSurvey) - depends on: Road
+68. traffic.TrafficSurveyOverall (Sheet: traffic.TrafficSurveyOverall) - depends on: Road
+69. traffic.TrafficSurveySummary (Sheet: traffic.TrafficSurveySummary) - depends on: Road, TrafficSurvey
+
+Notes:
+- Import roads, then sections, then segments before dependent models.
+- Foreign keys use natural key columns where available.
