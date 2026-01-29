@@ -13,6 +13,16 @@ Custom Django management commands available in this project. Run them from the r
 - **compute_prioritization**
   - Placeholder scorer that prints the latest MCI value for each segment (up to the first 100 segments).
 
+## Core app
+
+- **reset_domain_data `--yes-i-know`**
+  - Deletes only business-domain tables (roads, surveys, traffic, structures) in dependency order while preserving lookups and auth data. Requires `--yes-i-know` to run.
+  - Example: `python manage.py reset_domain_data --yes-i-know`
+- **import_offline_excel `<path>`** `[--strict]` `[--dry-run]`
+  - Imports a single workbook (e.g., `Datas/offline_data.xlsx`) with sheets named like `grms.Road`, `traffic.TrafficSurvey`, etc. Uses idempotent upserts and foreign-key resolution from headers such as `road__road_identifier`.
+  - `--strict` aborts on the first row error; `--dry-run` validates without saving.
+  - Example: `python manage.py import_offline_excel Datas/offline_data.xlsx --strict`
+
 ## Traffic app
 
 - **compute_traffic_overall**
