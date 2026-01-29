@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 from io import BytesIO
-from typing import Dict, List, Sequence, Tuple
+from typing import Dict, List, Optional, Sequence, Tuple, Union
 
 import csv
 from decimal import Decimal, ROUND_HALF_UP
@@ -329,8 +329,8 @@ def _point_to_utm(point):
     return None, None
 
 
-MenuTarget = str | Tuple[str, str]
-MenuGroup = Sequence[MenuTarget] | Dict[str, Sequence[MenuTarget]]
+MenuTarget = Union[str, Tuple[str, str]]
+MenuGroup = Union[Sequence[MenuTarget], Dict[str, Sequence[MenuTarget]]]
 
 
 class GRMSAdminSite(AdminSite):
@@ -529,7 +529,7 @@ class GRMSAdminSite(AdminSite):
         return name.replace("_", "").replace(" ", "").strip().lower()
 
     @staticmethod
-    def _parse_menu_target(target: str | Tuple[str, str]) -> Tuple[str, str]:
+    def _parse_menu_target(target: MenuTarget) -> Tuple[str, str]:
         """Return (lookup_label, display_label) for mixed menu definitions."""
         if isinstance(target, tuple):
             lookup_label, display_label = target
@@ -580,7 +580,7 @@ class GRMSAdminSite(AdminSite):
     def _build_sections(self, request, menu_groups=None) -> List[Dict[str, object]]:
         app_list = self.get_app_list(request)
         lookup = self._build_model_lookup(app_list)
-        assigned: set[tuple[str | None, str]] = set()
+        assigned: set[Tuple[Optional[str], str]] = set()
         sections: List[Dict[str, object]] = []
 
         menu_groups = menu_groups or self._get_menu_groups()
@@ -1957,7 +1957,7 @@ class StructureDetailOverlayMixin:
 
 
 class StructureDetailFilterForm(CascadeRoadSectionAssetMixin, forms.ModelForm):
-    structure_category: str | None = None
+    structure_category: Optional[str] = None
     asset_field_name = "structure"
     asset_model = models.StructureInventory
     asset_url = "/admin/grms/options/structures/"
@@ -1998,7 +1998,7 @@ class StructureDetailFilterForm(CascadeRoadSectionAssetMixin, forms.ModelForm):
         self._setup_road_section()
         self._setup_asset()
 
-    def _asset_queryset(self, road_id: str | None, section_id: str | None):
+    def _asset_queryset(self, road_id: Optional[str], section_id: Optional[str]):
         qs = super()._asset_queryset(road_id, section_id)
         if self.structure_category:
             qs = qs.filter(structure_category=self.structure_category)
@@ -2068,7 +2068,7 @@ class CulvertDetailForm(StructureDetailFilterForm):
         culvert_type = self.initial.get("culvert_type") or getattr(self.instance, "culvert_type", None)
         self._apply_field_state(culvert_type)
 
-    def _apply_field_state(self, culvert_type: str | None):
+    def _apply_field_state(self, culvert_type: Optional[str]):
         def set_disabled(field_names, disabled: bool):
             for name in field_names:
                 field = self.fields.get(name)
