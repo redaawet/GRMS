@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
+from django.db.models.deletion import ProtectedError
 
 from grms import models as grms_models
 from traffic import models as traffic_models
@@ -24,6 +25,7 @@ class Command(BaseCommand):
         deletion_plan = [
             ("traffic.TrafficCountRecord", traffic_models.TrafficCountRecord),
             ("traffic.TrafficSurvey", traffic_models.TrafficSurvey),
+            ("traffic.TrafficSurveySummary", traffic_models.TrafficSurveySummary),
             ("grms.StructureConditionSurvey", grms_models.StructureConditionSurvey),
             ("grms.RoadConditionSurvey", grms_models.RoadConditionSurvey),
             ("grms.BridgeDetail", grms_models.BridgeDetail),
@@ -37,5 +39,11 @@ class Command(BaseCommand):
 
         with transaction.atomic():
             for label, model in deletion_plan:
-                deleted, _ = model.objects.all().delete()
+                try:
+                    deleted, _ = model.objects.all().delete()
+                except ProtectedError as exc:
+                    self.stderr.write(f"Failed to delete {label}.")
+                    self.stderr.write(str(exc))
+                    self.stderr.write("Hint: Add the referencing model earlier in delete order.")
+                    raise
                 self.stdout.write(f"Deleted {deleted} {label} records")
