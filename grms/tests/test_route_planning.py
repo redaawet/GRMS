@@ -194,8 +194,7 @@ class RoadGeometryTests(RoadNetworkMixin, APITestCase):
 
         url = reverse("road_geometry", args=[road.id])
         payload = {
-            "type": "LineString",
-            "coordinates": [[39.0, 13.0], [39.01, 13.0]],
+            "geojson": {"type": "LineString", "coordinates": [[39.0, 13.0], [39.01, 13.0]]},
         }
 
         response = self.client.post(url, payload, format="json")
@@ -204,6 +203,27 @@ class RoadGeometryTests(RoadNetworkMixin, APITestCase):
         road.refresh_from_db()
         self.assertIsNotNone(road.geometry)
         self.assertGreater(float(road.total_length_km), 0)
+
+    def test_post_geometry_uses_distance_when_provided(self):
+        road, _, _ = self.create_network("GeomDistance")
+        road.total_length_km = Decimal("1.23")
+        road.save(update_fields=["total_length_km"])
+
+        url = reverse("road_geometry", args=[road.id])
+        payload = {
+            "geojson": {"type": "LineString", "coordinates": [[39.0, 13.0], [39.01, 13.0]]},
+            "distance_m": 12345,
+        }
+
+        response = self.client.post(url, payload, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        road.refresh_from_db()
+        decimal_places = models.Road._meta.get_field("total_length_km").decimal_places
+        quantizer = Decimal("1").scaleb(-decimal_places)
+        expected = Decimal("12.345").quantize(quantizer)
+        self.assertEqual(road.total_length_km, expected)
+        self.assertEqual(response.json()["length_km"], float(expected))
 
     def test_road_section_creation_allowed_after_geometry_saved(self):
         road, _, _ = self.create_network("SectionGeom")
@@ -224,4 +244,3 @@ class RoadGeometryTests(RoadNetworkMixin, APITestCase):
         )
 
         self.assertIsNotNone(section.pk)
-

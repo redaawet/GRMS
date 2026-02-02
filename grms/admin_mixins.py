@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+from django import forms
 from django.contrib import admin
+from django.utils.html import format_html
 
 
 class DependentAutocompleteMediaMixin:
@@ -47,3 +49,27 @@ class RoadSectionCascadeAutocompleteMixin(admin.ModelAdmin):
                     queryset = queryset.filter(road_id=int(road_id))
 
         return queryset, use_distinct
+
+
+class AssetContextMapMixin:
+    asset_map_css = ("grms/vendor/leaflet/leaflet.css", "grms/css/asset-context-map.css")
+    asset_map_js = ("grms/vendor/leaflet/leaflet.js", "grms/js/asset-context-map.js")
+
+    def get_map_context_url(self, obj):  # pragma: no cover - interface
+        raise NotImplementedError
+
+    def asset_context_map(self, obj):
+        if not obj or not getattr(obj, "pk", None):
+            return "Save first to enable map preview."
+        return format_html(
+            '<div class="grms-asset-map-wrap">'
+            '  <div id="asset-context-map" class="grms-asset-map" data-context-url="{}"></div>'
+            "</div>",
+            self.get_map_context_url(obj),
+        )
+    asset_context_map.short_description = "Asset context map"
+
+    @property
+    def media(self):
+        base = super().media
+        return base + forms.Media(css={"all": self.asset_map_css}, js=self.asset_map_js)

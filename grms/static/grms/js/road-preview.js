@@ -116,12 +116,25 @@
         let roadLine;
         let currentRouteCoords = null;
 
+        window.__GRMS_LAST_ROUTE = null;
+
         function showStatus(message, level) {
             if (!statusEl) {
                 return;
             }
             statusEl.textContent = message || "";
             statusEl.className = "road-map-panel__status" + (level ? " " + level : "");
+        }
+
+        function updateLengthField(lengthKm) {
+            if (!Number.isFinite(lengthKm)) {
+                return;
+            }
+            const lengthInput = document.getElementById("id_total_length_km")
+                || document.querySelector('input[name="total_length_km"]');
+            if (lengthInput) {
+                lengthInput.value = lengthKm;
+            }
         }
 
         function setActiveMarker(value) {
@@ -193,11 +206,12 @@
             if (!config.api.geometry || !geometrySaveButton) {
                 return;
             }
-            if (!currentRouteCoords || !currentRouteCoords.length) {
-                alert("Generate a route preview before saving geometry.");
+            const lastRoute = window.__GRMS_LAST_ROUTE;
+            if (!lastRoute || !lastRoute.geojson) {
+                alert("Preview route first");
                 return;
             }
-            showStatus("Saving route geometry…");
+            showStatus("Saving route geometry...");
             const csrfToken = window.django?.csrfToken || getCsrfToken();
             fetch(config.api.geometry, {
                 method: "POST",
@@ -206,7 +220,10 @@
                     "Content-Type": "application/json",
                     "X-CSRFToken": csrfToken,
                 },
-                body: JSON.stringify({ type: "LineString", coordinates: currentRouteCoords }),
+                body: JSON.stringify({
+                    geojson: lastRoute.geojson,
+                    distance_m: lastRoute.distance_m,
+                }),
             })
                 .then(function (response) {
                     if (!response.ok) {
@@ -216,8 +233,11 @@
                     }
                     return response.json();
                 })
-                .then(function () {
+                .then(function (payload) {
                     showStatus("Route geometry saved.", "success");
+                    if (payload && typeof payload.length_km !== "undefined") {
+                        updateLengthField(Number(payload.length_km));
+                    }
                 })
                 .catch(function (err) {
                     console.error(err);
@@ -391,24 +411,16 @@
             };
         }
 
-        async function reloadRoadGeometry() {
-            if (!config.road_id) {
-                return;
-            }
-            const response = await fetch(`/api/roads/${config.road_id}/`, { credentials: "same-origin" });
-            if (response.ok) {
-                config.road = await response.json();
-            }
-        }
-
         async function previewRoute() {
             let coords;
             try {
                 coords = ensureCoordinates();
             } catch (err) {
                 showStatus(err.message, "error");
+                window.__GRMS_LAST_ROUTE = null;
                 return;
             }
+            window.__GRMS_LAST_ROUTE = null;
             showStatus("Requesting route preview…");
 
             try {
@@ -454,6 +466,16 @@
                         ? { type: "LineString", coordinates: payload.route.geometry }
                         : payload.route.geometry;
                     currentRouteCoords = geometry.coordinates || null;
+                    const distanceMeters = Number(
+                        payload.route.distance_meters
+                            ?? payload.route.distance_m
+                            ?? payload.route.distance
+                            ?? 0
+                    );
+                    window.__GRMS_LAST_ROUTE = {
+                        distance_m: Number.isFinite(distanceMeters) ? distanceMeters : null,
+                        geojson: geometry,
+                    };
                     const style = ROUTE_STYLES[(payload.travel_mode || travelModeSelect.value || "DRIVING").toUpperCase()] ||
                         ROUTE_STYLES.DRIVING;
                     routeLine = mapPreview.renderGeometry(map, geometry, style);
@@ -464,26 +486,15 @@
                         geometrySaveButton.disabled = false;
                     }
 
-                    if (config.road_id) {
-                        await fetch(`/api/roads/${config.road_id}/geometry/`, {
-                            method: "POST",
-                            credentials: "same-origin",
-                            headers: {
-                                "Content-Type": "application/json",
-                                "X-CSRFToken": getCsrfToken(),
-                            },
-                            body: JSON.stringify({ coordinates: currentRouteCoords }),
-                        });
-
-                        await reloadRoadGeometry();
-                    }
                 } else {
                     showStatus("No geometry available — save the record first.", "error");
                     currentRouteCoords = null;
+                    window.__GRMS_LAST_ROUTE = null;
                 }
                 syncMarkersFromInputs();
             } catch (err) {
                 showStatus(err.message, "error");
+                window.__GRMS_LAST_ROUTE = null;
             }
         }
 

@@ -27,6 +27,7 @@ from .admin_forms import CascadeFKModelFormMixin
 from .forms import RoadSegmentAdminForm
 from .admin_utils import valid_autocomplete_fields, valid_list_display
 from .admin_mixins import (
+    AssetContextMapMixin,
     CascadeAutocompleteAdminMixin,
     DependentAutocompleteMediaMixin,
     RoadSectionCascadeAutocompleteMixin,
@@ -1725,7 +1726,9 @@ class StructureInterventionRecommendationAdmin(GRMSBaseAdmin):
         return f"{wi.work_code} - {wi.description}"
 
 @admin.register(models.RoadSection, site=grms_admin_site)
-class RoadSectionAdmin(RoadSectionCascadeAutocompleteMixin, RoadSectionCascadeAdminMixin, SectionScopedAdmin):
+class RoadSectionAdmin(
+    AssetContextMapMixin, RoadSectionCascadeAutocompleteMixin, RoadSectionCascadeAdminMixin, SectionScopedAdmin
+):
     form = RoadSectionAdminForm
     list_display = (
         "road",
@@ -1738,7 +1741,7 @@ class RoadSectionAdmin(RoadSectionCascadeAutocompleteMixin, RoadSectionCascadeAd
     list_filter = ("admin_zone_override", "admin_woreda_override", "surface_type")
     search_fields = ("section_number", "name")
     autocomplete_fields = ("road", "admin_zone_override", "admin_woreda_override")
-    readonly_fields = ("section_number", "sequence_on_road", "length_km")
+    readonly_fields = ("section_number", "sequence_on_road", "length_km", "asset_context_map")
     fieldsets = (
         ("Parent road", {"fields": ("road",), "description": "Select the road this section belongs to."}),
         (
@@ -1764,6 +1767,7 @@ class RoadSectionAdmin(RoadSectionCascadeAutocompleteMixin, RoadSectionCascadeAd
             },
         ),
         ("Notes", {"fields": ("notes",)}),
+        ("Asset context map", {"fields": ("asset_context_map",)}),
     )
 
     def get_fieldsets(self, request, obj=None):
@@ -1807,6 +1811,9 @@ class RoadSectionAdmin(RoadSectionCascadeAutocompleteMixin, RoadSectionCascadeAd
                 "admin:grms_roadsection_map_context", args=[object_id]
             )
         return super().changeform_view(request, object_id, form_url, extra_context)
+
+    def get_map_context_url(self, obj):
+        return reverse("admin:grms_roadsection_map_context", args=[obj.pk])
 
     def get_urls(self):
         urls = super().get_urls()
@@ -1852,7 +1859,7 @@ class RoadSectionAdmin(RoadSectionCascadeAutocompleteMixin, RoadSectionCascadeAd
 
 
 @admin.register(models.RoadSegment, site=grms_admin_site)
-class RoadSegmentAdmin(RoadSectionCascadeAdminMixin, SectionScopedAdmin):
+class RoadSegmentAdmin(AssetContextMapMixin, RoadSectionCascadeAdminMixin, SectionScopedAdmin):
     form = RoadSegmentAdminForm
     list_display = (
         "road",
@@ -1902,7 +1909,9 @@ class RoadSegmentAdmin(RoadSectionCascadeAdminMixin, SectionScopedAdmin):
             },
         ),
         ("Notes", {"fields": ("comment",)}),
+        ("Asset context map", {"fields": ("asset_context_map",)}),
     )
+    readonly_fields = ("asset_context_map",)
 
     @admin.display(description="Road", ordering="section__road__road_identifier")
     def road(self, obj):
@@ -1956,6 +1965,9 @@ class RoadSegmentAdmin(RoadSectionCascadeAdminMixin, SectionScopedAdmin):
             )
         return super().changeform_view(request, object_id, form_url, extra_context)
 
+    def get_map_context_url(self, obj):
+        return reverse("admin:grms_roadsegment_map_context", args=[obj.pk])
+
     def get_urls(self):
         urls = super().get_urls()
         custom = [
@@ -2007,7 +2019,9 @@ class RoadSegmentAdmin(RoadSectionCascadeAdminMixin, SectionScopedAdmin):
         )
 
 @admin.register(models.StructureInventory, site=grms_admin_site)
-class StructureInventoryAdmin(DependentAutocompleteMediaMixin, RoadSectionCascadeAutocompleteMixin, GRMSBaseAdmin):
+class StructureInventoryAdmin(
+    AssetContextMapMixin, DependentAutocompleteMediaMixin, RoadSectionCascadeAutocompleteMixin, GRMSBaseAdmin
+):
     class StructureInventoryAdminForm(CascadeFKModelFormMixin, CascadeRoadSectionMixin, forms.ModelForm):
         class Meta:
             model = models.StructureInventory
@@ -2068,7 +2082,7 @@ class StructureInventoryAdmin(DependentAutocompleteMediaMixin, RoadSectionCascad
         "structure_category",
     )
     list_select_related = ("road", "section")
-    readonly_fields = ("created_date", "modified_date", "derived_lat_lng")
+    readonly_fields = ("created_date", "modified_date", "derived_lat_lng", "asset_context_map")
     form = StructureInventoryAdminForm
     autocomplete_fields = ("road", "section")
     actions = [export_structures_to_excel]
@@ -2122,6 +2136,7 @@ class StructureInventoryAdmin(DependentAutocompleteMediaMixin, RoadSectionCascad
         ),
         ("Documentation", {"fields": ("comments", "attachments")}),
         ("Timestamps", {"fields": ("created_date", "modified_date")}),
+        ("Asset context map", {"fields": ("asset_context_map",)}),
     )
 
     class Media:
@@ -2148,6 +2163,9 @@ class StructureInventoryAdmin(DependentAutocompleteMediaMixin, RoadSectionCascad
                 "admin:grms_structureinventory_map_context", args=[object_id]
             )
         return super().changeform_view(request, object_id, form_url, extra_context)
+
+    def get_map_context_url(self, obj):
+        return reverse("admin:grms_structureinventory_map_context", args=[obj.pk])
 
     def label(self, obj):
         return structure_label(obj)
@@ -2280,7 +2298,7 @@ class StructureInventoryAdmin(DependentAutocompleteMediaMixin, RoadSectionCascad
         return JsonResponse({"type": "FeatureCollection", "features": features})
 
 
-class StructureDetailOverlayMixin:
+class StructureDetailOverlayMixin(AssetContextMapMixin):
     def changeform_view(self, request, object_id=None, form_url="", extra_context=None):
         extra_context = extra_context or {}
         instance = self.get_object(request, object_id)
@@ -2290,6 +2308,12 @@ class StructureDetailOverlayMixin:
                 "admin:grms_structureinventory_map_context", args=[structure.id]
             )
         return super().changeform_view(request, object_id, form_url, extra_context)
+
+    def get_map_context_url(self, obj):
+        structure = getattr(obj, "structure", None)
+        if not structure:
+            return ""
+        return reverse("admin:grms_structureinventory_map_context", args=[structure.pk])
 
 
 class StructureDetailFilterForm(CascadeRoadSectionAssetMixin, forms.ModelForm):
@@ -2363,6 +2387,7 @@ class BridgeDetailAdmin(StructureDetailOverlayMixin, RoadSectionStructureCascade
     structure_category_codes = ("Bridge",)
     list_display = ("structure", "bridge_type", "span_count", "has_head_walls")
     autocomplete_fields = ("structure",)
+    readonly_fields = ("asset_context_map",)
     cascade_autocomplete = {
         "structure": lambda qs, req: _filter_structure_qs(qs, req),
     }
@@ -2383,6 +2408,7 @@ class BridgeDetailAdmin(StructureDetailOverlayMixin, RoadSectionStructureCascade
                 )
             },
         ),
+        ("Asset context map", {"fields": ("asset_context_map",)}),
     )
 
 
@@ -2432,6 +2458,7 @@ class CulvertDetailAdmin(StructureDetailOverlayMixin, RoadSectionStructureCascad
     form = CulvertDetailForm
     structure_category_codes = ("Culvert",)
     autocomplete_fields = ("structure",)
+    readonly_fields = ("asset_context_map",)
     cascade_autocomplete = {
         "structure": lambda qs, req: _filter_structure_qs(qs, req),
     }
@@ -2455,6 +2482,7 @@ class CulvertDetailAdmin(StructureDetailOverlayMixin, RoadSectionStructureCascad
         ),
         ("Pipe details", {"fields": (("num_pipes", "pipe_diameter_m"),)}),
         ("Head walls", {"fields": ("has_head_walls",)}),
+        ("Asset context map", {"fields": ("asset_context_map",)}),
     )
     class Media:
         js = (
@@ -2476,12 +2504,16 @@ class FordDetailAdmin(StructureDetailOverlayMixin, RoadSectionStructureCascadeAd
     form = FordDetailForm
     structure_category_codes = ("Ford",)
     autocomplete_fields = ("structure",)
+    readonly_fields = ("asset_context_map",)
     cascade_autocomplete = {
         "structure": lambda qs, req: _filter_structure_qs(qs, req),
     }
     change_form_template = "admin/grms/structure_detail/change_form.html"
     list_display = ("structure",)
-    fieldsets = (("Structure", {"fields": ("road", "section", "structure")}),)
+    fieldsets = (
+        ("Structure", {"fields": ("road", "section", "structure")}),
+        ("Asset context map", {"fields": ("asset_context_map",)}),
+    )
     class Media:
         js = (
             "grms/admin/cascade_autocomplete.js",
@@ -2501,12 +2533,16 @@ class RetainingWallDetailAdmin(StructureDetailOverlayMixin, RoadSectionStructure
     form = RetainingWallDetailForm
     structure_category_codes = ("Retaining Wall",)
     autocomplete_fields = ("structure",)
+    readonly_fields = ("asset_context_map",)
     cascade_autocomplete = {
         "structure": lambda qs, req: _filter_structure_qs(qs, req),
     }
     change_form_template = "admin/grms/structure_detail/change_form.html"
     list_display = ("structure",)
-    fieldsets = (("Structure", {"fields": ("road", "section", "structure")}),)
+    fieldsets = (
+        ("Structure", {"fields": ("road", "section", "structure")}),
+        ("Asset context map", {"fields": ("asset_context_map",)}),
+    )
     class Media:
         js = (
             "grms/admin/cascade_autocomplete.js",
@@ -2526,12 +2562,16 @@ class GabionWallDetailAdmin(StructureDetailOverlayMixin, RoadSectionStructureCas
     form = GabionWallDetailForm
     structure_category_codes = ("Gabion Wall",)
     autocomplete_fields = ("structure",)
+    readonly_fields = ("asset_context_map",)
     cascade_autocomplete = {
         "structure": lambda qs, req: _filter_structure_qs(qs, req),
     }
     change_form_template = "admin/grms/structure_detail/change_form.html"
     list_display = ("structure",)
-    fieldsets = (("Structure", {"fields": ("road", "section", "structure")}),)
+    fieldsets = (
+        ("Structure", {"fields": ("road", "section", "structure")}),
+        ("Asset context map", {"fields": ("asset_context_map",)}),
+    )
     class Media:
         js = (
             "grms/admin/cascade_autocomplete.js",

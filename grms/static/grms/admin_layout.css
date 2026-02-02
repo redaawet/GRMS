@@ -290,9 +290,6 @@ body:not(.login) {
   background: var(--grms-surface-bg);
 }
 
-.grms-asset-map {
-  min-height: 380px;
-}
 
 @media (max-width: 960px) {
   #grms-header .header-inner {

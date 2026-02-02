@@ -101,20 +101,32 @@ class LineStringGeometrySerializer(serializers.Serializer):
             child=serializers.FloatField(),
             min_length=2,
             max_length=2,
-        )
+        ),
+        required=False,
     )
     type = serializers.CharField(required=False)
+    geojson = serializers.JSONField(required=False)
+    distance_m = serializers.FloatField(required=False, allow_null=True)
 
     def validate(self, attrs):
+        geojson = attrs.get("geojson")
         coords = attrs.get("coordinates")
+
+        if geojson is not None:
+            if not isinstance(geojson, dict):
+                raise serializers.ValidationError("GeoJSON must be an object.")
+            if geojson.get("type") != "LineString":
+                raise serializers.ValidationError("Only LineString geometries are supported.")
+            coords = geojson.get("coordinates")
+        else:
+            geom_type = attrs.get("type")
+            if geom_type and geom_type != "LineString":
+                raise serializers.ValidationError("Only LineString geometries are supported.")
+
         if not coords or len(coords) < 2:
             raise serializers.ValidationError("At least two coordinate pairs are required.")
 
-        geom_type = attrs.get("type")
-        if geom_type and geom_type != "LineString":
-            raise serializers.ValidationError("Only LineString geometries are supported.")
-
-        return {"coordinates": coords}
+        return {"coordinates": coords, "distance_m": attrs.get("distance_m")}
 
 
 class StructureInventorySerializer(serializers.ModelSerializer):

@@ -30,7 +30,7 @@ from traffic import models as traffic_models
 from . import models, serializers
 from .forms import RoadAlignmentForm, RoadBasicForm, RoadSectionBasicForm
 from .services import map_services
-from .utils import GEOS_AVAILABLE, geometry_length_km, make_point, point_to_lat_lng, utm_to_wgs84
+from .utils import GEOS_AVAILABLE, make_point, point_to_lat_lng, utm_to_wgs84
 
 
 @staff_member_required
@@ -579,23 +579,28 @@ def update_road_geometry(request: Request, pk: int) -> Response:
     serializer.is_valid(raise_exception=True)
 
     coords = serializer.validated_data["coordinates"]
+    distance_m = serializer.validated_data.get("distance_m")
     if GEOS_AVAILABLE:
         line = LineString(coords, srid=4326)
-        road.geometry = line
+        geometry = line
     else:
-        road.geometry = {
+        geometry = {
             "type": "LineString",
             "coordinates": [[float(lon), float(lat)] for lon, lat in coords],
             "srid": 4326,
         }
-    road.save(update_fields=["geometry"])
 
-    if not road.total_length_km or float(road.total_length_km) == 0.0:
-        length_km = geometry_length_km(road.geometry)
-        road.total_length_km = Decimal(str(round(length_km, 3)))
-        road.save(update_fields=["total_length_km"])
+    road.geometry = geometry
+    length_km = None
+    if distance_m is not None and distance_m > 0:
+        length_km = (Decimal(str(distance_m)) / Decimal("1000")).quantize(Decimal("0.001"))
 
-    return Response({"status": "ok"}, status=status.HTTP_200_OK)
+    if length_km is None:
+        length_km = road.compute_length_km_from_geom()
+
+    models.Road.objects.filter(pk=road.pk).update(geometry=geometry, total_length_km=length_km)
+
+    return Response({"ok": True, "length_km": float(length_km)}, status=status.HTTP_200_OK)
 
 
 @api_view(["POST"])
@@ -842,4 +847,3 @@ def run_prioritization(request: Request) -> Response:
 
     serializer = serializers.PrioritizationResultSerializer(created_results, many=True)
     return Response(serializer.data)
-

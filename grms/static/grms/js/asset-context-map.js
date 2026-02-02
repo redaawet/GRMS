@@ -279,12 +279,69 @@
     }
 
     var map = L.map(container);
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      maxZoom: 19,
-      attribution: "© OpenStreetMap contributors",
-    }).addTo(map);
-
     setDefaultView(map);
+
+    var blankLayer = L.layerGroup().addTo(map);
+    var baseLayers = { Blank: blankLayer };
+    var layerControl = L.control
+      .layers(baseLayers, null, { collapsed: true })
+      .addTo(map);
+
+    var offlineTilesUrl = window.GRMS_OFFLINE_TILES_URL;
+    if (offlineTilesUrl) {
+      var offlineLayer = L.tileLayer(offlineTilesUrl, { maxZoom: 19 });
+      layerControl.addBaseLayer(offlineLayer, "Offline");
+
+      var offlineStart = Date.now();
+      var offlineErrored = false;
+      var offlineTimeout = setTimeout(function () {
+        if (offlineErrored && map.hasLayer(offlineLayer)) {
+          map.removeLayer(offlineLayer);
+        }
+      }, 2500);
+
+      offlineLayer.once("tileload", function () {
+        clearTimeout(offlineTimeout);
+      });
+      offlineLayer.once("tileerror", function () {
+        offlineErrored = true;
+        if (Date.now() - offlineStart < 2500 && map.hasLayer(offlineLayer)) {
+          map.removeLayer(offlineLayer);
+        }
+      });
+      map.addLayer(offlineLayer);
+    }
+
+    var onlineLayer = L.tileLayer(
+      "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+      {
+        maxZoom: 19,
+        attribution: "© OpenStreetMap contributors",
+      }
+    );
+
+    function enableOnlineLayer() {
+      if (layerControl && onlineLayer) {
+        layerControl.addBaseLayer(onlineLayer, "Online");
+      }
+    }
+
+    if (window.GRMS_ONLINE_STATUS_URL) {
+      fetch(window.GRMS_ONLINE_STATUS_URL, {
+        headers: { "X-Requested-With": "XMLHttpRequest" },
+      })
+        .then(function (resp) {
+          return resp.ok ? resp.json() : null;
+        })
+        .then(function (payload) {
+          if (payload && payload.online === true) {
+            enableOnlineLayer();
+          }
+        })
+        .catch(function () {});
+    } else if (typeof navigator !== "undefined" && navigator.onLine) {
+      enableOnlineLayer();
+    }
 
     fetch(contextUrl, { headers: { "X-Requested-With": "XMLHttpRequest" } })
       .then(function (resp) {
@@ -296,6 +353,7 @@
       .then(function (payload) {
         renderMap(map, payload || {});
         window.__GRMS_MAP_CONTEXT_LOADED = true;
+        window.__GRMS_MAP_READY = true;
       })
       .catch(function (err) {
         console.error("Failed to load asset context map", err);

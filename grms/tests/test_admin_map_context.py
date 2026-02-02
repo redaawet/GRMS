@@ -173,6 +173,16 @@ class AdminMapContextTests(TestCase):
         self.assertIn("label", structure_feature["properties"])
         self.assertIn("station_km", structure_feature["properties"])
 
+    def test_change_form_contains_map_container(self):
+        section_url = reverse("admin:grms_roadsection_change", args=[self.section.id])
+        segment_url = reverse("admin:grms_roadsegment_change", args=[self.segment.id])
+        structure_url = reverse("admin:grms_structureinventory_change", args=[self.structure.id])
+
+        for url in (section_url, segment_url, structure_url):
+            response = self.client.get(url)
+            self.assertEqual(response.status_code, 200)
+            self.assertIn(b'id=\"asset-context-map\"', response.content)
+
     def test_map_context_requires_login(self):
         self.client.logout()
         urls = [
