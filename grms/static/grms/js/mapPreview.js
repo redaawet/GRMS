@@ -8,6 +8,26 @@
         segment: { color: "#f97316", weight: 8, opacity: 1 },
     };
 
+    const DEFAULT_MAP_CENTER = root.DEFAULT_MAP_CENTER ?? [13.5, 39.5];
+
+    function normaliseCenter(center) {
+        if (Array.isArray(center) && center.length >= 2) {
+            const lat = Number(center[0]);
+            const lng = Number(center[1]);
+            if (Number.isFinite(lat) && Number.isFinite(lng)) {
+                return { lat, lng };
+            }
+        }
+        if (center && Number.isFinite(center.lat) && Number.isFinite(center.lng)) {
+            return { lat: Number(center.lat), lng: Number(center.lng) };
+        }
+        return null;
+    }
+
+    function getDefaultCenter() {
+        return normaliseCenter(DEFAULT_MAP_CENTER);
+    }
+
     function ensureLeaflet() {
         if (!root.L) {
             throw new Error("Leaflet must be loaded before initializing the map.");
@@ -65,6 +85,11 @@
             map.fitBounds(bounds, { padding: [20, 20] });
         } else if (mapRegion?.center?.lat && mapRegion?.center?.lng) {
             map.setView([mapRegion.center.lat, mapRegion.center.lng], mapRegion.center.zoom || 7);
+        } else {
+            const fallback = getDefaultCenter();
+            if (fallback) {
+                map.setView([fallback.lat, fallback.lng], mapRegion?.center?.zoom || 7);
+            }
         }
         return map;
     }
@@ -531,6 +556,7 @@
         previewRoadSection,
         previewRoadSegment,
         getFlattenedGeometry,
+        getDefaultCenter,
         utm37ToLatLng,
     };
 })(window);

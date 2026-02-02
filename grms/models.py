@@ -424,7 +424,7 @@ class Road(models.Model):
             if self.admin_woreda.zone_id != self.admin_zone_id:
                 errors["admin_woreda"] = "Selected woreda does not belong to the selected zone."
 
-        if self.road_start_coordinates and self.road_end_coordinates:
+        if self.geometry is None and self.road_start_coordinates and self.road_end_coordinates:
             try:
                 fetch_osrm_route(
                     float(self.road_start_coordinates.x),
@@ -1123,6 +1123,35 @@ class StructureInventory(models.Model):
         verbose_name_plural = "Structure inventories"
         ordering = ["road", "structure_category", "station_km", "start_chainage_km"]
 
+    def _resolve_road_length_km(self) -> Optional[float]:
+        road = getattr(self, "road", None)
+        if road and road.total_length_km:
+            try:
+                length = float(road.total_length_km)
+                if length > 0:
+                    return length
+            except (TypeError, ValueError):
+                pass
+
+        if road:
+            sec_max = (
+                RoadSection.objects.filter(road=road)
+                .aggregate(Max("end_chainage_km"))
+                .get("end_chainage_km__max")
+            )
+            if sec_max:
+                try:
+                    return float(sec_max)
+                except (TypeError, ValueError):
+                    pass
+
+        if road and road.geometry:
+            try:
+                return float(geos_length_km(road.geometry))
+            except Exception:
+                return None
+        return None
+
     def clean(self):
         errors = {}
 
@@ -1145,7 +1174,7 @@ class StructureInventory(models.Model):
         if category in {"Retaining Wall", "Gabion Wall"} and geometry_type != self.LINE:
             errors["geometry_type"] = "Retaining Wall and Gabion Wall structures must use line geometry."
 
-        road_length = float(self.road.total_length_km) if getattr(self, "road", None) else None
+        road_length = self._resolve_road_length_km()
 
         if geometry_type == self.POINT:
             if (self.easting_m is None) ^ (self.northing_m is None):
@@ -2607,7 +2636,8 @@ class RoadSocioEconomic(models.Model):
 
         latest_adt = get_traffic_value(self.road, fiscal_year=None, value_type="ADT") if self.road_id else None
         if latest_adt is not None and self.adt_override is not None:
-            errors["adt_override"] = "ADT override not allowed when survey data exists."
+            # Survey data takes precedence; clear override instead of raising.
+            self.adt_override = None
 
         if errors:
             raise ValidationError(errors)

@@ -1,4 +1,12 @@
 {% extends "admin/change_form.html" %}
+{% load static %}
+
+{% block extrahead %}
+  {{ block.super }}
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="{% static 'grms/admin/overlay_map.js' %}" defer></script>
+{% endblock %}
 
 {% block after_field_sets %}
   {{ block.super }}

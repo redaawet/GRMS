@@ -47,7 +47,10 @@ def get_final_adt(road: models.Road, fiscal_year: int) -> Decimal:
     if socioeconomic.adt_override:
         return Decimal(socioeconomic.adt_override)
 
-    raise ValidationError("ADT missing: no survey & no override.")
+    # Default ADT for roads without survey data or overrides.
+    socioeconomic.adt_override = 25
+    socioeconomic.save(update_fields=["adt_override", "updated_at"])
+    return Decimal(25)
 
 
 def _criterion_inputs(

@@ -1,0 +1,9 @@
+Import order (topological sort by FK dependencies among exported models):
+1. grms.StructureInventory (Sheet: grms.StructureInventory) - depends on: None
+2. grms.StructureConditionSurvey (Sheet: grms.StructureConditionSurvey) - depends on: StructureInventory
+3. traffic.TrafficSurvey (Sheet: traffic.TrafficSurvey) - depends on: None
+4. traffic.TrafficCountRecord (Sheet: traffic.TrafficCountRecord) - depends on: TrafficSurvey
+
+Notes:
+- Import roads, then sections, then segments before dependent models.
+- Foreign keys use natural key columns where available.

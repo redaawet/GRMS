@@ -23,6 +23,15 @@ if os.name == "nt":
     GEOS_LIBRARY_PATH = GEOS_LIBRARY_PATH or r"C:\OSGeo4W\bin\geos_c.dll"
     os.environ.setdefault("GDAL_DATA", r"C:\OSGeo4W\share\gdal")
     os.environ.setdefault("PROJ_LIB", r"C:\OSGeo4W\share\proj")
+    # Prefer the PROJ database bundled with pyproj when available to avoid version mismatch.
+    try:  # pragma: no cover - environment dependent
+        import pyproj
+
+        proj_dir = pyproj.datadir.get_data_dir()
+        if proj_dir:
+            os.environ["PROJ_LIB"] = proj_dir
+    except Exception:
+        pass
 
 
 INSTALLED_APPS = [

@@ -24,8 +24,12 @@ class Command(BaseCommand):
 
         deletion_plan = [
             ("traffic.TrafficCountRecord", traffic_models.TrafficCountRecord),
-            ("traffic.TrafficSurvey", traffic_models.TrafficSurvey),
+            ("traffic.TrafficCycleSummary", traffic_models.TrafficCycleSummary),
             ("traffic.TrafficSurveySummary", traffic_models.TrafficSurveySummary),
+            ("traffic.TrafficSurveyOverall", traffic_models.TrafficSurveyOverall),
+            ("traffic.TrafficForPrioritization", traffic_models.TrafficForPrioritization),
+            ("traffic.TrafficQC", traffic_models.TrafficQC),
+            ("traffic.TrafficSurvey", traffic_models.TrafficSurvey),
             ("grms.StructureConditionSurvey", grms_models.StructureConditionSurvey),
             ("grms.RoadConditionSurvey", grms_models.RoadConditionSurvey),
             ("grms.BridgeDetail", grms_models.BridgeDetail),

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date, datetime, time
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any
 
@@ -122,10 +122,14 @@ def _parse_decimal(value: Any) -> Decimal | None:
     text = str(value).strip()
     if not text:
         return None
-    text = text.replace(",", "")
+    text = text.replace(" ", "")
+    if "," in text and "." in text:
+        text = text.replace(",", "")
+    else:
+        text = text.replace(",", ".")
     try:
         return Decimal(text)
-    except Exception:
+    except (InvalidOperation, ValueError):
         return None
 
 
@@ -187,7 +191,16 @@ def _convert_field_value(field: models.Field, value: Any) -> Any:
     return value
 
 
-def _convert_geometry(value: Any) -> Any:
+def _normalize_geom_wkt(value: str, default_srid: int) -> str:
+    text = value.strip()
+    if not text:
+        return ""
+    if text.upper().startswith("SRID="):
+        return text
+    return f"SRID={default_srid};{text}"
+
+
+def _convert_geometry(value: Any, *, default_srid: int | None = None) -> Any:
     if _is_empty(value):
         return None
     if not isinstance(value, str):
@@ -195,7 +208,8 @@ def _convert_geometry(value: Any) -> Any:
     if GEOSGeometry is None:
         return None
     try:
-        return GEOSGeometry(value)
+        text = _normalize_geom_wkt(value, default_srid) if default_srid else value
+        return GEOSGeometry(text)
     except Exception:
         return None
 
@@ -206,6 +220,7 @@ def _resolve_fk_value(
     lookup_path: str,
     value: Any,
     survey_id_map: dict[str, int],
+    current_data: dict[str, Any] | None,
     strict: bool,
     row_label: str,
 ) -> models.Model | None:
@@ -217,6 +232,26 @@ def _resolve_fk_value(
         raise CommandError(f"{row_label}: {field_name} is not a relation field.")
 
     related_model = field.remote_field.model
+    extra_filters: dict[str, Any] = {}
+    if related_model is grms_models.ConditionFactorLookup:
+        factor_type_map = {
+            "drainage_left": grms_models.ConditionFactorLookup.FactorType.DRAINAGE,
+            "drainage_right": grms_models.ConditionFactorLookup.FactorType.DRAINAGE,
+            "shoulder_left": grms_models.ConditionFactorLookup.FactorType.SHOULDER,
+            "shoulder_right": grms_models.ConditionFactorLookup.FactorType.SHOULDER,
+            "surface_condition": grms_models.ConditionFactorLookup.FactorType.SURFACE,
+        }
+        factor_type = factor_type_map.get(field_name)
+        if factor_type:
+            extra_filters["factor_type"] = factor_type
+
+    def _get_related(**kwargs: Any):
+        try:
+            return related_model.objects.get(**{**extra_filters, **kwargs})
+        except related_model.DoesNotExist:
+            if extra_filters:
+                return related_model.objects.get(**kwargs)
+            raise
 
     if (
         model is traffic_models.TrafficCountRecord
@@ -234,17 +269,101 @@ def _resolve_fk_value(
 
     if lookup_path == "id":
         pk = _normalize_pk(value)
-        if pk is None:
+        if pk is not None:
+            return _get_related(pk=pk)
+
+        normalized_text = str(value).strip()
+        if not normalized_text:
             message = f"{row_label}: Invalid id value for {field_name}: {value}."
             if strict:
                 raise CommandError(message)
             raise ValueError(message)
-        return related_model.objects.get(pk=pk)
+
+        if hasattr(related_model, "description"):
+            try:
+                return _get_related(description__iexact=normalized_text)
+            except related_model.DoesNotExist:
+                pass
+            try:
+                return _get_related(description__istartswith=normalized_text)
+            except related_model.DoesNotExist:
+                pass
+        if related_model is grms_models.ConditionFactorLookup:
+            rating_map = {
+                "good": 1,
+                "fair": 2,
+                "poor": 3,
+                "bad": 4,
+            }
+            rating = rating_map.get(normalized_text.lower())
+            if rating is not None:
+                return _get_related(rating=rating)
+        if hasattr(related_model, "name"):
+            try:
+                return related_model.objects.get(
+                    **{**extra_filters, "name__iexact": normalized_text}
+                )
+            except related_model.DoesNotExist:
+                pass
+
+        message = f"{row_label}: Invalid id value for {field_name}: {value}."
+        if strict:
+            raise CommandError(message)
+        raise ValueError(message)
+
+    if lookup_path == "name":
+        normalized_name = str(value).strip()
+        if not normalized_name:
+            message = f"{row_label}: Empty name value for {field_name}."
+            if strict:
+                raise CommandError(message)
+            raise ValueError(message)
+        if related_model is grms_models.AdminZone:
+            obj, _ = related_model.objects.get_or_create(name=normalized_name)
+            return obj
+        if related_model is grms_models.AdminWoreda:
+            zone = (current_data or {}).get("admin_zone")
+            if zone is None:
+                road = (current_data or {}).get("road")
+                zone = getattr(road, "admin_zone", None)
+            if zone is None:
+                message = (
+                    f"{row_label}: AdminWoreda name '{normalized_name}' requires admin_zone__name "
+                    "in the same row or a road with admin_zone."
+                )
+                if strict:
+                    raise CommandError(message)
+                raise ValueError(message)
+            obj, _ = related_model.objects.get_or_create(name=normalized_name, zone=zone)
+            return obj
 
     lookup_value = value
     if isinstance(value, float) and value.is_integer():
         lookup_value = int(value)
 
+    if related_model is grms_models.ConditionFactorLookup and lookup_path == "description":
+        normalized_text = str(lookup_value).strip()
+        try:
+            return _get_related(description__iexact=normalized_text)
+        except related_model.DoesNotExist:
+            pass
+        try:
+            return _get_related(description__istartswith=normalized_text)
+        except related_model.DoesNotExist:
+            pass
+        rating_map = {
+            "good": 1,
+            "fair": 2,
+            "poor": 3,
+            "bad": 4,
+        }
+        rating = rating_map.get(normalized_text.lower())
+        if rating is not None:
+            return _get_related(rating=rating)
+        raise
+
+    if extra_filters:
+        return _get_related(**{lookup_path: lookup_value})
     return related_model.objects.get(**{lookup_path: lookup_value})
 
 
@@ -317,6 +436,35 @@ def _unique_lookup(model: type[models.Model], data: dict[str, Any], row_label: s
             "time_block_to": data.get("time_block_to"),
         }
     raise ValueError(f"{row_label}: No unique lookup configured for {model.__name__}.")
+
+
+def _normalize_segment_chainage(data: dict[str, Any]) -> None:
+    section = data.get("section")
+    if not section:
+        return
+    section_length = getattr(section, "length_km", None)
+    if section_length in (None, 0):
+        return
+
+    start_km = data.get("station_from_km")
+    end_km = data.get("station_to_km")
+    if start_km is None or end_km is None:
+        return
+
+    if start_km <= section_length and end_km <= section_length:
+        return
+
+    offset = getattr(section, "start_chainage_km", None) or Decimal("0")
+    new_start = start_km - offset
+    new_end = end_km - offset
+
+    if new_start < 0 or new_end < 0:
+        return
+    if new_end > section_length:
+        return
+
+    data["station_from_km"] = new_start
+    data["station_to_km"] = new_end
 
 
 class Command(BaseCommand):
@@ -412,6 +560,7 @@ class Command(BaseCommand):
                             lookup_path,
                             value,
                             survey_id_map,
+                            data,
                             strict,
                             row_label,
                         )
@@ -430,6 +579,7 @@ class Command(BaseCommand):
                             "id",
                             value,
                             survey_id_map,
+                            data,
                             strict,
                             row_label,
                         )
@@ -441,15 +591,29 @@ class Command(BaseCommand):
                         "DjangoPointField",
                         "DjangoLineStringField",
                     }:
-                        geometry = _convert_geometry(value)
+                        default_srid = 32637 if model is grms_models.Road and field.name == "geometry" else None
+                        geometry = _convert_geometry(value, default_srid=default_srid)
                         if geometry is not None:
                             data[field.name] = geometry
                         continue
                     data[field.name] = _convert_field_value(field, value)
 
+                if model is grms_models.RoadSegment:
+                    _normalize_segment_chainage(data)
+
                 lookup = _unique_lookup(model, data, row_label)
                 defaults = {key: value for key, value in data.items() if key not in lookup}
-                obj, created = model.objects.update_or_create(defaults=defaults, **lookup)
+                obj = model.objects.filter(**lookup).first()
+                if obj:
+                    for key, value in defaults.items():
+                        setattr(obj, key, value)
+                    created = False
+                else:
+                    obj = model(**{**lookup, **defaults})
+                    created = True
+
+                obj.full_clean()
+                obj.save()
                 if created:
                     stats.add("created")
                 else:

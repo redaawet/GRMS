@@ -51,6 +51,18 @@
             attribution: "© OpenStreetMap contributors",
         }).addTo(map);
 
+        var defaultCenter = window.DEFAULT_MAP_CENTER || [13.5, 39.5];
+        if (Array.isArray(defaultCenter) && defaultCenter.length >= 2) {
+            var lat = Number(defaultCenter[0]);
+            var lng = Number(defaultCenter[1]);
+            if (Number.isFinite(lat) && Number.isFinite(lng)) {
+                map.setView([lat, lng], 7);
+            }
+        } else if (defaultCenter && typeof defaultCenter === "object"
+            && Number.isFinite(defaultCenter.lat) && Number.isFinite(defaultCenter.lng)) {
+            map.setView([Number(defaultCenter.lat), Number(defaultCenter.lng)], defaultCenter.zoom || 7);
+        }
+
         var roadLayer;
         var sectionsLayer;
         var segmentsLayer;

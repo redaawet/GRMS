@@ -22,11 +22,20 @@ class Command(BaseCommand):
         tolerance = Decimal("0.02")
 
         for road in Road.objects.prefetch_related("sections").order_by("id"):
-            if not road.geometry:
-                self.stdout.write(f"Skipping road {road} (no geometry)")
-                continue
+            sections = list(road.sections.order_by("start_chainage_km", "end_chainage_km", "id"))
 
-            road_length = road.compute_length_km_from_geom()
+            road_length = None
+            if road.geometry:
+                road_length = road.compute_length_km_from_geom()
+            elif sections:
+                end_values = [section.end_chainage_km for section in sections if section.end_chainage_km is not None]
+                if end_values:
+                    road_length = max(end_values)
+                    self.stdout.write(f"Road {road} length inferred from sections: {road_length} km")
+
+            if road_length is None:
+                self.stdout.write(f"Skipping road {road} (no geometry or section chainage)")
+                continue
             if road.total_length_km != road_length:
                 self.stdout.write(
                     f"Road {road} length updated from {road.total_length_km} km to {road_length} km"
@@ -35,7 +44,6 @@ class Command(BaseCommand):
                     road.total_length_km = road_length
                     road.save(update_fields=["total_length_km"])
 
-            sections = list(road.sections.order_by("start_chainage_km", "end_chainage_km", "id"))
             if not sections:
                 continue
 

@@ -52,7 +52,23 @@
         },
     };
 
-    const DEFAULT_MAP_CENTER = DEFAULT_MAP_REGION.center;
+    const DEFAULT_MAP_CENTER = window.DEFAULT_MAP_CENTER ?? [13.5, 39.5];
+
+    function normaliseCenter(center) {
+        if (Array.isArray(center) && center.length >= 2) {
+            const lat = Number(center[0]);
+            const lng = Number(center[1]);
+            if (Number.isFinite(lat) && Number.isFinite(lng)) {
+                return { lat, lng };
+            }
+        }
+        if (center && Number.isFinite(center.lat) && Number.isFinite(center.lng)) {
+            return { lat: Number(center.lat), lng: Number(center.lng) };
+        }
+        return null;
+    }
+
+    const fallbackCenter = normaliseCenter(DEFAULT_MAP_CENTER) || DEFAULT_MAP_REGION.center;
     const defaultMapPayload = { map_region: DEFAULT_MAP_REGION };
 
     const ROUTE_STYLES = {
@@ -290,7 +306,7 @@
 
         function initialiseMap(payload) {
             const mapNode = ensureMapContainer();
-            const center = (payload.map_region && payload.map_region.center) || DEFAULT_MAP_CENTER;
+            const center = (payload.map_region && payload.map_region.center) || fallbackCenter;
             if (!window.L) {
                 showStatus("Leaflet failed to load.", "error");
                 return;
