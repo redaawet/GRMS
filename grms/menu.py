@@ -31,7 +31,6 @@ GROUP_ITEM_ORDERS: Dict[str, Sequence[str]] = {
     ),
 
     "Maintenance Plan": (
- 
         # Computed results / interventions
         "segmentmciresult",                  # Segment MCI
         "benefitfactor",                    # Benefit factors
@@ -45,14 +44,30 @@ GROUP_ITEM_ORDERS: Dict[str, Sequence[str]] = {
         "sectionworkplanreport",             # Section annual workplan (report)
         "annualworkplanreport",              # Annual workplan (report)
         "roadglobalcostreport",              # Global cost of road works
-        # Rules / configs first
-        "mciroadmaintenancerule",            # MCI rules
-        "structureconditionlookup",          # Structure condition codes
-        "structureconditioninterventionrule",# Structure intervention rules
-        # Benefit configuration (keep together)
-        "benefitcategory",                   # Benefit categories
-        "benefitcriterion",                  # Benefit criteria
-        "benefitcriterionscale",             # Benefit Criterion scale
+        # Rules / configs are now under Reference & Lookups
+    ),
+    "Reference & Lookups": (
+        "activitylookup",
+        "interventioncategory",
+        "interventionworkitem",
+        "interventionlookup",
+        "unitcost",
+        "conditionfactorlookup",
+        "mciweightconfig",
+        "mcicategorylookup",
+        "mciroadmaintenancerule",
+        "structureconditionlookup",
+        "structureconditioninterventionrule",
+        "benefitcategory",
+        "benefitcriterion",
+        "benefitcriterionscale",
+        "distresstype",
+        "distresscondition",
+        "distressactivity",
+        "roadlinktypelookup",
+        "adminzone",
+        "adminworeda",
+        "qastatus",
     ),
 }
 
@@ -89,14 +104,14 @@ MODEL_GROUP_MAP: Dict[str, str] = {
     "pculookup": "Traffic",
     # Maintenance & Planning
     "segmentmciresult": "Maintenance Plan",
-    "mciroadmaintenancerule": "Maintenance Plan",
+    "mciroadmaintenancerule": "Reference & Lookups",
     "segmentinterventionrecommendation": "Maintenance Plan",
-    "structureconditionlookup": "Maintenance Plan",
-    "structureconditioninterventionrule": "Maintenance Plan",
+    "structureconditionlookup": "Reference & Lookups",
+    "structureconditioninterventionrule": "Reference & Lookups",
     "structureinterventionrecommendation": "Maintenance Plan",
-    "benefitcategory": "Maintenance Plan",
-    "benefitcriterion": "Maintenance Plan",
-    "benefitcriterionscale": "Maintenance Plan",
+    "benefitcategory": "Reference & Lookups",
+    "benefitcriterion": "Reference & Lookups",
+    "benefitcriterionscale": "Reference & Lookups",
     "benefitfactor": "Maintenance Plan",
     "roadrankingresult": "Maintenance Plan",
     "annualworkplan": "Maintenance Plan",
@@ -162,6 +177,7 @@ LABEL_OVERRIDES: Dict[str, str] = {
     "benefitcriterionscale": "Benefit Criterion scale",
     "benefitfactor": "Benefit factors",
     "roadrankingresult": "Road rankings",
+    "annualworkplan": "Annual workplan",
     "roadglobalcostreport": "Global cost of road works",
     "sectionworkplanreport": "Section annual workplan",
     "annualworkplanreport": "Annual workplan",
@@ -300,4 +316,3 @@ def build_menu_groups(admin_site) -> MenuGroup:
             ordered[title] = sorted(items, key=lambda pair: pair[1].lower())
 
     return ordered
-

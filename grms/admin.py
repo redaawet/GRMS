@@ -44,7 +44,13 @@ from .admin_cascades import (
 from . import admin_geojson, admin_reports
 from .services import map_services, mci_intervention, prioritization, workplan_costs
 from .services.planning import road_ranking, workplans
-from .utils import make_point, point_to_lat_lng, utm_to_wgs84, wgs84_to_utm
+from .utils import (
+    make_point,
+    point_to_lat_lng,
+    slice_linestring_by_chainage,
+    utm_to_wgs84,
+    wgs84_to_utm,
+)
 from .utils_labels import (
     fmt_km,
     furniture_label,
@@ -74,6 +80,176 @@ def _serialize_geometry(geom):
         except Exception:
             return None
     return None
+
+
+def _parse_geojson(value):
+    if not value:
+        return None
+    if isinstance(value, (dict, list)):
+        return value
+    if isinstance(value, str):
+        try:
+            return json.loads(value)
+        except Exception:
+            return None
+    return None
+
+
+def _annotate_geojson(qs, field_name: str):
+    try:
+        from django.contrib.gis.db.models import GeometryField
+        from django.contrib.gis.db.models.functions import AsGeoJSON, Transform
+        from django.db.models.functions import Cast
+        from django.db import connection
+
+        if "postgis" in connection.settings_dict.get("ENGINE", ""):
+            field = qs.model._meta.get_field(field_name)
+            expr = field_name
+            if getattr(field, "geography", False):
+                expr = Cast(field_name, GeometryField(srid=field.srid or 4326))
+            return qs.annotate(_geojson=AsGeoJSON(Transform(expr, 4326)))
+    except Exception:
+        return qs
+    return qs
+
+
+def _geometry_from_instance(instance, field_name: str):
+    if not instance:
+        return None
+    geojson = getattr(instance, "_geojson", None)
+    if geojson is not None:
+        parsed = _parse_geojson(geojson)
+        if parsed:
+            return parsed
+    return _serialize_geometry(getattr(instance, field_name, None))
+
+
+def _feature(geometry, properties=None):
+    if not geometry:
+        return None
+    return {"type": "Feature", "geometry": geometry, "properties": properties or {}}
+
+
+def _admin_change_url(instance):
+    if not instance:
+        return ""
+    return reverse(
+        f"admin:{instance._meta.app_label}_{instance._meta.model_name}_change",
+        args=[instance.pk],
+    )
+
+
+STRUCTURE_DETAIL_ACCESSORS = {
+    "Bridge": "bridgedetail",
+    "Culvert": "culvertdetail",
+    "Ford": "forddetail",
+    "Retaining Wall": "retainingwalldetail",
+    "Gabion Wall": "gabionwalldetail",
+}
+
+
+def _structure_kind(category: Optional[str]) -> str:
+    lowered = (category or "").strip().lower()
+    if lowered == "bridge":
+        return "bridge"
+    if lowered == "culvert":
+        return "culvert"
+    return "other"
+
+
+def _structure_admin_url(structure: models.StructureInventory) -> str:
+    accessor = STRUCTURE_DETAIL_ACCESSORS.get(structure.structure_category)
+    if accessor:
+        try:
+            detail = getattr(structure, accessor)
+        except Exception:
+            detail = None
+        if detail:
+            return _admin_change_url(detail)
+    return _admin_change_url(structure)
+
+
+def _road_feature(road: models.Road | None):
+    geometry = _geometry_from_instance(road, "geometry")
+    if not road or not geometry:
+        return None
+    return _feature(
+        geometry,
+        {"id": road.id, "label": str(road), "admin_url": _admin_change_url(road)},
+    )
+
+
+def _section_feature(section: models.RoadSection, road_geom=None):
+    geometry = _geometry_from_instance(section, "geometry")
+    if (
+        not geometry
+        and road_geom
+        and section.start_chainage_km is not None
+        and section.end_chainage_km is not None
+    ):
+        sliced = slice_linestring_by_chainage(
+            road_geom,
+            float(section.start_chainage_km),
+            float(section.end_chainage_km),
+        )
+        geometry = _serialize_geometry(sliced.get("geometry") if sliced else None)
+    return _feature(
+        geometry,
+        {
+            "id": section.id,
+            "label": section.section_label,
+            "admin_url": _admin_change_url(section),
+        },
+    )
+
+
+def _segment_feature(segment: models.RoadSegment | None, road_geom=None):
+    if not segment or not road_geom:
+        return None
+    if segment.station_from_km is None or segment.station_to_km is None:
+        return None
+    sliced = slice_linestring_by_chainage(
+        road_geom,
+        float(segment.station_from_km),
+        float(segment.station_to_km),
+    )
+    geometry = _serialize_geometry(sliced.get("geometry") if sliced else None)
+    return _feature(
+        geometry,
+        {
+            "id": segment.id,
+            "label": segment.segment_label,
+            "admin_url": _admin_change_url(segment),
+        },
+    )
+
+
+def _structure_features_for_context(road_id: int, section_id: int | None = None):
+    qs = models.StructureInventory.objects.filter(road_id=road_id)
+    if section_id:
+        qs = qs.filter(section_id=section_id)
+    qs = qs.exclude(location_point__isnull=True)
+    qs = _annotate_geojson(qs, "location_point").select_related("road", "section").prefetch_related(
+        *STRUCTURE_DETAIL_ACCESSORS.values()
+    )
+    features = []
+    for structure in qs:
+        geometry = _geometry_from_instance(structure, "location_point")
+        if not geometry:
+            continue
+        features.append(
+            _feature(
+                geometry,
+                {
+                    "id": structure.id,
+                    "kind": _structure_kind(structure.structure_category),
+                    "label": structure_label(structure),
+                    "station_km": _to_float(structure.station_km),
+                    "admin_url": _structure_admin_url(structure),
+                },
+            )
+        )
+    return features
 
 
 def _to_float(value):
@@ -338,7 +514,11 @@ class GRMSAdminSite(AdminSite):
     index_template = "admin/index.html"
     site_url = "/"
 
-    EXCLUDED_MODEL_NAMES: set[str] = set()
+    EXCLUDED_MODEL_NAMES: set[str] = {
+        "annualworkplan",
+        "interventionlookup",
+        "unitcost",
+    }
 
     MENU_GROUPS: Dict[str, MenuGroup] = {}
 
@@ -1620,8 +1800,55 @@ class RoadSectionAdmin(RoadSectionCascadeAutocompleteMixin, RoadSectionCascadeAd
             queryset = queryset.filter(road_id=int(road_id))
         return queryset, use_distinct
 
+    def changeform_view(self, request, object_id=None, form_url="", extra_context=None):
+        extra_context = extra_context or {}
+        if object_id:
+            extra_context["asset_map_context_url"] = reverse(
+                "admin:grms_roadsection_map_context", args=[object_id]
+            )
+        return super().changeform_view(request, object_id, form_url, extra_context)
+
     def get_urls(self):
-        return super().get_urls()
+        urls = super().get_urls()
+        custom = [
+            path(
+                "<int:object_id>/map-context/",
+                self.admin_site.admin_view(self.map_context_view),
+                name="grms_roadsection_map_context",
+            ),
+        ]
+        return custom + urls
+
+    def map_context_view(self, request, object_id: int):
+        section = self.get_object(request, object_id)
+        if not section:
+            return JsonResponse({"error": "Road section not found."}, status=404)
+
+        road = _annotate_geojson(models.Road.objects.filter(pk=section.road_id), "geometry").first()
+        road_feature = _road_feature(road)
+        road_geom = getattr(road, "geometry", None) if road else None
+
+        sections_qs = _annotate_geojson(
+            models.RoadSection.objects.filter(road_id=section.road_id).select_related("road"),
+            "geometry",
+        )
+        sections = []
+        for sibling in sections_qs:
+            feature = _section_feature(sibling, road_geom=road_geom)
+            if feature:
+                sections.append(feature)
+
+        structures = _structure_features_for_context(road_id=section.road_id)
+
+        return JsonResponse(
+            {
+                "mode": "section",
+                "road": road_feature,
+                "sections": sections,
+                "current_section_id": section.id,
+                "structures": structures,
+            }
+        )
 
 
 @admin.register(models.RoadSegment, site=grms_admin_site)
@@ -1720,6 +1947,64 @@ class RoadSegmentAdmin(RoadSectionCascadeAdminMixin, SectionScopedAdmin):
         if section_id and section_id.isdigit():
             queryset = queryset.filter(section_id=int(section_id))
         return queryset, use_distinct
+
+    def changeform_view(self, request, object_id=None, form_url="", extra_context=None):
+        extra_context = extra_context or {}
+        if object_id:
+            extra_context["asset_map_context_url"] = reverse(
+                "admin:grms_roadsegment_map_context", args=[object_id]
+            )
+        return super().changeform_view(request, object_id, form_url, extra_context)
+
+    def get_urls(self):
+        urls = super().get_urls()
+        custom = [
+            path(
+                "<int:object_id>/map-context/",
+                self.admin_site.admin_view(self.map_context_view),
+                name="grms_roadsegment_map_context",
+            ),
+        ]
+        return custom + urls
+
+    def map_context_view(self, request, object_id: int):
+        segment = self.get_object(request, object_id)
+        if not segment:
+            return JsonResponse({"error": "Road segment not found."}, status=404)
+
+        section = segment.section
+        road = (
+            _annotate_geojson(models.Road.objects.filter(pk=section.road_id), "geometry").first()
+            if section
+            else None
+        )
+        road_feature = _road_feature(road)
+        road_geom = getattr(road, "geometry", None) if road else None
+
+        section_feature = _section_feature(section, road_geom=road_geom) if section else None
+
+        segments_qs = models.RoadSegment.objects.filter(section_id=segment.section_id)
+        segments = []
+        for sibling in segments_qs:
+            feature = _segment_feature(sibling, road_geom=road_geom)
+            if feature:
+                segments.append(feature)
+
+        structures = _structure_features_for_context(
+            road_id=section.road_id if section else 0,
+            section_id=segment.section_id if section else None,
+        )
+
+        return JsonResponse(
+            {
+                "mode": "segment",
+                "road": road_feature,
+                "section": section_feature,
+                "segments": segments,
+                "current_segment_id": segment.id,
+                "structures": structures,
+            }
+        )
 
 @admin.register(models.StructureInventory, site=grms_admin_site)
 class StructureInventoryAdmin(DependentAutocompleteMediaMixin, RoadSectionCascadeAutocompleteMixin, GRMSBaseAdmin):
@@ -1858,15 +2143,10 @@ class StructureInventoryAdmin(DependentAutocompleteMediaMixin, RoadSectionCascad
 
     def changeform_view(self, request, object_id=None, form_url="", extra_context=None):
         extra_context = extra_context or {}
-        instance = self.get_object(request, object_id)
-        road_id = instance.road_id if instance else request.GET.get("road")
-        section_id = instance.section_id if instance else request.GET.get("section")
-        current_id = instance.id if instance else None
-        extra_context["overlay_map_config"] = _overlay_map_config(
-            road_id=road_id,
-            section_id=section_id,
-            current_id=current_id,
-        )
+        if object_id:
+            extra_context["asset_map_context_url"] = reverse(
+                "admin:grms_structureinventory_map_context", args=[object_id]
+            )
         return super().changeform_view(request, object_id, form_url, extra_context)
 
     def label(self, obj):
@@ -1888,12 +2168,71 @@ class StructureInventoryAdmin(DependentAutocompleteMediaMixin, RoadSectionCascad
         urls = super().get_urls()
         custom = [
             path(
+                "<int:object_id>/map-context/",
+                self.admin_site.admin_view(self.map_context_view),
+                name="grms_structureinventory_map_context",
+            ),
+            path(
                 "structures_geojson/",
                 self.admin_site.admin_view(self.structures_geojson_view),
                 name="grms_structureinventory_structures_geojson",
             ),
         ]
         return custom + urls
+
+    def map_context_view(self, request, object_id: int):
+        structure = self.get_object(request, object_id)
+        if not structure:
+            return JsonResponse({"error": "Structure not found."}, status=404)
+
+        road = _annotate_geojson(models.Road.objects.filter(pk=structure.road_id), "geometry").first()
+        road_feature = _road_feature(road)
+        road_geom = getattr(road, "geometry", None) if road else None
+
+        section = None
+        if structure.section_id:
+            section = _annotate_geojson(
+                models.RoadSection.objects.filter(pk=structure.section_id).select_related("road"),
+                "geometry",
+            ).first()
+
+        section_feature = _section_feature(section, road_geom=road_geom) if section else None
+
+        segment = None
+        station_km = structure.station_km
+        if section and station_km is not None:
+            segment = (
+                models.RoadSegment.objects.filter(section_id=section.id)
+                .filter(station_from_km__lte=station_km, station_to_km__gte=station_km)
+                .order_by("station_from_km")
+                .first()
+            )
+        elif section and structure.start_chainage_km is not None and structure.end_chainage_km is not None:
+            midpoint = (structure.start_chainage_km + structure.end_chainage_km) / 2
+            segment = (
+                models.RoadSegment.objects.filter(section_id=section.id)
+                .filter(station_from_km__lte=midpoint, station_to_km__gte=midpoint)
+                .order_by("station_from_km")
+                .first()
+            )
+
+        segment_feature = _segment_feature(segment, road_geom=road_geom) if segment else None
+
+        structures = _structure_features_for_context(
+            road_id=structure.road_id,
+            section_id=structure.section_id,
+        )
+
+        return JsonResponse(
+            {
+                "mode": "structure",
+                "road": road_feature,
+                "section": section_feature,
+                "segment": segment_feature,
+                "structures": structures,
+                "current_structure_id": structure.id,
+            }
+        )
 
     def structures_geojson_view(self, request):
         road_id = request.GET.get("road_id")
@@ -1946,14 +2285,10 @@ class StructureDetailOverlayMixin:
         extra_context = extra_context or {}
         instance = self.get_object(request, object_id)
         structure = getattr(instance, "structure", None) if instance else None
-        road_id = structure.road_id if structure else request.GET.get("road")
-        section_id = structure.section_id if structure else request.GET.get("section")
-        current_id = structure.id if structure else None
-        extra_context["overlay_map_config"] = _overlay_map_config(
-            road_id=road_id,
-            section_id=section_id,
-            current_id=current_id,
-        )
+        if structure:
+            extra_context["asset_map_context_url"] = reverse(
+                "admin:grms_structureinventory_map_context", args=[structure.id]
+            )
         return super().changeform_view(request, object_id, form_url, extra_context)
 
 

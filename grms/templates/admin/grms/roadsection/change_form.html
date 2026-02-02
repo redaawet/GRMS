@@ -3,63 +3,22 @@
 
 {% block extrahead %}
     {{ block.super }}
-    {% if map_admin_config %}
-        {{ map_admin_config|json_script:"map-admin-config" }}
-    {% endif %}
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/proj4@2.11.0/dist/proj4.js"></script>
-    <script src="{% static 'grms/js/mapPreview.js' %}"></script>
-    <link rel="stylesheet" href="{% static 'grms/css/road-admin.css' %}">
-    <script src="{% static 'grms/js/map-admin.js' %}" defer></script>
-    <script src="{% static 'grms/admin/overlay_map.js' %}" defer></script>
+    <script src="{% static 'grms/js/asset-context-map.js' %}" defer></script>
 {% endblock %}
 
 {% block after_field_sets %}
     {{ block.super }}
-    <div id="map-panel"
-         class="road-map-panel {% if not map_admin_config %}road-map-panel--disabled{% endif %}"
-        data-map-scope="{{ map_admin_config.scope|default_if_none:'' }}"
-        data-map-context-url="{{ map_admin_config.api.map_context|default_if_none:'' }}">
-        <div class="road-map-panel__info">
-            <h3>Map preview</h3>
-            {% if map_admin_config and map_admin_config.section %}
-                {% if map_admin_config.section.start_chainage_km and map_admin_config.section.end_chainage_km %}
-                    <p class="help">
-                        Preview uses your start and end alignment between
-                        <strong>{{ map_admin_config.section.start_chainage_km|floatformat:"3" }}</strong> km and
-                        <strong>{{ map_admin_config.section.end_chainage_km|floatformat:"3" }}</strong> km.
-                    </p>
-                    <p class="help">Preview relies on the parent road geometry and the section chainages; coordinates are optional.</p>
-                {% else %}
-                    <p class="help">Chainage-based segmentation is enabled because the parent road has geometry.</p>
-                {% endif %}
-            {% else %}
-                <p class="help">Save the section first to enable the map preview.</p>
-            {% endif %}
-            <p class="help">Highlights the section extents alongside admin boundaries, towns, and optional base layers.</p>
-            <p class="help">Use the refresh button to sync the map with any chainage updates.</p>
+    {% if asset_map_context_url %}
+        <div class="grms-asset-map-panel">
+            <h3>Asset context map</h3>
+            <p class="help">Shows the parent road and nearby assets. The current record is highlighted.</p>
+            <div id="asset-context-map"
+                 class="grms-asset-map"
+                 data-context-url="{{ asset_map_context_url }}"></div>
         </div>
-        <div class="road-map-panel__viewport" id="map-panel-viewport">
-            <div class="road-map-panel__placeholder">
-                <h3>Section map preview</h3>
-                <p>
-                    {% if map_admin_config %}
-                        Use the refresh button to load the parent road and highlight this section on the map.
-                    {% else %}
-                        Save the section first to enable the map preview.
-                    {% endif %}
-                </p>
-            </div>
-        </div>
-        <div class="road-map-panel__status" id="map-panel-status"></div>
-        {% if map_admin_config %}
-            <div class="road-map-panel__actions">
-                <div class="road-map-panel__selectors">
-                    <button type="button" class="button" id="map-panel-refresh">Refresh map</button>
-                </div>
-                <p class="help">Chainage alone will drive the preview; refresh after updating start or end chainage.</p>
-            </div>
-        {% endif %}
-    </div>
+    {% else %}
+        <p class="help">Save the section first to enable the context map.</p>
+    {% endif %}
 {% endblock %}

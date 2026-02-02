@@ -5,10 +5,20 @@
   {{ block.super }}
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="{% static 'grms/admin/overlay_map.js' %}" defer></script>
+  <script src="{% static 'grms/js/asset-context-map.js' %}" defer></script>
 {% endblock %}
 
 {% block after_field_sets %}
   {{ block.super }}
-  {% include "admin/grms/includes/overlay_map_panel.html" %}
+  {% if asset_map_context_url %}
+    <div class="grms-asset-map-panel">
+      <h3>Asset context map</h3>
+      <p class="help">Shows the parent road, section, segments, and nearby structures.</p>
+      <div id="asset-context-map"
+           class="grms-asset-map"
+           data-context-url="{{ asset_map_context_url }}"></div>
+    </div>
+  {% else %}
+    <p class="help">Save the segment first to enable the context map.</p>
+  {% endif %}
 {% endblock %}
