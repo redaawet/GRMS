@@ -52,8 +52,16 @@ class RoadSectionCascadeAutocompleteMixin(admin.ModelAdmin):
 
 
 class AssetContextMapMixin:
-    asset_map_css = ("grms/vendor/leaflet/leaflet.css", "grms/css/asset-context-map.css")
-    asset_map_js = ("grms/vendor/leaflet/leaflet.js", "grms/js/asset-context-map.js")
+    asset_map_css = (
+        "grms/vendor/leaflet/leaflet.css",
+        "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css",
+        "grms/css/asset-context-map.css",
+    )
+    asset_map_js = (
+        "grms/vendor/leaflet/leaflet.js",
+        "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js",
+        "grms/js/asset-context-map.js",
+    )
 
     def get_map_context_url(self, obj):  # pragma: no cover - interface
         raise NotImplementedError

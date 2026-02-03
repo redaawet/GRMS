@@ -458,6 +458,9 @@ class Road(models.Model):
         update_fields = kwargs.get("update_fields")
         update_fields_set = set(update_fields) if update_fields else None
         geometry_updated = False
+        existing_length = None
+        if self.pk:
+            existing_length = Road.objects.filter(pk=self.pk).values_list("total_length_km", flat=True).first()
 
         allow_autofill = (
             not update_fields_set
@@ -536,8 +539,36 @@ class Road(models.Model):
                     update_fields_set.add("geometry")
         if self.geometry:
             computed_length = self.compute_length_km_from_geom()
-            if geometry_updated or self.total_length_km != computed_length:
-                self.total_length_km = computed_length
+            should_autofill_length = (
+                geometry_updated
+                or self.total_length_km is None
+                or float(self.total_length_km) == 0.0
+                or (
+                    update_fields_set is not None
+                    and "geometry" in update_fields_set
+                    and "total_length_km" not in update_fields_set
+                )
+            )
+            if should_autofill_length:
+                if computed_length > 0 and self.total_length_km != computed_length:
+                    self.total_length_km = computed_length
+                    if update_fields_set is not None:
+                        update_fields_set.add("total_length_km")
+                elif (
+                    existing_length is not None
+                    and float(existing_length) > 0.0
+                    and (self.total_length_km is None or float(self.total_length_km) == 0.0)
+                ):
+                    self.total_length_km = existing_length
+                    if update_fields_set is not None:
+                        update_fields_set.add("total_length_km")
+        elif (
+            existing_length is not None
+            and (self.total_length_km is None or float(self.total_length_km) == 0.0)
+        ):
+            # Preserve existing non-zero length when a form resets the field to 0.
+            if float(existing_length) != 0.0:
+                self.total_length_km = existing_length
                 if update_fields_set is not None:
                     update_fields_set.add("total_length_km")
 

@@ -127,13 +127,16 @@
         }
 
         function updateLengthField(lengthKm) {
-            if (!Number.isFinite(lengthKm)) {
+            const lengthValue = Number(lengthKm);
+            if (!Number.isFinite(lengthValue)) {
                 return;
             }
             const lengthInput = document.getElementById("id_total_length_km")
                 || document.querySelector('input[name="total_length_km"]');
             if (lengthInput) {
-                lengthInput.value = lengthKm;
+                lengthInput.value = lengthValue.toFixed(2);
+                lengthInput.dispatchEvent(new Event("input", { bubbles: true }));
+                lengthInput.dispatchEvent(new Event("change", { bubbles: true }));
             }
         }
 
@@ -237,6 +240,8 @@
                     showStatus("Route geometry saved.", "success");
                     if (payload && typeof payload.length_km !== "undefined") {
                         updateLengthField(Number(payload.length_km));
+                    } else if (lastRoute && Number.isFinite(lastRoute.distance_m)) {
+                        updateLengthField(lastRoute.distance_m / 1000);
                     }
                 })
                 .catch(function (err) {

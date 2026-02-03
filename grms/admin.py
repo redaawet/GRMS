@@ -46,6 +46,10 @@ from . import admin_geojson, admin_reports
 from .services import map_services, mci_intervention, prioritization, workplan_costs
 from .services.planning import road_ranking, workplans
 from .utils import (
+    _extract_coordinates,
+    _haversine_km,
+    geometry_length_km,
+    geos_length_km,
     make_point,
     point_to_lat_lng,
     slice_linestring_by_chainage,
@@ -96,6 +100,21 @@ def _parse_geojson(value):
     return None
 
 
+def _ensure_wgs84(geom, reasons: list[str]):
+    if not geom:
+        return None
+    if hasattr(geom, "srid") and getattr(geom, "srid", None) and geom.srid != 4326:
+        if hasattr(geom, "transform"):
+            try:
+                return geom.transform(4326, clone=True)
+            except Exception:
+                reasons.append("transform_failed")
+                return None
+        reasons.append("unsupported_srid")
+        return None
+    return geom
+
+
 def _annotate_geojson(qs, field_name: str):
     try:
         from django.contrib.gis.db.models import GeometryField
@@ -114,21 +133,73 @@ def _annotate_geojson(qs, field_name: str):
     return qs
 
 
-def _geometry_from_instance(instance, field_name: str):
+def _geometry_from_instance(instance, field_name: str, reasons: list[str] | None = None):
     if not instance:
         return None
     geojson = getattr(instance, "_geojson", None)
     if geojson is not None:
         parsed = _parse_geojson(geojson)
         if parsed:
+            if (
+                isinstance(parsed, dict)
+                and reasons is not None
+                and parsed.get("srid")
+                and parsed.get("srid") != 4326
+            ):
+                reasons.append("unsupported_srid")
+                return None
             return parsed
-    return _serialize_geometry(getattr(instance, field_name, None))
+    geom = getattr(instance, field_name, None)
+    if reasons is not None:
+        geom = _ensure_wgs84(geom, reasons)
+    return _serialize_geometry(geom)
 
 
 def _feature(geometry, properties=None):
     if not geometry:
         return None
     return {"type": "Feature", "geometry": geometry, "properties": properties or {}}
+
+
+def _feature_collection(features):
+    return {"type": "FeatureCollection", "features": features or []}
+
+
+def _iter_coords(geometry):
+    if not geometry:
+        return []
+    if isinstance(geometry, dict):
+        coords = geometry.get("coordinates")
+        if not coords:
+            return []
+        geom_type = geometry.get("type")
+        if geom_type == "Point":
+            return [coords]
+        if geom_type == "LineString":
+            return coords
+        if geom_type == "MultiLineString":
+            return [pt for line in coords for pt in line]
+        if geom_type == "Polygon":
+            return [pt for ring in coords for pt in ring]
+        if geom_type == "MultiPolygon":
+            return [pt for poly in coords for ring in poly for pt in ring]
+    return []
+
+
+def _bbox_from_features(features):
+    min_lon = min_lat = max_lon = max_lat = None
+    for feature in features:
+        geometry = feature.get("geometry") if feature else None
+        for lon, lat in _iter_coords(geometry):
+            min_lon = lon if min_lon is None else min(min_lon, lon)
+            max_lon = lon if max_lon is None else max(max_lon, lon)
+            min_lat = lat if min_lat is None else min(min_lat, lat)
+            max_lat = lat if max_lat is None else max(max_lat, lat)
+    if None in (min_lon, min_lat, max_lon, max_lat):
+        return None
+    if min_lon == max_lon or min_lat == max_lat:
+        return None
+    return [min_lon, min_lat, max_lon, max_lat]
 
 
 def _admin_change_url(instance):
@@ -170,8 +241,8 @@ def _structure_admin_url(structure: models.StructureInventory) -> str:
     return _admin_change_url(structure)
 
 
-def _road_feature(road: models.Road | None):
-    geometry = _geometry_from_instance(road, "geometry")
+def _road_feature(road: models.Road | None, reasons: list[str]):
+    geometry = _geometry_from_instance(road, "geometry", reasons)
     if not road or not geometry:
         return None
     return _feature(
@@ -180,8 +251,10 @@ def _road_feature(road: models.Road | None):
     )
 
 
-def _section_feature(section: models.RoadSection, road_geom=None):
-    geometry = _geometry_from_instance(section, "geometry")
+def _section_feature(section: models.RoadSection | None, road_geom=None, reasons: list[str] | None = None):
+    if not section:
+        return None
+    geometry = _geometry_from_instance(section, "geometry", reasons)
     if (
         not geometry
         and road_geom
@@ -194,6 +267,8 @@ def _section_feature(section: models.RoadSection, road_geom=None):
             float(section.end_chainage_km),
         )
         geometry = _serialize_geometry(sliced.get("geometry") if sliced else None)
+        if not geometry and reasons is not None:
+            reasons.append("invalid_chainage_range")
     return _feature(
         geometry,
         {
@@ -204,10 +279,16 @@ def _section_feature(section: models.RoadSection, road_geom=None):
     )
 
 
-def _segment_feature(segment: models.RoadSegment | None, road_geom=None):
-    if not segment or not road_geom:
+def _segment_feature(segment: models.RoadSegment | None, road_geom=None, reasons: list[str] | None = None):
+    if not segment:
+        return None
+    if not road_geom:
+        if reasons is not None:
+            reasons.append("missing_parent_geom")
         return None
     if segment.station_from_km is None or segment.station_to_km is None:
+        if reasons is not None:
+            reasons.append("invalid_chainage_range")
         return None
     sliced = slice_linestring_by_chainage(
         road_geom,
@@ -215,6 +296,8 @@ def _segment_feature(segment: models.RoadSegment | None, road_geom=None):
         float(segment.station_to_km),
     )
     geometry = _serialize_geometry(sliced.get("geometry") if sliced else None)
+    if not geometry and reasons is not None:
+        reasons.append("invalid_chainage_range")
     return _feature(
         geometry,
         {
@@ -225,17 +308,64 @@ def _segment_feature(segment: models.RoadSegment | None, road_geom=None):
     )
 
 
-def _structure_features_for_context(road_id: int, section_id: int | None = None):
+def _interpolate_point_on_line(geom, station_km: float):
+    if not geom:
+        return None
+    if hasattr(geom, "interpolate"):
+        total_km = geos_length_km(geom)
+        if total_km <= 0:
+            return None
+        fraction = min(1.0, max(0.0, float(station_km) / float(total_km)))
+        return geom.interpolate(fraction, normalized=True)
+
+    coordinates = _extract_coordinates(geom)
+    if len(coordinates) < 2:
+        return None
+    total_km = geometry_length_km(geom)
+    if total_km <= 0:
+        return None
+    target_km = min(float(station_km), total_km)
+    cumulative = 0.0
+    for start, end in zip(coordinates[:-1], coordinates[1:]):
+        segment_km = _haversine_km(start, end)
+        if cumulative + segment_km >= target_km:
+            fraction = (target_km - cumulative) / segment_km if segment_km else 0.0
+            lon = start[0] + (end[0] - start[0]) * fraction
+            lat = start[1] + (end[1] - start[1]) * fraction
+            return {"type": "Point", "coordinates": [lon, lat], "srid": 4326}
+        cumulative += segment_km
+    lon, lat = coordinates[-1]
+    return {"type": "Point", "coordinates": [lon, lat], "srid": 4326}
+
+
+def _structure_features_for_context(road_id: int, section_id: int | None = None, *, line_geom=None, reasons=None):
     qs = models.StructureInventory.objects.filter(road_id=road_id)
     if section_id:
         qs = qs.filter(section_id=section_id)
-    qs = qs.exclude(location_point__isnull=True)
     qs = _annotate_geojson(qs, "location_point").select_related("road", "section").prefetch_related(
         *STRUCTURE_DETAIL_ACCESSORS.values()
     )
     features = []
+    local_reasons = reasons if reasons is not None else []
     for structure in qs:
-        geometry = _geometry_from_instance(structure, "location_point")
+        geometry = _geometry_from_instance(structure, "location_point", local_reasons)
+        if not geometry:
+            station_km = None
+            if structure.station_km is not None:
+                station_km = float(structure.station_km)
+            elif structure.start_chainage_km is not None and structure.end_chainage_km is not None:
+                station_km = float(
+                    (structure.start_chainage_km + structure.end_chainage_km) / 2
+                )
+            if station_km is None:
+                local_reasons.append("no_station_km")
+            else:
+                if not line_geom:
+                    local_reasons.append("missing_parent_geom")
+                else:
+                    derived = _interpolate_point_on_line(line_geom, station_km)
+                    if derived:
+                        geometry = _serialize_geometry(_ensure_wgs84(derived, local_reasons))
         if not geometry:
             continue
         features.append(
@@ -255,6 +385,41 @@ def _structure_features_for_context(road_id: int, section_id: int | None = None)
 
 def _to_float(value):
     return float(value) if value is not None else None
+
+
+def _build_context_payload(mode: str, *, road, sections, segments, structures, highlight, reasons):
+    all_features = []
+    if road:
+        all_features.append(road)
+    all_features.extend(sections)
+    all_features.extend(segments)
+    all_features.extend(structures)
+    bbox = _bbox_from_features(all_features)
+    if not bbox and "missing_parent_geom" not in reasons:
+        reasons.append("missing_parent_geom")
+    reasons = list(dict.fromkeys(reasons))
+    ok = bool(bbox)
+    return {
+        "ok": ok,
+        "mode": mode,
+        "features": {
+            "road": road,
+            "sections": _feature_collection(sections),
+            "segments": _feature_collection(segments),
+            "structures": _feature_collection(structures),
+        },
+        "highlight": highlight,
+        "debug": {
+            "reasons": reasons,
+            "counts": {
+                "road": 1 if road else 0,
+                "sections": len(sections),
+                "segments": len(segments),
+                "structures": len(structures),
+            },
+            "bbox": bbox,
+        },
+    }
 
 
 def _road_map_context_url(road_id):
@@ -1029,6 +1194,12 @@ class RoadAdminForm(forms.ModelForm):
             self.fields["end_easting"].initial = self.instance.end_easting
         if getattr(self.instance, "end_northing", None) is not None:
             self.fields["end_northing"].initial = self.instance.end_northing
+
+    def clean_total_length_km(self):
+        total_length = self.cleaned_data.get("total_length_km")
+        if total_length is not None and total_length <= 0:
+            raise forms.ValidationError("Total length must be greater than zero.")
+        return total_length
 
     @staticmethod
     def _quantize_utm(value: float) -> Decimal:
@@ -1831,8 +2002,9 @@ class RoadSectionAdmin(
         if not section:
             return JsonResponse({"error": "Road section not found."}, status=404)
 
+        reasons: list[str] = []
         road = _annotate_geojson(models.Road.objects.filter(pk=section.road_id), "geometry").first()
-        road_feature = _road_feature(road)
+        road_feature = _road_feature(road, reasons)
         road_geom = getattr(road, "geometry", None) if road else None
 
         sections_qs = _annotate_geojson(
@@ -1841,21 +2013,24 @@ class RoadSectionAdmin(
         )
         sections = []
         for sibling in sections_qs:
-            feature = _section_feature(sibling, road_geom=road_geom)
+            feature = _section_feature(sibling, road_geom=road_geom, reasons=reasons)
             if feature:
                 sections.append(feature)
 
-        structures = _structure_features_for_context(road_id=section.road_id)
-
-        return JsonResponse(
-            {
-                "mode": "section",
-                "road": road_feature,
-                "sections": sections,
-                "current_section_id": section.id,
-                "structures": structures,
-            }
+        structures = _structure_features_for_context(
+            road_id=section.road_id, line_geom=road_geom, reasons=reasons
         )
+
+        payload = _build_context_payload(
+            "section",
+            road=road_feature,
+            sections=sections,
+            segments=[],
+            structures=structures,
+            highlight={"section_id": section.id},
+            reasons=reasons,
+        )
+        return JsonResponse(payload)
 
 
 @admin.register(models.RoadSegment, site=grms_admin_site)
@@ -1985,38 +2160,41 @@ class RoadSegmentAdmin(AssetContextMapMixin, RoadSectionCascadeAdminMixin, Secti
             return JsonResponse({"error": "Road segment not found."}, status=404)
 
         section = segment.section
+        reasons: list[str] = []
         road = (
             _annotate_geojson(models.Road.objects.filter(pk=section.road_id), "geometry").first()
             if section
             else None
         )
-        road_feature = _road_feature(road)
+        road_feature = _road_feature(road, reasons)
         road_geom = getattr(road, "geometry", None) if road else None
 
-        section_feature = _section_feature(section, road_geom=road_geom) if section else None
+        section_feature = _section_feature(section, road_geom=road_geom, reasons=reasons) if section else None
 
         segments_qs = models.RoadSegment.objects.filter(section_id=segment.section_id)
         segments = []
         for sibling in segments_qs:
-            feature = _segment_feature(sibling, road_geom=road_geom)
+            feature = _segment_feature(sibling, road_geom=road_geom, reasons=reasons)
             if feature:
                 segments.append(feature)
 
         structures = _structure_features_for_context(
             road_id=section.road_id if section else 0,
             section_id=segment.section_id if section else None,
+            line_geom=road_geom,
+            reasons=reasons,
         )
 
-        return JsonResponse(
-            {
-                "mode": "segment",
-                "road": road_feature,
-                "section": section_feature,
-                "segments": segments,
-                "current_segment_id": segment.id,
-                "structures": structures,
-            }
+        payload = _build_context_payload(
+            "segment",
+            road=road_feature,
+            sections=[section_feature] if section_feature else [],
+            segments=segments,
+            structures=structures,
+            highlight={"segment_id": segment.id},
+            reasons=reasons,
         )
+        return JsonResponse(payload)
 
 @admin.register(models.StructureInventory, site=grms_admin_site)
 class StructureInventoryAdmin(
@@ -2203,8 +2381,9 @@ class StructureInventoryAdmin(
         if not structure:
             return JsonResponse({"error": "Structure not found."}, status=404)
 
+        reasons: list[str] = []
         road = _annotate_geojson(models.Road.objects.filter(pk=structure.road_id), "geometry").first()
-        road_feature = _road_feature(road)
+        road_feature = _road_feature(road, reasons)
         road_geom = getattr(road, "geometry", None) if road else None
 
         section = None
@@ -2214,7 +2393,7 @@ class StructureInventoryAdmin(
                 "geometry",
             ).first()
 
-        section_feature = _section_feature(section, road_geom=road_geom) if section else None
+        section_feature = _section_feature(section, road_geom=road_geom, reasons=reasons) if section else None
 
         segment = None
         station_km = structure.station_km
@@ -2234,23 +2413,25 @@ class StructureInventoryAdmin(
                 .first()
             )
 
-        segment_feature = _segment_feature(segment, road_geom=road_geom) if segment else None
+        segment_feature = _segment_feature(segment, road_geom=road_geom, reasons=reasons) if segment else None
 
         structures = _structure_features_for_context(
             road_id=structure.road_id,
             section_id=structure.section_id,
+            line_geom=road_geom,
+            reasons=reasons,
         )
 
-        return JsonResponse(
-            {
-                "mode": "structure",
-                "road": road_feature,
-                "section": section_feature,
-                "segment": segment_feature,
-                "structures": structures,
-                "current_structure_id": structure.id,
-            }
+        payload = _build_context_payload(
+            "structure",
+            road=road_feature,
+            sections=[section_feature] if section_feature else [],
+            segments=[segment_feature] if segment_feature else [],
+            structures=structures,
+            highlight={"structure_id": structure.id},
+            reasons=reasons,
         )
+        return JsonResponse(payload)
 
     def structures_geojson_view(self, request):
         road_id = request.GET.get("road_id")

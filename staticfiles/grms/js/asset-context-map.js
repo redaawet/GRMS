@@ -56,6 +56,32 @@
     return { type: "FeatureCollection", features: features || [] };
   }
 
+  function featureById(features, id) {
+    if (!Array.isArray(features) || id == null) {
+      return null;
+    }
+    return (
+      features.find(function (feature) {
+        return feature && feature.properties && feature.properties.id === id;
+      }) || null
+    );
+  }
+
+  function getBoundsForFeature(feature) {
+    if (!feature || !feature.geometry || !window.L) {
+      return null;
+    }
+    var layer = L.geoJSON(feature);
+    if (!layer || !layer.getBounds) {
+      return null;
+    }
+    var bounds = layer.getBounds();
+    if (bounds && bounds.isValid && bounds.isValid()) {
+      return bounds;
+    }
+    return null;
+  }
+
   function bindAdminClick(layer, feature) {
     var url = feature && feature.properties && feature.properties.admin_url;
     if (!url) {
@@ -66,19 +92,11 @@
     });
   }
 
-  function renderMap(map, payload, debug) {
-    var featureData = (payload && payload.features) || {};
-    var road = featureData.road || null;
-    var sections = normalizeFeatures(
-      featureData.sections && featureData.sections.features
-    );
-    var segments = normalizeFeatures(
-      featureData.segments && featureData.segments.features
-    );
-    var structures = normalizeFeatures(
-      featureData.structures && featureData.structures.features
-    );
-    var highlight = (payload && payload.highlight) || {};
+  function renderMap(map, payload) {
+    var road = payload && payload.road;
+    var sections = normalizeFeatures(payload && payload.sections);
+    var segments = normalizeFeatures(payload && payload.segments);
+    var structures = normalizeFeatures(payload && payload.structures);
 
     var sectionPalette = [
       "#2563eb",
@@ -109,15 +127,14 @@
         segmentPalette[index % segmentPalette.length];
     });
 
-    var roadLayer =
-      road && road.geometry
-        ? L.geoJSON(road, {
-            style: { color: "#0f172a", weight: 5, opacity: 0.8 },
-            onEachFeature: function (feature, layer) {
-              bindAdminClick(layer, feature);
-            },
-          })
-        : null;
+    var roadLayer = road && road.geometry
+      ? L.geoJSON(road, {
+          style: { color: "#0f172a", weight: 5, opacity: 0.8 },
+          onEachFeature: function (feature, layer) {
+            bindAdminClick(layer, feature);
+          },
+        })
+      : null;
 
     var sectionLayer =
       sections.length > 0
@@ -126,7 +143,7 @@
               var isCurrent =
                 feature &&
                 feature.properties &&
-                feature.properties.id === highlight.section_id;
+                feature.properties.id === payload.current_section_id;
               var color =
                 (feature &&
                   feature.properties &&
@@ -151,7 +168,7 @@
               var isCurrent =
                 feature &&
                 feature.properties &&
-                feature.properties.id === highlight.segment_id;
+                feature.properties.id === payload.current_segment_id;
               var color =
                 (feature &&
                   feature.properties &&
@@ -174,7 +191,7 @@
         ? L.geoJSON(featureCollection(structures), {
             pointToLayer: function (feature, latlng) {
               var props = feature && feature.properties ? feature.properties : {};
-              var isCurrent = props.id === highlight.structure_id;
+              var isCurrent = props.id === payload.current_structure_id;
               var kind = (props.kind || "").toLowerCase();
               var baseColor = "#10b981";
               if (kind === "bridge") {
@@ -210,60 +227,35 @@
       structureLayer.addTo(map);
     }
 
-    var bbox = payload && payload.debug && payload.debug.bbox;
-    if (Array.isArray(bbox) && bbox.length === 4) {
-      var bounds = L.latLngBounds([bbox[1], bbox[0]], [bbox[3], bbox[2]]);
-      if (bounds.isValid()) {
-        map.fitBounds(bounds, { padding: [20, 20] });
-      } else {
-        setDefaultView(map);
-      }
+    var mode = payload && payload.mode;
+    var currentFeature = null;
+    var parentFeature = null;
+
+    if (mode === "section") {
+      currentFeature = featureById(sections, payload.current_section_id);
+      parentFeature = road;
+    } else if (mode === "segment") {
+      currentFeature = featureById(segments, payload.current_segment_id);
+      parentFeature = payload.section || null;
+    } else if (mode === "structure") {
+      currentFeature = featureById(structures, payload.current_structure_id);
+      parentFeature = payload.segment || payload.section || null;
+    }
+
+    var bounds =
+      getBoundsForFeature(currentFeature) ||
+      getBoundsForFeature(parentFeature) ||
+      getBoundsForFeature(road);
+
+    if (bounds && bounds.isValid && bounds.isValid()) {
+      map.fitBounds(bounds, { padding: [20, 20] });
     } else {
       setDefaultView(map);
     }
-
-    if (debug) {
-      var debugInfo = {
-        counts: payload && payload.debug && payload.debug.counts,
-        bbox: bbox,
-        reasons: payload && payload.debug && payload.debug.reasons,
-      };
-      console.log("asset-context-map", debugInfo);
-      var control = L.control({ position: "bottomleft" });
-      control.onAdd = function () {
-        var div = L.DomUtil.create("div", "grms-asset-map-debug");
-        div.style.background = "rgba(15, 23, 42, 0.85)";
-        div.style.color = "#fff";
-        div.style.padding = "6px 8px";
-        div.style.fontSize = "11px";
-        div.style.borderRadius = "6px";
-        div.style.maxWidth = "240px";
-        var counts = debugInfo.counts || {};
-        var reasons = (debugInfo.reasons || []).join(", ");
-        div.innerHTML =
-          "<div><strong>Asset map debug</strong></div>" +
-          "<div>road: " +
-          (counts.road || 0) +
-          " sections: " +
-          (counts.sections || 0) +
-          " segments: " +
-          (counts.segments || 0) +
-          " structures: " +
-          (counts.structures || 0) +
-          "</div>" +
-          "<div>bbox: " +
-          (bbox ? bbox.join(", ") : "none") +
-          "</div>" +
-          "<div>reasons: " +
-          (reasons || "none") +
-          "</div>";
-        return div;
-      };
-      control.addTo(map);
-    }
   }
 
-  function init(container) {
+  function init() {
+    var container = document.getElementById("asset-context-map");
     if (!container) {
       return;
     }
@@ -335,7 +327,7 @@
       "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
       {
         maxZoom: 19,
-        attribution: "OpenStreetMap contributors",
+        attribution: "© OpenStreetMap contributors",
       }
     );
 
@@ -362,15 +354,6 @@
       enableOnlineLayer();
     }
 
-    var debug = false;
-    try {
-      debug =
-        new URLSearchParams(window.location.search).get("debug") === "1" ||
-        window.GRMS_ASSET_MAP_DEBUG === true;
-    } catch (err) {
-      debug = false;
-    }
-
     fetch(contextUrl, { headers: { "X-Requested-With": "XMLHttpRequest" } })
       .then(function (resp) {
         if (!resp.ok) {
@@ -379,7 +362,7 @@
         return resp.json();
       })
       .then(function (payload) {
-        renderMap(map, payload || {}, debug);
+        renderMap(map, payload || {});
         window.__GRMS_MAP_CONTEXT_LOADED = true;
         window.__GRMS_MAP_READY = true;
       })
@@ -388,33 +371,20 @@
         showMessage("Unable to load map data.");
       });
 
-    function scheduleInvalidate(delay) {
+    function scheduleInvalidate() {
       setTimeout(function () {
         map.invalidateSize();
-      }, delay || 0);
+      }, 0);
     }
 
-    scheduleInvalidate(0);
-    scheduleInvalidate(250);
-    scheduleInvalidate(800);
-    window.addEventListener("load", function () {
-      scheduleInvalidate(0);
-    });
+    window.addEventListener("load", scheduleInvalidate);
 
     if (window.django && window.django.jQuery) {
       window.django
         .jQuery(document)
-        .on("click", ".collapse-toggle", function () {
-          scheduleInvalidate(0);
-          scheduleInvalidate(250);
-        });
+        .on("click", ".collapse-toggle", scheduleInvalidate);
     }
   }
 
-  ready(function () {
-    var containers = document.querySelectorAll("#asset-context-map");
-    containers.forEach(function (container) {
-      init(container);
-    });
-  });
+  ready(init);
 })();

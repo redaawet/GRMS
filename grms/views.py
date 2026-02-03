@@ -592,11 +592,13 @@ def update_road_geometry(request: Request, pk: int) -> Response:
 
     road.geometry = geometry
     length_km = None
+    length_field = models.Road._meta.get_field("total_length_km")
+    quantizer = Decimal("1").scaleb(-length_field.decimal_places)
     if distance_m is not None and distance_m > 0:
-        length_km = (Decimal(str(distance_m)) / Decimal("1000")).quantize(Decimal("0.001"))
+        length_km = (Decimal(str(distance_m)) / Decimal("1000")).quantize(quantizer)
 
     if length_km is None:
-        length_km = road.compute_length_km_from_geom()
+        length_km = road.compute_length_km_from_geom().quantize(quantizer)
 
     models.Road.objects.filter(pk=road.pk).update(geometry=geometry, total_length_km=length_km)
 

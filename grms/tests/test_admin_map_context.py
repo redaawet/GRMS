@@ -52,6 +52,8 @@ class AdminMapContextTests(TestCase):
             length_km=1,
             surface_type="Earth",
         )
+        self.section.geometry = None
+        self.section.save(update_fields=["geometry"])
         self.segment = models.RoadSegment.objects.create(
             section=self.section,
             station_from_km=0,
@@ -65,7 +67,7 @@ class AdminMapContextTests(TestCase):
             section=self.section,
             geometry_type=models.StructureInventory.POINT,
             station_km=0.5,
-            location_point=make_point(13.55, 39.05),
+            location_point=None,
             structure_category="Bridge",
         )
         models.BridgeDetail.objects.create(structure=self.structure, bridge_type="Concrete")
@@ -97,20 +99,23 @@ class AdminMapContextTests(TestCase):
         self.assertEqual(response.status_code, 200)
         payload = response.json()
 
+        self.assertTrue(payload.get("ok"))
         self.assertEqual(payload.get("mode"), "section")
-        self.assertIn("road", payload)
-        self.assertIn("sections", payload)
-        self.assertIn("current_section_id", payload)
-        self.assertIn("structures", payload)
-        self.assertEqual(payload["current_section_id"], self.section.id)
+        self.assertIn("features", payload)
+        self.assertIn("highlight", payload)
+        self.assertIn("debug", payload)
+        self.assertEqual(payload["highlight"]["section_id"], self.section.id)
 
-        if payload["road"]:
-            self._assert_feature(payload["road"])
-        for feature in payload["sections"]:
+        road_feature = payload["features"]["road"]
+        if road_feature:
+            self._assert_feature(road_feature)
+        for feature in payload["features"]["sections"]["features"]:
             self._assert_feature(feature)
 
         structure_feature = next(
-            f for f in payload["structures"] if f["properties"]["id"] == self.structure.id
+            f
+            for f in payload["features"]["structures"]["features"]
+            if f["properties"]["id"] == self.structure.id
         )
         self._assert_feature(structure_feature)
         self.assertEqual(structure_feature["properties"]["kind"], "bridge")
@@ -125,25 +130,26 @@ class AdminMapContextTests(TestCase):
         self.assertEqual(response.status_code, 200)
         payload = response.json()
 
+        self.assertTrue(payload.get("ok"))
         self.assertEqual(payload.get("mode"), "segment")
-        self.assertIn("road", payload)
-        self.assertIn("section", payload)
-        self.assertIn("segments", payload)
-        self.assertIn("current_segment_id", payload)
-        self.assertIn("structures", payload)
-        self.assertEqual(payload["current_segment_id"], self.segment.id)
+        self.assertIn("features", payload)
+        self.assertIn("highlight", payload)
+        self.assertIn("debug", payload)
+        self.assertEqual(payload["highlight"]["segment_id"], self.segment.id)
 
-        if payload["road"]:
-            self._assert_feature(payload["road"])
-        if payload["section"]:
-            self._assert_feature(payload["section"])
-        for feature in payload["segments"]:
+        road_feature = payload["features"]["road"]
+        if road_feature:
+            self._assert_feature(road_feature)
+        for feature in payload["features"]["segments"]["features"]:
             self._assert_feature(feature)
 
         structure_feature = next(
-            f for f in payload["structures"] if f["properties"]["id"] == self.structure.id
+            f
+            for f in payload["features"]["structures"]["features"]
+            if f["properties"]["id"] == self.structure.id
         )
         self._assert_feature(structure_feature)
+        self.assertIsNotNone(payload["debug"]["bbox"])
 
     def test_structure_map_context(self):
         url = reverse("admin:grms_structureinventory_map_context", args=[self.structure.id])
@@ -151,27 +157,29 @@ class AdminMapContextTests(TestCase):
         self.assertEqual(response.status_code, 200)
         payload = response.json()
 
+        self.assertTrue(payload.get("ok"))
         self.assertEqual(payload.get("mode"), "structure")
-        self.assertIn("road", payload)
-        self.assertIn("section", payload)
-        self.assertIn("segment", payload)
-        self.assertIn("structures", payload)
-        self.assertIn("current_structure_id", payload)
-        self.assertEqual(payload["current_structure_id"], self.structure.id)
+        self.assertIn("features", payload)
+        self.assertIn("highlight", payload)
+        self.assertIn("debug", payload)
+        self.assertEqual(payload["highlight"]["structure_id"], self.structure.id)
 
-        if payload["road"]:
-            self._assert_feature(payload["road"])
-        if payload["section"]:
-            self._assert_feature(payload["section"])
-        if payload["segment"]:
-            self._assert_feature(payload["segment"])
+        road_feature = payload["features"]["road"]
+        if road_feature:
+            self._assert_feature(road_feature)
 
         structure_feature = next(
-            f for f in payload["structures"] if f["properties"]["id"] == self.structure.id
+            f
+            for f in payload["features"]["structures"]["features"]
+            if f["properties"]["id"] == self.structure.id
         )
         self._assert_feature(structure_feature)
         self.assertIn("label", structure_feature["properties"])
         self.assertIn("station_km", structure_feature["properties"])
+        bbox = payload["debug"]["bbox"]
+        self.assertIsNotNone(bbox)
+        self.assertLess(bbox[0], bbox[2])
+        self.assertLess(bbox[1], bbox[3])
 
     def test_change_form_contains_map_container(self):
         section_url = reverse("admin:grms_roadsection_change", args=[self.section.id])
@@ -182,6 +190,9 @@ class AdminMapContextTests(TestCase):
             response = self.client.get(url)
             self.assertEqual(response.status_code, 200)
             self.assertIn(b'id=\"asset-context-map\"', response.content)
+            self.assertIn(b'grms/vendor/leaflet/leaflet.css', response.content)
+            self.assertIn(b'grms/vendor/leaflet/leaflet.js', response.content)
+            self.assertIn(b'grms/js/asset-context-map.js', response.content)
 
     def test_map_context_requires_login(self):
         self.client.logout()
