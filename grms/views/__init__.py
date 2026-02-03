@@ -27,10 +27,10 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 
 from traffic import models as traffic_models
-from . import models, serializers
-from .forms import RoadAlignmentForm, RoadBasicForm, RoadSectionBasicForm
-from .services import map_services
-from .utils import GEOS_AVAILABLE, make_point, point_to_lat_lng, utm_to_wgs84
+from grms import models, serializers
+from grms.forms import RoadAlignmentForm, RoadBasicForm, RoadSectionBasicForm
+from grms.services import map_services
+from grms.utils import GEOS_AVAILABLE, make_point, point_to_lat_lng, utm_to_wgs84
 
 
 @staff_member_required

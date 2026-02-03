@@ -9,7 +9,7 @@ from django.shortcuts import get_object_or_404
 
 from grms import models
 from grms.gis.geojson import feature, feature_collection, to_4326
-from grms.utils import slice_linestring_by_chainage
+from grms.utils import make_point, slice_geometry_by_chainage, slice_linestring_by_chainage, utm_to_wgs84
 
 
 def _as_float(value: Optional[Decimal]) -> Optional[float]:
@@ -32,6 +32,10 @@ def _section_geometry(section: models.RoadSection, road_geom):
     end_km = _as_float(section.end_chainage_km)
     if road_geom and start_km is not None and end_km is not None:
         sliced = slice_linestring_by_chainage(road_geom, start_km, end_km)
+        if not sliced:
+            sliced_geom = slice_geometry_by_chainage(road_geom, start_km, end_km)
+            if sliced_geom:
+                return sliced_geom
         if sliced:
             return sliced.get("geometry")
     return None
@@ -42,8 +46,26 @@ def _segment_geometry(segment: models.RoadSegment, section_geom):
     end_km = _as_float(segment.station_to_km)
     if section_geom and start_km is not None and end_km is not None:
         sliced = slice_linestring_by_chainage(section_geom, start_km, end_km)
+        if not sliced:
+            sliced_geom = slice_geometry_by_chainage(section_geom, start_km, end_km)
+            if sliced_geom:
+                return sliced_geom
         if sliced:
             return sliced.get("geometry")
+    return None
+
+
+def _structure_geometry(structure: models.StructureInventory):
+    if structure.location_point:
+        return structure.location_point
+    if structure.location_latitude is not None and structure.location_longitude is not None:
+        return make_point(float(structure.location_latitude), float(structure.location_longitude))
+    if structure.easting_m is not None and structure.northing_m is not None:
+        try:
+            lat, lng = utm_to_wgs84(float(structure.easting_m), float(structure.northing_m), zone=structure.utm_zone)
+        except Exception:
+            return None
+        return make_point(lat, lng)
     return None
 
 
@@ -108,7 +130,7 @@ def structure_geojson(
         structures_qs = structures_qs.filter(section_id=section_id)
 
     for structure in structures_qs.order_by("id"):
-        geom = to_4326(structure.location_point)
+        geom = to_4326(_structure_geometry(structure))
         role = (
             "structure_current"
             if current_structure_id and structure.id == current_structure_id
