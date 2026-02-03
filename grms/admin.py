@@ -18,7 +18,6 @@ from django.template.response import TemplateResponse
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import redirect
 from django.urls import path, reverse
-from django.utils.safestring import mark_safe
 from openpyxl import Workbook
 
 from . import models
@@ -28,6 +27,7 @@ from .admin_forms import CascadeFKModelFormMixin
 from .forms import RoadSegmentAdminForm
 from .admin_utils import valid_autocomplete_fields, valid_list_display
 from .admin_mixins import (
+    AdminMapPreviewMixin,
     AssetContextMapMixin,
     CascadeAutocompleteAdminMixin,
     DependentAutocompleteMediaMixin,
@@ -1973,7 +1973,10 @@ class StructureInterventionRecommendationAdmin(GRMSBaseAdmin):
 
 @admin.register(models.RoadSection, site=grms_admin_site)
 class RoadSectionAdmin(
-    RoadSectionCascadeAutocompleteMixin, RoadSectionCascadeAdminMixin, SectionScopedAdmin
+    AdminMapPreviewMixin,
+    RoadSectionCascadeAutocompleteMixin,
+    RoadSectionCascadeAdminMixin,
+    SectionScopedAdmin,
 ):
     form = RoadSectionAdminForm
     list_display = (
@@ -1987,7 +1990,7 @@ class RoadSectionAdmin(
     list_filter = ("admin_zone_override", "admin_woreda_override", "surface_type")
     search_fields = ("section_number", "name")
     autocomplete_fields = ("road", "admin_zone_override", "admin_woreda_override")
-    readonly_fields = ("section_number", "sequence_on_road", "length_km", "map_preview")
+    readonly_fields = ("section_number", "sequence_on_road", "length_km")
     fieldsets = (
         ("Parent road", {"fields": ("road",), "description": "Select the road this section belongs to."}),
         (
@@ -2013,30 +2016,15 @@ class RoadSectionAdmin(
             },
         ),
         ("Notes", {"fields": ("notes",)}),
-        ("Map preview", {"fields": ("map_preview",)}),
     )
 
-    class Media:
-        css = {"all": ("grms/vendor/leaflet/leaflet.css",)}
-        js = (
-            "grms/vendor/leaflet/leaflet.js",
-            "grms/admin_map.js",
-        )
-
-    def map_preview(self, obj):
-        if not obj or not obj.pk or not obj.road_id:
-            return "Save this record to view the map."
-
-        cfg = {
-            "endpoint": reverse("grms_maps:map_context"),
-            "params": {"road_id": str(obj.road_id), "section_id": str(obj.pk)},
-        }
-        return mark_safe(
-            '<div id="grms-map" style="height:420px; border:1px solid #ddd; border-radius:8px;"></div>'
-            f"<script>window.GRMS_MAP_CFG = {json.dumps(cfg)};</script>"
-        )
-
-    map_preview.short_description = "Map"
+    def get_grms_map_endpoint(self, request, obj=None):
+        if obj and obj.pk and obj.road_id:
+            return reverse("map_road_sections_current", args=[obj.road_id, obj.pk])
+        road_id = request.POST.get("road") or request.GET.get("road") or request.GET.get("road_id")
+        if road_id and str(road_id).isdigit():
+            return reverse("map_road_sections", args=[int(road_id)])
+        return None
 
     def get_fieldsets(self, request, obj=None):
         """Ensure fields are not repeated across fieldsets to satisfy admin checks."""
@@ -2131,7 +2119,7 @@ class RoadSectionAdmin(
 
 
 @admin.register(models.RoadSegment, site=grms_admin_site)
-class RoadSegmentAdmin(RoadSectionCascadeAdminMixin, SectionScopedAdmin):
+class RoadSegmentAdmin(AdminMapPreviewMixin, RoadSectionCascadeAdminMixin, SectionScopedAdmin):
     form = RoadSegmentAdminForm
     list_display = (
         "road",
@@ -2146,7 +2134,7 @@ class RoadSegmentAdmin(RoadSectionCascadeAdminMixin, SectionScopedAdmin):
     list_filter = ("section__road", "section", "terrain_longitudinal", "terrain_transverse")
     autocomplete_fields = ("section",)
     actions = [export_road_segments_to_excel]
-    readonly_fields = ("map_preview",)
+    readonly_fields = ()
     fieldsets = (
         (
             "Context",
@@ -2182,34 +2170,15 @@ class RoadSegmentAdmin(RoadSectionCascadeAdminMixin, SectionScopedAdmin):
             },
         ),
         ("Notes", {"fields": ("comment",)}),
-        ("Map preview", {"fields": ("map_preview",)}),
     )
 
-    class Media:
-        css = {"all": ("grms/vendor/leaflet/leaflet.css",)}
-        js = (
-            "grms/vendor/leaflet/leaflet.js",
-            "grms/admin_map.js",
-        )
-
-    def map_preview(self, obj):
-        if not obj or not obj.pk or not obj.section_id:
-            return "Save this record to view the map."
-
-        cfg = {
-            "endpoint": reverse("grms_maps:map_context"),
-            "params": {
-                "road_id": str(obj.section.road_id),
-                "section_id": str(obj.section_id),
-                "segment_id": str(obj.pk),
-            },
-        }
-        return mark_safe(
-            '<div id="grms-map" style="height:420px; border:1px solid #ddd; border-radius:8px;"></div>'
-            f"<script>window.GRMS_MAP_CFG = {json.dumps(cfg)};</script>"
-        )
-
-    map_preview.short_description = "Map"
+    def get_grms_map_endpoint(self, request, obj=None):
+        if obj and obj.pk and obj.section_id:
+            return reverse("map_section_segments_current", args=[obj.section_id, obj.pk])
+        section_id = request.POST.get("section") or request.GET.get("section") or request.GET.get("section_id")
+        if section_id and str(section_id).isdigit():
+            return reverse("map_section_segments", args=[int(section_id)])
+        return None
 
     @admin.display(description="Road", ordering="section__road__road_identifier")
     def road(self, obj):
@@ -2321,7 +2290,10 @@ class RoadSegmentAdmin(RoadSectionCascadeAdminMixin, SectionScopedAdmin):
 
 @admin.register(models.StructureInventory, site=grms_admin_site)
 class StructureInventoryAdmin(
-    DependentAutocompleteMediaMixin, RoadSectionCascadeAutocompleteMixin, GRMSBaseAdmin
+    AdminMapPreviewMixin,
+    DependentAutocompleteMediaMixin,
+    RoadSectionCascadeAutocompleteMixin,
+    GRMSBaseAdmin,
 ):
     class StructureInventoryAdminForm(CascadeFKModelFormMixin, CascadeRoadSectionMixin, forms.ModelForm):
         class Meta:
@@ -2383,7 +2355,7 @@ class StructureInventoryAdmin(
         "structure_category",
     )
     list_select_related = ("road", "section")
-    readonly_fields = ("created_date", "modified_date", "derived_lat_lng", "map_preview")
+    readonly_fields = ("created_date", "modified_date", "derived_lat_lng")
     form = StructureInventoryAdminForm
     autocomplete_fields = ("road", "section")
     actions = [export_structures_to_excel]
@@ -2437,7 +2409,6 @@ class StructureInventoryAdmin(
         ),
         ("Documentation", {"fields": ("comments", "attachments")}),
         ("Timestamps", {"fields": ("created_date", "modified_date")}),
-        ("Map preview", {"fields": ("map_preview",)}),
     )
 
     class Media:
@@ -2446,7 +2417,6 @@ class StructureInventoryAdmin(
             "grms/vendor/leaflet/leaflet.js",
             "grms/js/structure-inventory-admin.js",
             "grms/admin/cascade_autocomplete.js",
-            "grms/admin_map.js",
         )
 
     def derived_lat_lng(self, obj):
@@ -2457,25 +2427,27 @@ class StructureInventoryAdmin(
 
     derived_lat_lng.short_description = "Lat/Lng"
 
-    def map_preview(self, obj):
-        if not obj or not obj.pk:
-            return "Save this record to view the map."
+    def get_grms_map_endpoint(self, request, obj=None):
+        road_id = None
+        section_id = None
+        if obj and obj.pk:
+            road_id = obj.road_id or (obj.section.road_id if obj.section_id else None)
+            section_id = obj.section_id
+            if road_id and section_id:
+                return reverse(
+                    "map_section_structures_current",
+                    args=[road_id, section_id, obj.pk],
+                )
+            if road_id:
+                return reverse("map_road_structures_current", args=[road_id, obj.pk])
 
-        road_id = obj.road_id or (obj.section.road_id if obj.section_id else None)
-        if not road_id:
-            return "No road/section linked."
-
-        params = {"road_id": str(road_id), "structure_id": str(obj.pk)}
-        if obj.section_id:
-            params["section_id"] = str(obj.section_id)
-
-        cfg = {"endpoint": reverse("grms_maps:map_context"), "params": params}
-        return mark_safe(
-            '<div id="grms-map" style="height:420px; border:1px solid #ddd; border-radius:8px;"></div>'
-            f"<script>window.GRMS_MAP_CFG = {json.dumps(cfg)};</script>"
-        )
-
-    map_preview.short_description = "Map"
+        road_id = request.POST.get("road") or request.GET.get("road") or request.GET.get("road_id")
+        section_id = request.POST.get("section") or request.GET.get("section") or request.GET.get("section_id")
+        if road_id and str(road_id).isdigit() and section_id and str(section_id).isdigit():
+            return reverse("map_section_structures", args=[int(road_id), int(section_id)])
+        if road_id and str(road_id).isdigit():
+            return reverse("map_road_structures", args=[int(road_id)])
+        return None
 
     def label(self, obj):
         return structure_label(obj)

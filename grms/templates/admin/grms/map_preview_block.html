@@ -1,0 +1,10 @@
+{% load static %}
+
+<link rel="stylesheet" href="{% static 'grms/vendor/leaflet/leaflet.css' %}">
+<div
+    id="grms-map"
+    data-endpoint="{{ grms_map_endpoint }}"
+    style="height: 420px; border: 1px solid #ddd; border-radius: 8px; margin-bottom: 16px;"
+></div>
+<script src="{% static 'grms/vendor/leaflet/leaflet.js' %}"></script>
+<script src="{% static 'grms/admin_map_preview.js' %}"></script>

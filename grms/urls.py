@@ -5,6 +5,11 @@ from rest_framework import routers
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 from . import views
+from .views.map_geojson import (
+    road_sections_geojson,
+    section_segments_geojson,
+    structure_geojson,
+)
 
 
 router = routers.DefaultRouter()
@@ -58,6 +63,46 @@ urlpatterns = [
         views.section_map_preview,
         name="section_map_preview",
     ),
+    path(
+        "maps/road/<int:road_id>/sections/",
+        road_sections_geojson,
+        name="map_road_sections",
+    ),
+    path(
+        "maps/road/<int:road_id>/sections/<int:current_section_id>/",
+        road_sections_geojson,
+        name="map_road_sections_current",
+    ),
+    path(
+        "maps/section/<int:section_id>/segments/",
+        section_segments_geojson,
+        name="map_section_segments",
+    ),
+    path(
+        "maps/section/<int:section_id>/segments/<int:current_segment_id>/",
+        section_segments_geojson,
+        name="map_section_segments_current",
+    ),
+    path(
+        "maps/road/<int:road_id>/structures/",
+        structure_geojson,
+        name="map_road_structures",
+    ),
+    path(
+        "maps/road/<int:road_id>/section/<int:section_id>/structures/",
+        structure_geojson,
+        name="map_section_structures",
+    ),
+    path(
+        "maps/road/<int:road_id>/structures/<int:current_structure_id>/",
+        structure_geojson,
+        name="map_road_structures_current",
+    ),
+    path(
+        "maps/road/<int:road_id>/section/<int:section_id>/structures/<int:current_structure_id>/",
+        structure_geojson,
+        name="map_section_structures_current",
+    ),
     path("api/auth/login/", TokenObtainPairView.as_view(), name="token_obtain_pair"),
     path("api/auth/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
     path("api/roads/map-context/", views.road_map_context_default, name="road_map_context_default"),
@@ -68,4 +113,3 @@ urlpatterns = [
     path("api/prioritize/", views.run_prioritization, name="run_prioritization"),
     path("api/", include(router.urls)),
 ]
-
