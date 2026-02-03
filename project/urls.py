@@ -4,4 +4,5 @@ from grms.admin import grms_admin_site
 urlpatterns = [
     path('admin/', grms_admin_site.urls),
     path('', include('grms.urls')),
+    path("maps/", include(("grms.maps.urls", "grms_maps"), namespace="grms_maps")),
 ]

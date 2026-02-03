@@ -18,6 +18,7 @@ from django.template.response import TemplateResponse
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import redirect
 from django.urls import path, reverse
+from django.utils.safestring import mark_safe
 from openpyxl import Workbook
 
 from . import models
@@ -52,6 +53,7 @@ from .utils import (
     geos_length_km,
     make_point,
     point_to_lat_lng,
+    slice_geometry_by_chainage,
     slice_linestring_by_chainage,
     utm_to_wgs84,
     wgs84_to_utm,
@@ -191,6 +193,11 @@ def _bbox_from_features(features):
     for feature in features:
         geometry = feature.get("geometry") if feature else None
         for lon, lat in _iter_coords(geometry):
+            if lon is None or lat is None:
+                continue
+            if abs(lon) > 180 or abs(lat) > 90:
+                # Ignore out-of-range coordinates (likely UTM or invalid).
+                continue
             min_lon = lon if min_lon is None else min(min_lon, lon)
             max_lon = lon if max_lon is None else max(max_lon, lon)
             min_lat = lat if min_lat is None else min(min_lat, lat)
@@ -261,12 +268,14 @@ def _section_feature(section: models.RoadSection | None, road_geom=None, reasons
         and section.start_chainage_km is not None
         and section.end_chainage_km is not None
     ):
-        sliced = slice_linestring_by_chainage(
-            road_geom,
-            float(section.start_chainage_km),
-            float(section.end_chainage_km),
+        geometry = _serialize_geometry(
+            _slice_line_geometry(
+                road_geom,
+                float(section.start_chainage_km),
+                float(section.end_chainage_km),
+                reasons,
+            )
         )
-        geometry = _serialize_geometry(sliced.get("geometry") if sliced else None)
         if not geometry and reasons is not None:
             reasons.append("invalid_chainage_range")
     return _feature(
@@ -279,10 +288,10 @@ def _section_feature(section: models.RoadSection | None, road_geom=None, reasons
     )
 
 
-def _segment_feature(segment: models.RoadSegment | None, road_geom=None, reasons: list[str] | None = None):
+def _segment_feature(segment: models.RoadSegment | None, line_geom=None, reasons: list[str] | None = None):
     if not segment:
         return None
-    if not road_geom:
+    if not line_geom:
         if reasons is not None:
             reasons.append("missing_parent_geom")
         return None
@@ -290,12 +299,14 @@ def _segment_feature(segment: models.RoadSegment | None, road_geom=None, reasons
         if reasons is not None:
             reasons.append("invalid_chainage_range")
         return None
-    sliced = slice_linestring_by_chainage(
-        road_geom,
-        float(segment.station_from_km),
-        float(segment.station_to_km),
+    geometry = _serialize_geometry(
+        _slice_line_geometry(
+            line_geom,
+            float(segment.station_from_km),
+            float(segment.station_to_km),
+            reasons,
+        )
     )
-    geometry = _serialize_geometry(sliced.get("geometry") if sliced else None)
     if not geometry and reasons is not None:
         reasons.append("invalid_chainage_range")
     return _feature(
@@ -338,6 +349,42 @@ def _interpolate_point_on_line(geom, station_km: float):
     return {"type": "Point", "coordinates": [lon, lat], "srid": 4326}
 
 
+def _slice_line_geometry(geom, start_km: float, end_km: float, reasons: list[str] | None = None):
+    if not geom:
+        return None
+    sliced = slice_linestring_by_chainage(geom, start_km, end_km)
+    if sliced and isinstance(sliced, dict):
+        return sliced.get("geometry")
+    if sliced:
+        return sliced
+    sliced_fallback = slice_geometry_by_chainage(geom, start_km, end_km)
+    if not sliced_fallback and reasons is not None:
+        reasons.append("invalid_chainage_range")
+    return sliced_fallback
+
+
+def _resolve_section_line(section: models.RoadSection | None, road_geom, reasons: list[str] | None = None):
+    if not section:
+        return None
+    geom = getattr(section, "geometry", None)
+    if geom:
+        return geom
+    if not road_geom:
+        if reasons is not None:
+            reasons.append("missing_parent_geom")
+        return None
+    if section.start_chainage_km is None or section.end_chainage_km is None:
+        if reasons is not None:
+            reasons.append("invalid_chainage_range")
+        return None
+    return _slice_line_geometry(
+        road_geom,
+        float(section.start_chainage_km),
+        float(section.end_chainage_km),
+        reasons,
+    )
+
+
 def _structure_features_for_context(road_id: int, section_id: int | None = None, *, line_geom=None, reasons=None):
     qs = models.StructureInventory.objects.filter(road_id=road_id)
     if section_id:
@@ -349,6 +396,34 @@ def _structure_features_for_context(road_id: int, section_id: int | None = None,
     local_reasons = reasons if reasons is not None else []
     for structure in qs:
         geometry = _geometry_from_instance(structure, "location_point", local_reasons)
+        if not geometry:
+            geometry = _geometry_from_instance(structure, "location_line", local_reasons)
+        if (
+            geometry
+            and isinstance(geometry, dict)
+            and geometry.get("type") == "Point"
+            and isinstance(geometry.get("coordinates"), (list, tuple))
+            and len(geometry.get("coordinates")) >= 2
+        ):
+            lon, lat = geometry["coordinates"][:2]
+            if (abs(lon) > 180 or abs(lat) > 90) and structure.utm_zone:
+                try:
+                    lat, lng = utm_to_wgs84(float(lon), float(lat), zone=int(structure.utm_zone))
+                    geometry = _serialize_geometry(make_point(lat, lng))
+                except Exception:
+                    local_reasons.append("utm_transform_failed")
+        if not geometry:
+            lat = _to_float(getattr(structure, "location_latitude", None))
+            lng = _to_float(getattr(structure, "location_longitude", None))
+            if lat is not None and lng is not None:
+                geometry = _serialize_geometry(make_point(lat, lng))
+        if not geometry and structure.easting_m is not None and structure.northing_m is not None:
+            try:
+                zone = int(getattr(structure, "utm_zone", None) or UTM_ZONE)
+                lat, lng = utm_to_wgs84(float(structure.easting_m), float(structure.northing_m), zone=zone)
+                geometry = _serialize_geometry(make_point(lat, lng))
+            except Exception:
+                local_reasons.append("utm_transform_failed")
         if not geometry:
             station_km = None
             if structure.station_km is not None:
@@ -1898,7 +1973,7 @@ class StructureInterventionRecommendationAdmin(GRMSBaseAdmin):
 
 @admin.register(models.RoadSection, site=grms_admin_site)
 class RoadSectionAdmin(
-    AssetContextMapMixin, RoadSectionCascadeAutocompleteMixin, RoadSectionCascadeAdminMixin, SectionScopedAdmin
+    RoadSectionCascadeAutocompleteMixin, RoadSectionCascadeAdminMixin, SectionScopedAdmin
 ):
     form = RoadSectionAdminForm
     list_display = (
@@ -1912,7 +1987,7 @@ class RoadSectionAdmin(
     list_filter = ("admin_zone_override", "admin_woreda_override", "surface_type")
     search_fields = ("section_number", "name")
     autocomplete_fields = ("road", "admin_zone_override", "admin_woreda_override")
-    readonly_fields = ("section_number", "sequence_on_road", "length_km", "asset_context_map")
+    readonly_fields = ("section_number", "sequence_on_road", "length_km", "map_preview")
     fieldsets = (
         ("Parent road", {"fields": ("road",), "description": "Select the road this section belongs to."}),
         (
@@ -1938,8 +2013,30 @@ class RoadSectionAdmin(
             },
         ),
         ("Notes", {"fields": ("notes",)}),
-        ("Asset context map", {"fields": ("asset_context_map",)}),
+        ("Map preview", {"fields": ("map_preview",)}),
     )
+
+    class Media:
+        css = {"all": ("grms/vendor/leaflet/leaflet.css",)}
+        js = (
+            "grms/vendor/leaflet/leaflet.js",
+            "grms/admin_map.js",
+        )
+
+    def map_preview(self, obj):
+        if not obj or not obj.pk or not obj.road_id:
+            return "Save this record to view the map."
+
+        cfg = {
+            "endpoint": reverse("grms_maps:map_context"),
+            "params": {"road_id": str(obj.road_id), "section_id": str(obj.pk)},
+        }
+        return mark_safe(
+            '<div id="grms-map" style="height:420px; border:1px solid #ddd; border-radius:8px;"></div>'
+            f"<script>window.GRMS_MAP_CFG = {json.dumps(cfg)};</script>"
+        )
+
+    map_preview.short_description = "Map"
 
     def get_fieldsets(self, request, obj=None):
         """Ensure fields are not repeated across fieldsets to satisfy admin checks."""
@@ -2034,7 +2131,7 @@ class RoadSectionAdmin(
 
 
 @admin.register(models.RoadSegment, site=grms_admin_site)
-class RoadSegmentAdmin(AssetContextMapMixin, RoadSectionCascadeAdminMixin, SectionScopedAdmin):
+class RoadSegmentAdmin(RoadSectionCascadeAdminMixin, SectionScopedAdmin):
     form = RoadSegmentAdminForm
     list_display = (
         "road",
@@ -2049,6 +2146,7 @@ class RoadSegmentAdmin(AssetContextMapMixin, RoadSectionCascadeAdminMixin, Secti
     list_filter = ("section__road", "section", "terrain_longitudinal", "terrain_transverse")
     autocomplete_fields = ("section",)
     actions = [export_road_segments_to_excel]
+    readonly_fields = ("map_preview",)
     fieldsets = (
         (
             "Context",
@@ -2084,9 +2182,34 @@ class RoadSegmentAdmin(AssetContextMapMixin, RoadSectionCascadeAdminMixin, Secti
             },
         ),
         ("Notes", {"fields": ("comment",)}),
-        ("Asset context map", {"fields": ("asset_context_map",)}),
+        ("Map preview", {"fields": ("map_preview",)}),
     )
-    readonly_fields = ("asset_context_map",)
+
+    class Media:
+        css = {"all": ("grms/vendor/leaflet/leaflet.css",)}
+        js = (
+            "grms/vendor/leaflet/leaflet.js",
+            "grms/admin_map.js",
+        )
+
+    def map_preview(self, obj):
+        if not obj or not obj.pk or not obj.section_id:
+            return "Save this record to view the map."
+
+        cfg = {
+            "endpoint": reverse("grms_maps:map_context"),
+            "params": {
+                "road_id": str(obj.section.road_id),
+                "section_id": str(obj.section_id),
+                "segment_id": str(obj.pk),
+            },
+        }
+        return mark_safe(
+            '<div id="grms-map" style="height:420px; border:1px solid #ddd; border-radius:8px;"></div>'
+            f"<script>window.GRMS_MAP_CFG = {json.dumps(cfg)};</script>"
+        )
+
+    map_preview.short_description = "Map"
 
     @admin.display(description="Road", ordering="section__road__road_identifier")
     def road(self, obj):
@@ -2170,17 +2293,17 @@ class RoadSegmentAdmin(AssetContextMapMixin, RoadSectionCascadeAdminMixin, Secti
         road_geom = getattr(road, "geometry", None) if road else None
 
         section_feature = _section_feature(section, road_geom=road_geom, reasons=reasons) if section else None
+        section_line = _resolve_section_line(section, road_geom, reasons)
 
         segments_qs = models.RoadSegment.objects.filter(section_id=segment.section_id)
         segments = []
         for sibling in segments_qs:
-            feature = _segment_feature(sibling, road_geom=road_geom, reasons=reasons)
+            feature = _segment_feature(sibling, line_geom=section_line, reasons=reasons)
             if feature:
                 segments.append(feature)
 
         structures = _structure_features_for_context(
             road_id=section.road_id if section else 0,
-            section_id=segment.section_id if section else None,
             line_geom=road_geom,
             reasons=reasons,
         )
@@ -2198,7 +2321,7 @@ class RoadSegmentAdmin(AssetContextMapMixin, RoadSectionCascadeAdminMixin, Secti
 
 @admin.register(models.StructureInventory, site=grms_admin_site)
 class StructureInventoryAdmin(
-    AssetContextMapMixin, DependentAutocompleteMediaMixin, RoadSectionCascadeAutocompleteMixin, GRMSBaseAdmin
+    DependentAutocompleteMediaMixin, RoadSectionCascadeAutocompleteMixin, GRMSBaseAdmin
 ):
     class StructureInventoryAdminForm(CascadeFKModelFormMixin, CascadeRoadSectionMixin, forms.ModelForm):
         class Meta:
@@ -2260,7 +2383,7 @@ class StructureInventoryAdmin(
         "structure_category",
     )
     list_select_related = ("road", "section")
-    readonly_fields = ("created_date", "modified_date", "derived_lat_lng", "asset_context_map")
+    readonly_fields = ("created_date", "modified_date", "derived_lat_lng", "map_preview")
     form = StructureInventoryAdminForm
     autocomplete_fields = ("road", "section")
     actions = [export_structures_to_excel]
@@ -2314,16 +2437,16 @@ class StructureInventoryAdmin(
         ),
         ("Documentation", {"fields": ("comments", "attachments")}),
         ("Timestamps", {"fields": ("created_date", "modified_date")}),
-        ("Asset context map", {"fields": ("asset_context_map",)}),
+        ("Map preview", {"fields": ("map_preview",)}),
     )
 
     class Media:
-        js = ("grms/admin/cascade_autocomplete.js",)
-
-    class Media:
+        css = {"all": ("grms/vendor/leaflet/leaflet.css",)}
         js = (
+            "grms/vendor/leaflet/leaflet.js",
             "grms/js/structure-inventory-admin.js",
             "grms/admin/cascade_autocomplete.js",
+            "grms/admin_map.js",
         )
 
     def derived_lat_lng(self, obj):
@@ -2334,16 +2457,25 @@ class StructureInventoryAdmin(
 
     derived_lat_lng.short_description = "Lat/Lng"
 
-    def changeform_view(self, request, object_id=None, form_url="", extra_context=None):
-        extra_context = extra_context or {}
-        if object_id:
-            extra_context["asset_map_context_url"] = reverse(
-                "admin:grms_structureinventory_map_context", args=[object_id]
-            )
-        return super().changeform_view(request, object_id, form_url, extra_context)
+    def map_preview(self, obj):
+        if not obj or not obj.pk:
+            return "Save this record to view the map."
 
-    def get_map_context_url(self, obj):
-        return reverse("admin:grms_structureinventory_map_context", args=[obj.pk])
+        road_id = obj.road_id or (obj.section.road_id if obj.section_id else None)
+        if not road_id:
+            return "No road/section linked."
+
+        params = {"road_id": str(road_id), "structure_id": str(obj.pk)}
+        if obj.section_id:
+            params["section_id"] = str(obj.section_id)
+
+        cfg = {"endpoint": reverse("grms_maps:map_context"), "params": params}
+        return mark_safe(
+            '<div id="grms-map" style="height:420px; border:1px solid #ddd; border-radius:8px;"></div>'
+            f"<script>window.GRMS_MAP_CFG = {json.dumps(cfg)};</script>"
+        )
+
+    map_preview.short_description = "Map"
 
     def label(self, obj):
         return structure_label(obj)
@@ -2394,6 +2526,7 @@ class StructureInventoryAdmin(
             ).first()
 
         section_feature = _section_feature(section, road_geom=road_geom, reasons=reasons) if section else None
+        section_line = _resolve_section_line(section, road_geom, reasons)
 
         segment = None
         station_km = structure.station_km
@@ -2413,11 +2546,10 @@ class StructureInventoryAdmin(
                 .first()
             )
 
-        segment_feature = _segment_feature(segment, road_geom=road_geom, reasons=reasons) if segment else None
+        segment_feature = _segment_feature(segment, line_geom=section_line, reasons=reasons) if segment else None
 
         structures = _structure_features_for_context(
             road_id=structure.road_id,
-            section_id=structure.section_id,
             line_geom=road_geom,
             reasons=reasons,
         )
@@ -2568,7 +2700,6 @@ class BridgeDetailAdmin(StructureDetailOverlayMixin, RoadSectionStructureCascade
     structure_category_codes = ("Bridge",)
     list_display = ("structure", "bridge_type", "span_count", "has_head_walls")
     autocomplete_fields = ("structure",)
-    readonly_fields = ("asset_context_map",)
     cascade_autocomplete = {
         "structure": lambda qs, req: _filter_structure_qs(qs, req),
     }
@@ -2589,7 +2720,6 @@ class BridgeDetailAdmin(StructureDetailOverlayMixin, RoadSectionStructureCascade
                 )
             },
         ),
-        ("Asset context map", {"fields": ("asset_context_map",)}),
     )
 
 
@@ -2639,7 +2769,6 @@ class CulvertDetailAdmin(StructureDetailOverlayMixin, RoadSectionStructureCascad
     form = CulvertDetailForm
     structure_category_codes = ("Culvert",)
     autocomplete_fields = ("structure",)
-    readonly_fields = ("asset_context_map",)
     cascade_autocomplete = {
         "structure": lambda qs, req: _filter_structure_qs(qs, req),
     }
@@ -2657,13 +2786,12 @@ class CulvertDetailAdmin(StructureDetailOverlayMixin, RoadSectionStructureCascad
     fieldsets = (
         ("Structure", {"fields": ("road", "section", "structure")}),
         ("Culvert type", {"fields": ("culvert_type",)}),
-        (
-            "Slab/Box dimensions",
-            {"fields": (("width_m", "span_m", "clear_height_m"),)},
-        ),
+          (
+              "Slab/Box dimensions",
+              {"fields": (("width_m", "span_m", "clear_height_m"),)},
+          ),
         ("Pipe details", {"fields": (("num_pipes", "pipe_diameter_m"),)}),
         ("Head walls", {"fields": ("has_head_walls",)}),
-        ("Asset context map", {"fields": ("asset_context_map",)}),
     )
     class Media:
         js = (
@@ -2685,16 +2813,12 @@ class FordDetailAdmin(StructureDetailOverlayMixin, RoadSectionStructureCascadeAd
     form = FordDetailForm
     structure_category_codes = ("Ford",)
     autocomplete_fields = ("structure",)
-    readonly_fields = ("asset_context_map",)
     cascade_autocomplete = {
         "structure": lambda qs, req: _filter_structure_qs(qs, req),
     }
     change_form_template = "admin/grms/structure_detail/change_form.html"
     list_display = ("structure",)
-    fieldsets = (
-        ("Structure", {"fields": ("road", "section", "structure")}),
-        ("Asset context map", {"fields": ("asset_context_map",)}),
-    )
+    fieldsets = (("Structure", {"fields": ("road", "section", "structure")}),)
     class Media:
         js = (
             "grms/admin/cascade_autocomplete.js",
@@ -2714,16 +2838,12 @@ class RetainingWallDetailAdmin(StructureDetailOverlayMixin, RoadSectionStructure
     form = RetainingWallDetailForm
     structure_category_codes = ("Retaining Wall",)
     autocomplete_fields = ("structure",)
-    readonly_fields = ("asset_context_map",)
     cascade_autocomplete = {
         "structure": lambda qs, req: _filter_structure_qs(qs, req),
     }
     change_form_template = "admin/grms/structure_detail/change_form.html"
     list_display = ("structure",)
-    fieldsets = (
-        ("Structure", {"fields": ("road", "section", "structure")}),
-        ("Asset context map", {"fields": ("asset_context_map",)}),
-    )
+    fieldsets = (("Structure", {"fields": ("road", "section", "structure")}),)
     class Media:
         js = (
             "grms/admin/cascade_autocomplete.js",
@@ -2743,16 +2863,12 @@ class GabionWallDetailAdmin(StructureDetailOverlayMixin, RoadSectionStructureCas
     form = GabionWallDetailForm
     structure_category_codes = ("Gabion Wall",)
     autocomplete_fields = ("structure",)
-    readonly_fields = ("asset_context_map",)
     cascade_autocomplete = {
         "structure": lambda qs, req: _filter_structure_qs(qs, req),
     }
     change_form_template = "admin/grms/structure_detail/change_form.html"
     list_display = ("structure",)
-    fieldsets = (
-        ("Structure", {"fields": ("road", "section", "structure")}),
-        ("Asset context map", {"fields": ("asset_context_map",)}),
-    )
+    fieldsets = (("Structure", {"fields": ("road", "section", "structure")}),)
     class Media:
         js = (
             "grms/admin/cascade_autocomplete.js",

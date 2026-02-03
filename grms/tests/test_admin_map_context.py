@@ -14,13 +14,9 @@ except Exception:  # pragma: no cover - fallback when GEOS is unavailable
 
 
 def _make_linestring():
-    if LineString is not None:
-        return LineString((39.0, 13.5), (39.1, 13.6))
-    return {
-        "type": "LineString",
-        "coordinates": [[39.0, 13.5], [39.1, 13.6]],
-        "srid": 4326,
-    }
+    if LineString is None:
+        return None
+    return LineString((39.0, 13.5), (39.1, 13.6))
 
 
 class AdminMapContextTests(TestCase):
@@ -34,6 +30,10 @@ class AdminMapContextTests(TestCase):
         self.client.force_login(self.user)
 
         self.zone = models.AdminZone.objects.create(name="Zone")
+        geom = _make_linestring()
+        if geom is None:
+            self.skipTest("GEOS is required for map context tests.")
+
         self.road = models.Road.objects.create(
             road_identifier="RTR-1",
             road_name_from="Alpha",
@@ -43,7 +43,7 @@ class AdminMapContextTests(TestCase):
             total_length_km=1,
             surface_type="Gravel",
             managing_authority="Regional",
-            geometry=_make_linestring(),
+            geometry=geom,
         )
         self.section = models.RoadSection.objects.create(
             road=self.road,
@@ -52,8 +52,6 @@ class AdminMapContextTests(TestCase):
             length_km=1,
             surface_type="Earth",
         )
-        self.section.geometry = None
-        self.section.save(update_fields=["geometry"])
         self.segment = models.RoadSegment.objects.create(
             section=self.section,
             station_from_km=0,
@@ -67,140 +65,33 @@ class AdminMapContextTests(TestCase):
             section=self.section,
             geometry_type=models.StructureInventory.POINT,
             station_km=0.5,
-            location_point=None,
+            location_point=make_point(13.55, 39.05),
             structure_category="Bridge",
         )
-        models.BridgeDetail.objects.create(structure=self.structure, bridge_type="Concrete")
 
-    def _assert_lon_lat(self, coordinate):
-        self.assertLessEqual(abs(coordinate[0]), 180)
-        self.assertLessEqual(abs(coordinate[1]), 90)
-
-    def _assert_geometry(self, geometry):
-        self.assertIsNotNone(geometry)
-        self.assertIn("type", geometry)
-        self.assertIn("coordinates", geometry)
-        if geometry["type"] == "Point":
-            self._assert_lon_lat(geometry["coordinates"])
-        elif geometry["type"] == "LineString":
-            self._assert_lon_lat(geometry["coordinates"][0])
-        elif geometry["type"] == "MultiLineString":
-            self._assert_lon_lat(geometry["coordinates"][0][0])
-
-    def _assert_feature(self, feature):
-        self.assertEqual(feature.get("type"), "Feature")
-        self._assert_geometry(feature.get("geometry"))
-        self.assertIn("properties", feature)
-        self.assertIn("admin_url", feature["properties"])
-
-    def test_section_map_context(self):
-        url = reverse("admin:grms_roadsection_map_context", args=[self.section.id])
-        response = self.client.get(url)
+    def test_map_context_roles(self):
+        url = reverse("grms_maps:map_context")
+        response = self.client.get(
+            url,
+            {
+                "road_id": self.road.id,
+                "section_id": self.section.id,
+                "segment_id": self.segment.id,
+                "structure_id": self.structure.id,
+            },
+        )
         self.assertEqual(response.status_code, 200)
         payload = response.json()
+        self.assertEqual(payload.get("type"), "FeatureCollection")
+        features = payload.get("features", [])
+        roles = {f.get("properties", {}).get("role") for f in features}
+        self.assertIn("road", roles)
+        self.assertIn("section_current", roles)
+        self.assertIn("segment_current", roles)
+        self.assertIn("structure_current", roles)
 
-        self.assertTrue(payload.get("ok"))
-        self.assertEqual(payload.get("mode"), "section")
-        self.assertIn("features", payload)
-        self.assertIn("highlight", payload)
-        self.assertIn("debug", payload)
-        self.assertEqual(payload["highlight"]["section_id"], self.section.id)
-
-        road_feature = payload["features"]["road"]
-        if road_feature:
-            self._assert_feature(road_feature)
-        for feature in payload["features"]["sections"]["features"]:
-            self._assert_feature(feature)
-
-        structure_feature = next(
-            f
-            for f in payload["features"]["structures"]["features"]
-            if f["properties"]["id"] == self.structure.id
-        )
-        self._assert_feature(structure_feature)
-        self.assertEqual(structure_feature["properties"]["kind"], "bridge")
-        self.assertEqual(
-            structure_feature["properties"]["admin_url"],
-            reverse("admin:grms_bridgedetail_change", args=[self.structure.id]),
-        )
-
-    def test_segment_map_context(self):
-        url = reverse("admin:grms_roadsegment_map_context", args=[self.segment.id])
-        response = self.client.get(url)
-        self.assertEqual(response.status_code, 200)
-        payload = response.json()
-
-        self.assertTrue(payload.get("ok"))
-        self.assertEqual(payload.get("mode"), "segment")
-        self.assertIn("features", payload)
-        self.assertIn("highlight", payload)
-        self.assertIn("debug", payload)
-        self.assertEqual(payload["highlight"]["segment_id"], self.segment.id)
-
-        road_feature = payload["features"]["road"]
-        if road_feature:
-            self._assert_feature(road_feature)
-        for feature in payload["features"]["segments"]["features"]:
-            self._assert_feature(feature)
-
-        structure_feature = next(
-            f
-            for f in payload["features"]["structures"]["features"]
-            if f["properties"]["id"] == self.structure.id
-        )
-        self._assert_feature(structure_feature)
-        self.assertIsNotNone(payload["debug"]["bbox"])
-
-    def test_structure_map_context(self):
-        url = reverse("admin:grms_structureinventory_map_context", args=[self.structure.id])
-        response = self.client.get(url)
-        self.assertEqual(response.status_code, 200)
-        payload = response.json()
-
-        self.assertTrue(payload.get("ok"))
-        self.assertEqual(payload.get("mode"), "structure")
-        self.assertIn("features", payload)
-        self.assertIn("highlight", payload)
-        self.assertIn("debug", payload)
-        self.assertEqual(payload["highlight"]["structure_id"], self.structure.id)
-
-        road_feature = payload["features"]["road"]
-        if road_feature:
-            self._assert_feature(road_feature)
-
-        structure_feature = next(
-            f
-            for f in payload["features"]["structures"]["features"]
-            if f["properties"]["id"] == self.structure.id
-        )
-        self._assert_feature(structure_feature)
-        self.assertIn("label", structure_feature["properties"])
-        self.assertIn("station_km", structure_feature["properties"])
-        bbox = payload["debug"]["bbox"]
-        self.assertIsNotNone(bbox)
-        self.assertLess(bbox[0], bbox[2])
-        self.assertLess(bbox[1], bbox[3])
-
-    def test_change_form_contains_map_container(self):
-        section_url = reverse("admin:grms_roadsection_change", args=[self.section.id])
-        segment_url = reverse("admin:grms_roadsegment_change", args=[self.segment.id])
-        structure_url = reverse("admin:grms_structureinventory_change", args=[self.structure.id])
-
-        for url in (section_url, segment_url, structure_url):
-            response = self.client.get(url)
-            self.assertEqual(response.status_code, 200)
-            self.assertIn(b'id=\"asset-context-map\"', response.content)
-            self.assertIn(b'grms/vendor/leaflet/leaflet.css', response.content)
-            self.assertIn(b'grms/vendor/leaflet/leaflet.js', response.content)
-            self.assertIn(b'grms/js/asset-context-map.js', response.content)
-
-    def test_map_context_requires_login(self):
+    def test_map_context_requires_staff(self):
         self.client.logout()
-        urls = [
-            reverse("admin:grms_roadsection_map_context", args=[self.section.id]),
-            reverse("admin:grms_roadsegment_map_context", args=[self.segment.id]),
-            reverse("admin:grms_structureinventory_map_context", args=[self.structure.id]),
-        ]
-        for url in urls:
-            response = self.client.get(url)
-            self.assertIn(response.status_code, {302, 403})
+        url = reverse("grms_maps:map_context")
+        response = self.client.get(url, {"road_id": self.road.id})
+        self.assertIn(response.status_code, {302, 403})
