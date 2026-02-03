@@ -81,3 +81,20 @@ class AssetContextMapMixin:
     def media(self):
         base = super().media
         return base + forms.Media(css={"all": self.asset_map_css}, js=self.asset_map_js)
+
+
+class AdminMapPreviewMixin:
+    change_form_template = "admin/grms/map_change_form.html"
+
+    def get_grms_map_endpoint(self, request, obj=None):  # pragma: no cover - interface
+        return None
+
+    def changeform_view(self, request, object_id=None, form_url="", extra_context=None):
+        extra_context = extra_context or {}
+        obj = None
+        if object_id:
+            obj = self.get_object(request, object_id)
+        endpoint = self.get_grms_map_endpoint(request, obj)
+        if endpoint:
+            extra_context["grms_map_endpoint"] = endpoint
+        return super().changeform_view(request, object_id, form_url, extra_context=extra_context)

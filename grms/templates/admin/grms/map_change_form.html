@@ -1,0 +1,8 @@
+{% extends "admin/change_form.html" %}
+
+{% block form_top %}
+    {{ block.super }}
+    {% if grms_map_endpoint %}
+        {% include "admin/grms/map_preview_block.html" %}
+    {% endif %}
+{% endblock %}
