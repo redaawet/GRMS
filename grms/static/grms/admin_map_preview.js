@@ -11,12 +11,74 @@
 
   const map = L.map(mapEl, { zoomControl: true });
 
+  const onlineTiles = mapEl.dataset.onlineTiles || "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
+  const onlineAttribution = mapEl.dataset.onlineAttribution || "&copy; OpenStreetMap contributors";
+  const offlineTiles = mapEl.dataset.offlineTiles || "";
+  const offlineAttribution = mapEl.dataset.offlineAttribution || "Offline tiles";
+
+  const makeLayer = (url, attribution) => {
+    if (!url) {
+      return null;
+    }
+    return L.tileLayer(url, { attribution, maxZoom: 19 });
+  };
+
+  const onlineLayer = makeLayer(onlineTiles, onlineAttribution);
+  const offlineLayer = makeLayer(offlineTiles, offlineAttribution);
+  let baseLayer = null;
+
+  const setBaseLayer = (mode) => {
+    if (window.GRMS_DISABLE_BASEMAP === true) {
+      return;
+    }
+    if (baseLayer) {
+      map.removeLayer(baseLayer);
+    }
+    baseLayer = mode === "offline" ? offlineLayer : onlineLayer;
+    if (baseLayer) {
+      baseLayer.addTo(map);
+    }
+  };
+
   if (window.GRMS_DISABLE_BASEMAP !== true) {
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      attribution: "&copy; OpenStreetMap contributors",
-      maxZoom: 19,
-    }).addTo(map);
+    const LayerControl = L.Control.extend({
+      onAdd: function () {
+        const container = L.DomUtil.create("div", "grms-layer-control");
+        const button = L.DomUtil.create("button", "grms-layer-btn", container);
+        button.type = "button";
+        const icon = L.DomUtil.create("span", "grms-layer-icon", button);
+        icon.setAttribute("aria-hidden", "true");
+        const menu = L.DomUtil.create("div", "grms-layer-menu", container);
+
+        const addOption = (id, label, checked, disabled) => {
+          const wrapper = L.DomUtil.create("label", "", menu);
+          const input = L.DomUtil.create("input", "", wrapper);
+          input.type = "radio";
+          input.name = "grms-base-layer";
+          input.value = id;
+          input.checked = checked;
+          input.disabled = disabled;
+          wrapper.appendChild(document.createTextNode(" " + label));
+          input.addEventListener("change", () => setBaseLayer(id));
+        };
+
+        addOption("offline", "Offline", Boolean(offlineLayer), !offlineLayer);
+        addOption("online", "Online", !offlineLayer, !onlineLayer);
+
+        button.addEventListener("click", () => {
+          menu.classList.toggle("is-open");
+        });
+
+        L.DomEvent.disableClickPropagation(container);
+        return container;
+      },
+      onRemove: function () {},
+    });
+
+    map.addControl(new LayerControl({ position: "topright" }));
   }
+
+  setBaseLayer(offlineLayer ? "offline" : "online");
 
   const styles = {
     road: { color: "#666", weight: 2, opacity: 0.7 },

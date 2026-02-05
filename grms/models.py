@@ -1048,7 +1048,7 @@ class StructureInventory(models.Model):
     )
     section = models.ForeignKey(
         RoadSection,
-        on_delete=models.PROTECT,
+        on_delete=models.SET_NULL,
         related_name="structures",
         null=True,
         blank=True,

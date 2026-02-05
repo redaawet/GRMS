@@ -37,7 +37,7 @@ class TrafficSurvey(models.Model):
 
     road = models.ForeignKey(
         Road,
-        on_delete=models.PROTECT,
+        on_delete=models.CASCADE,
         related_name="traffic_surveys",
     )
 
@@ -289,7 +289,7 @@ class TrafficQC(models.Model):
     )
     road = models.ForeignKey(
         Road,
-        on_delete=models.PROTECT,
+        on_delete=models.CASCADE,
         related_name="traffic_qc_issues",
     )
 
@@ -325,7 +325,7 @@ class TrafficCycleSummary(models.Model):
     )
     road = models.ForeignKey(
         Road,
-        on_delete=models.PROTECT,
+        on_delete=models.CASCADE,
         related_name="traffic_cycle_summaries",
     )
 
@@ -372,7 +372,7 @@ class TrafficSurveySummary(models.Model):
 
     road = models.ForeignKey(
         Road,
-        on_delete=models.PROTECT,
+        on_delete=models.CASCADE,
         related_name="traffic_survey_summaries",
     )
 
@@ -435,7 +435,7 @@ class TrafficForPrioritization(models.Model):
 
     road = models.ForeignKey(
         Road,
-        on_delete=models.PROTECT,
+        on_delete=models.CASCADE,
         related_name="traffic_prioritization_values",
     )
 
@@ -450,7 +450,7 @@ class TrafficForPrioritization(models.Model):
 
     source_survey = models.ForeignKey(
         TrafficSurvey,
-        on_delete=models.PROTECT,
+        on_delete=models.SET_NULL,
         related_name="traffic_prioritization_values",
         null=True,
         blank=True,

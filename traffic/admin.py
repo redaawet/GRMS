@@ -150,7 +150,7 @@ class _ReadOnlyAdmin(GRMSBaseAdmin):
         return False
 
     def has_delete_permission(self, request, obj=None):  # pragma: no cover - admin hook
-        return False
+        return request.user.is_superuser
 
     def get_readonly_fields(self, request, obj=None):  # pragma: no cover - admin hook
         if self.readonly_fields:

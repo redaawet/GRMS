@@ -1,10 +1,48 @@
 {% load static %}
 
 <link rel="stylesheet" href="{% static 'grms/vendor/leaflet/leaflet.css' %}">
-<div
-    id="grms-map"
-    data-endpoint="{{ grms_map_endpoint }}"
-    style="height: 420px; border: 1px solid #ddd; border-radius: 8px; margin-bottom: 16px;"
-></div>
+<style>
+  .grms-layer-control {
+    background: #fff;
+    border-radius: 4px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+  }
+  .grms-layer-btn {
+    width: 30px;
+    height: 30px;
+    border: 0;
+    background: #fff;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .grms-layer-menu {
+    display: none;
+    background: #fff;
+    border-top: 1px solid #e5e9ef;
+    padding: 6px 8px;
+    font-size: 12px;
+  }
+  .grms-layer-menu.is-open { display: block; }
+  .grms-layer-menu label { display: block; margin: 3px 0; }
+  .grms-layer-icon {
+    width: 18px;
+    height: 18px;
+    display: block;
+    background: url("{% static 'grms/icons/layers.svg' %}") no-repeat center / 18px 18px;
+  }
+</style>
+<div class="grms-map-preview">
+  <div
+      id="grms-map"
+      data-endpoint="{{ grms_map_endpoint }}"
+      data-online-tiles="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+      data-online-attribution="&copy; OpenStreetMap contributors"
+      data-offline-tiles="{% static 'grms/tiles/{z}/{x}/{y}.png' %}"
+      data-offline-attribution="GRMS Offline Tiles"
+      style="height: 420px; border: 1px solid #ddd; border-radius: 8px; margin-bottom: 16px;"
+  ></div>
+</div>
 <script src="{% static 'grms/vendor/leaflet/leaflet.js' %}"></script>
 <script src="{% static 'grms/admin_map_preview.js' %}"></script>
